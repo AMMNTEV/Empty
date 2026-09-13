@@ -19,8 +19,8 @@ import {
   listAccounts, setLastActive, identityFilePath
 } from './crypto.js';
 
-const RELAY_TTL_MS = 25 * 60 * 60 * 1000;          // блоб живёт 25 часов
-const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
+const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
+const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
 let myIdentity = null;
 let myPassword = null;
@@ -35,13 +35,12 @@ let scannerStream = null;
 let scannerRAF = null;
 let purgeCheckInterval = null;
 
-// Имена файлов для текущего аккаунта (устанавливаются в init)
 let CONTACTS_FILE = null;
 let CHATS_FILE = null;
 
 
 // ============================================
-// OPFS — контакты и чаты привязаны к myHashHex
+// OPFS
 // ============================================
 async function saveContacts() {
   if (!myPassword || !CONTACTS_FILE) return;
@@ -56,7 +55,7 @@ async function loadContacts() {
     const enc = await opfsRead(CONTACTS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('[OPFS] Не удалось расшифровать контакты:', e);
+    console.error('[OPFS] контакты:', e);
     return {};
   }
 }
@@ -69,7 +68,7 @@ async function saveChats() {
       const encrypted = await encryptIdentity(chatHistory, myPassword);
       await opfsWrite(CHATS_FILE, encrypted);
     } catch (e) {
-      console.error('[OPFS] Не удалось сохранить историю:', e);
+      console.error('[OPFS] чаты:', e);
     }
   }, 500);
 }
@@ -81,14 +80,14 @@ async function loadChats() {
     const enc = await opfsRead(CHATS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('[OPFS] Не удалось расшифровать историю:', e);
+    console.error('[OPFS] чаты:', e);
     return {};
   }
 }
 
 
 // ============================================
-// ПУТЬ К INBOX
+// INBOX
 // ============================================
 function myInboxRef() {
   return collection(db, 'users', myHashHex, 'inbox');
@@ -106,7 +105,7 @@ async function purgeExpiredChats() {
     if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
       console.log(`[PURGE] Чат с "${chatHistory[fp].peerNickname}" истёк`);
 
-      purgeRelayForContact(fp).catch(e => console.warn('[PURGE] relay error:', e));
+      purgeRelayForContact(fp).catch(e => console.warn('[PURGE]', e));
 
       if (activeChat && activeChat.fingerprint === fp) {
         if (timerInterval) clearInterval(timerInterval);
@@ -126,7 +125,6 @@ async function purgeExpiredChats() {
   }
 }
 
-// Удалить из своего inbox всё, что пришло от конкретного контакта
 async function purgeRelayForContact(peerFingerprint) {
   try {
     const peer = contacts[peerFingerprint];
@@ -151,7 +149,7 @@ async function purgeRelayForContact(peerFingerprint) {
     }
     return toDelete.length;
   } catch (e) {
-    console.warn('[PURGE] error:', e);
+    console.warn('[PURGE]', e);
     return 0;
   }
 }
@@ -171,37 +169,26 @@ async function init() {
 
   try {
     const path = identityFilePath(myFp);
-    if (!await opfsExists(path)) {
-      throw new Error('Файл аккаунта не найден');
-    }
+    if (!await opfsExists(path)) throw new Error('Файл аккаунта не найден');
     const enc = await opfsRead(path);
     myIdentity = await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('[INIT] Не удалось расшифровать identity:', e);
+    console.error('[INIT]', e);
     sessionStorage.removeItem('_pw');
     sessionStorage.removeItem('_fp');
     window.location.href = 'index.html';
     return;
   }
 
-  // Считаем hex-хэш — на его основе строим имена файлов контактов/чатов
   myHashHex = await hashPubkeyHex(myIdentity.x25519.public);
   CONTACTS_FILE = `contacts_${myHashHex}.enc`;
   CHATS_FILE = `chats_${myHashHex}.enc`;
-
-  console.log('[ME] nickname:', myIdentity.nickname);
-  console.log('[ME] myHashHex:', myHashHex);
-  console.log('[ME] CONTACTS_FILE:', CONTACTS_FILE);
-  console.log('[ME] CHATS_FILE:', CHATS_FILE);
 
   document.getElementById('meName').textContent = myIdentity.nickname;
   document.getElementById('meFp').textContent = myIdentity.fingerprint;
 
   contacts = await loadContacts();
   chatHistory = await loadChats();
-
-  console.log('[INIT] loaded contacts:', Object.keys(contacts).length);
-  console.log('[INIT] loaded chats:', Object.keys(chatHistory).length);
 
   await purgeExpiredChats();
 
@@ -211,7 +198,7 @@ async function init() {
 
   if (purgeCheckInterval) clearInterval(purgeCheckInterval);
   purgeCheckInterval = setInterval(() => {
-    purgeExpiredChats().catch(e => console.warn('[PURGE] timer error:', e));
+    purgeExpiredChats().catch(e => console.warn('[PURGE]', e));
   }, 60 * 1000);
 }
 
@@ -231,7 +218,7 @@ function buildMyCard() {
 
 
 // ============================================
-// РЕНДЕР КОНТАКТОВ
+// КОНТАКТЫ
 // ============================================
 function renderContacts() {
   const list = document.getElementById('contactsList');
@@ -246,13 +233,11 @@ function renderContacts() {
     const c = contacts[fp];
     const initial = (c.nickname || '?').charAt(0).toUpperCase();
     const active = activeChat && activeChat.fingerprint === fp ? 'active' : '';
-    const hasHistory = chatHistory[fp] && chatHistory[fp].messages.length > 0;
-    const badge = hasHistory ? ' <span style="color: var(--blue); font-size: 11px;">●</span>' : '';
     return `
       <div class="contact ${active}" data-fp="${fp}">
         <div class="avatar">${initial}</div>
         <div class="contact-info">
-          <div class="contact-name">${escapeHtml(c.nickname || 'Без имени')}${badge}</div>
+          <div class="contact-name">${escapeHtml(c.nickname || 'Без имени')}</div>
           <div class="contact-fp">${fp}</div>
         </div>
       </div>
@@ -274,7 +259,7 @@ function escapeHtml(s) {
 
 
 // ============================================
-// МОЯ КАРТОЧКА (QR)
+// QR: МОЯ КАРТОЧКА
 // ============================================
 async function showMyCard() {
   const card = buildMyCard();
@@ -286,7 +271,6 @@ async function showMyCard() {
 
   try {
     if (typeof qrcode !== 'function') throw new Error('QR-библиотека не загружена');
-
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
@@ -308,24 +292,17 @@ async function showMyCard() {
     for (let row = 0; row < count; row++) {
       for (let col = 0; col < count; col++) {
         if (qr.isDark(row, col)) {
-          ctx.fillRect(
-            margin + col * cellSize,
-            margin + row * cellSize,
-            cellSize,
-            cellSize
-          );
+          ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
         }
       }
     }
 
     canvas.style.maxWidth = '100%';
     canvas.style.height = 'auto';
-    canvas.style.display = 'block';
     qrBox.appendChild(canvas);
-
   } catch (e) {
-    console.error('[QR] generation error:', e);
-    qrBox.innerHTML = '<div style="color: #333; font-size: 12px; padding: 10px;">QR недоступен — используйте JSON</div>';
+    console.error('[QR]', e);
+    qrBox.innerHTML = '<div style="color:#333;font-size:12px;padding:10px;">QR недоступен — используйте JSON</div>';
   }
 
   document.getElementById('modalMyCard').classList.add('active');
@@ -374,7 +351,7 @@ async function startScanner() {
     };
     tick();
   } catch (e) {
-    console.error('[SCAN] Camera error:', e);
+    console.error('[SCAN]', e);
     errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
   }
 }
@@ -397,7 +374,7 @@ async function handleScannedQR(text) {
     closeAddContactModal();
     setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
   } catch (e) {
-    console.error('[SCAN] parse error:', e);
+    console.error('[SCAN]', e);
     document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
   }
 }
@@ -417,19 +394,14 @@ async function addContactFromCard(card) {
   const existing = contacts[card.fingerprint];
   if (existing) {
     const keysChanged = existing.x25519 !== card.x25519 || existing.ed25519 !== card.ed25519;
-    const nameChanged = existing.nickname !== card.nickname;
-
     if (keysChanged) {
       const ok = confirm(
         `Ключи контакта "${card.nickname}" изменились.\n` +
-        `Собеседник пересоздал профиль.\n\n` +
         `Обновить контакт? Старая переписка будет удалена.`
       );
       if (!ok) return;
       delete chatHistory[card.fingerprint];
       await saveChats();
-    } else if (nameChanged) {
-      console.log(`[CONTACT] обновлён ник: ${existing.nickname} → ${card.nickname}`);
     }
   }
 
@@ -464,7 +436,7 @@ async function addContactFromJson(json) {
 
 
 // ============================================
-// МОДАЛКА ДОБАВЛЕНИЯ — ВКЛАДКИ
+// МОДАЛКА ДОБАВЛЕНИЯ
 // ============================================
 function openAddContactModal() {
   document.getElementById('addError').textContent = '';
@@ -541,8 +513,7 @@ function renderChat() {
     header.classList.remove('active');
     messages.classList.remove('active');
     inputArea.classList.remove('active');
-    // NEW: очищаем содержимое
-    messages.innerHTML = '';
+    messages.innerHTML = '';   // очистка
     return;
   }
 
@@ -574,10 +545,7 @@ function startTimer() {
     const history = chatHistory[activeChat.fingerprint];
     if (!history) return;
     const left = history.expiresAt - Date.now();
-    if (left <= 0) {
-      endChat();
-      return;
-    }
+    if (left <= 0) { endChat(); return; }
     const h = Math.floor(left / 3600000);
     const min = Math.floor((left % 3600000) / 60000);
     const sec = Math.floor((left % 60000) / 1000);
@@ -652,8 +620,6 @@ async function sendMessage() {
     const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
     const inboxRef = collection(db, 'users', toHashHex, 'inbox');
 
-    console.log(`[SEND] → ${activeChat.peerCard.nickname} (${toHashHex.slice(0,8)}...) text="${text}"`);
-
     await addDoc(inboxRef, {
       from: myHashHex,
       iv: blob.iv,
@@ -663,10 +629,8 @@ async function sendMessage() {
       senderCardB64: senderCardB64,
       ttl: Date.now() + RELAY_TTL_MS
     });
-
-    console.log('[SEND] ✅ отправлено в Firestore');
   } catch (e) {
-    console.error('[SEND] ❌ ошибка:', e);
+    console.error('[SEND]', e);
   }
 
   if (!chatHistory[fp]) {
@@ -693,102 +657,78 @@ async function sendMessage() {
 async function listenIncoming() {
   const inboxRef = myInboxRef();
 
-  console.log('[LISTEN] subscribing to:', `users/${myHashHex}/inbox`);
-
   unsubscribeIncoming = onSnapshot(inboxRef, async (snapshot) => {
-    console.log('[LISTEN] snapshot, changes:', snapshot.docChanges().length);
-
     for (const change of snapshot.docChanges()) {
       if (change.type !== 'added') continue;
 
       const data = change.doc.data();
       const docId = change.doc.id;
 
-      console.log('[RECV] ← blob', docId.slice(0,8), 'from:', data.from?.slice(0,8), '...');
-
-      // Парсим карточку отправителя
       let senderCard = null;
       if (typeof data.senderCardB64 === 'string') {
         try {
           const json = decodeURIComponent(escape(atob(data.senderCardB64)));
           senderCard = JSON.parse(json);
-        } catch (e) {
-          console.warn('[RECV] не распарсил senderCardB64:', e);
-        }
+        } catch (e) { /* ignore */ }
       }
 
-      // Ищем отправителя в контактах
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
 
-      // Авто-handshake для нового контакта
       if (!peerFp && senderCard) {
         try {
           const card = senderCard;
           if (!card.x25519 || !card.fingerprint || !card.ed25519) {
-            console.log('[RECV] SKIP: неполная карточка');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           const cardHash = await hashPubkeyHex(card.x25519);
           if (cardHash !== data.from) {
-            console.log('[RECV] SKIP: cardHash != from');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           if (data.senderEd25519 !== card.ed25519) {
-            console.log('[RECV] SKIP: senderEd25519 mismatch');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           contacts[card.fingerprint] = card;
           await saveContacts();
           peerFp = card.fingerprint;
-          console.log('[RECV] ✅ авто-добавлен контакт:', card.nickname);
           renderContacts();
         } catch (e) {
-          console.error('[RECV] авто-handshake error:', e);
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
       }
 
       if (!peerFp) {
-        console.log('[RECV] SKIP: peerFp не найден');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Просрочка блоба
       if (data.ttl && data.ttl < Date.now()) {
-        console.log('[RECV] SKIP: ttl expired');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Подпись
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
         if (!valid) {
-          console.log('[RECV] SKIP: signature invalid');
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
         if (data.senderEd25519 !== contacts[peerFp].ed25519) {
-          console.log('[RECV] SKIP: senderEd25519 != contact');
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
       } else {
-        console.log('[RECV] SKIP: no signature');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Расшифровка
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -802,23 +742,19 @@ async function listenIncoming() {
         );
         payload = JSON.parse(plain);
       } catch (e) {
-        console.error('[RECV] SKIP: decrypt error', e);
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // ПРОПУСКАЕМ только если чат ИСТЁК (не "отсутствует")
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
 
       if (chatExpired && !isActiveWithPeer) {
-        console.log(`[RECV] SKIP: чат с "${contacts[peerFp].nickname}" истёк`);
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Удаляем блоб и добавляем сообщение
       try { await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId)); } catch (e) {}
 
       if (!chatHistory[peerFp]) {
@@ -840,8 +776,6 @@ async function listenIncoming() {
 
       saveChats();
 
-      console.log(`[RECV] ✅ от "${contacts[peerFp].nickname}": "${payload.text}"`);
-
       if (activeChat && activeChat.fingerprint === peerFp) {
         renderChat();
         startTimer();
@@ -850,7 +784,7 @@ async function listenIncoming() {
       }
     }
   }, (error) => {
-    console.error('[LISTEN] onSnapshot ERROR:', error);
+    console.error('[LISTEN]', error);
   });
 }
 
@@ -909,9 +843,9 @@ function bindUI() {
     }
   });
   msgInput.addEventListener('input', () => {
-  msgInput.style.height = 'auto';
-  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
-});
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+  });
 
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
@@ -922,8 +856,9 @@ function bindUI() {
   });
 }
 
+
 // ============================================
-// УСТРОЙСТВА (экспорт identity)
+// УСТРОЙСТВА
 // ============================================
 function openDevicesModal() {
   document.getElementById('exportPassword').value = '';
@@ -939,10 +874,7 @@ function closeDevicesModal() {
 
 async function generateExport() {
   const pw = document.getElementById('exportPassword').value;
-  if (pw.length < 6) {
-    alert('Пароль минимум 6 символов');
-    return;
-  }
+  if (pw.length < 6) { alert('Пароль минимум 6 символов'); return; }
 
   try {
     const exportObj = await exportIdentity(myIdentity, pw);
@@ -956,30 +888,21 @@ async function generateExport() {
       const qr = qrcode(0, 'L');
       qr.addData(json);
       qr.make();
-
       const cellSize = 4;
       const margin = 4;
       const count = qr.getModuleCount();
       const size = count * cellSize + margin * 2;
-
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
-
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, size, size);
       ctx.fillStyle = '#000000';
-
       for (let row = 0; row < count; row++) {
         for (let col = 0; col < count; col++) {
           if (qr.isDark(row, col)) {
-            ctx.fillRect(
-              margin + col * cellSize,
-              margin + row * cellSize,
-              cellSize,
-              cellSize
-            );
+            ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
           }
         }
       }
@@ -1009,6 +932,7 @@ async function copyExport() {
   }
 }
 
+
 // ============================================
 // АККАУНТЫ
 // ============================================
@@ -1026,7 +950,7 @@ async function renderAccountsModal() {
   const list = document.getElementById('accountsList');
 
   if (data.accounts.length === 0) {
-    list.innerHTML = '<div style="text-align:center; color:#666; font-size:13px;">Нет аккаунтов</div>';
+    list.innerHTML = '<div style="text-align:center;color:#666;font-size:13px;">Нет аккаунтов</div>';
     return;
   }
 
@@ -1039,7 +963,6 @@ async function renderAccountsModal() {
   list.innerHTML = sorted.map(acc => {
     const initial = (acc.nickname || '?').charAt(0).toUpperCase();
     const isCurrent = acc.fingerprint === myIdentity.fingerprint;
-
     return `
       <div class="acct-item ${isCurrent ? 'current' : ''}">
         <div class="acct-avatar">${initial}</div>
@@ -1056,12 +979,9 @@ async function renderAccountsModal() {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const fp = btn.dataset.switch;
-
       if (!confirm('Переключиться на другой аккаунт? Вас попросят ввести пароль.')) return;
-
       sessionStorage.removeItem('_pw');
       sessionStorage.removeItem('_fp');
-
       await setLastActive(fp);
       window.location.href = 'index.html';
     });
