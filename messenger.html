@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empty — Мессенджер</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f; color: #e0e0e0; height: 100vh;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* Верхняя панель */
+    .topbar {
+      padding: 12px 16px; background: #1a1a1a;
+      border-bottom: 1px solid #252525;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .me { font-size: 13px; color: #888; }
+    .me b { color: #e0e0e0; }
+    .topbar button {
+      background: #3b82f6; border: none; color: #fff;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px;
+      cursor: pointer; margin-left: 8px;
+    }
+    .topbar button.secondary { background: #333; }
+
+    /* Основная область: слева контакты, справа чат */
+    .main { flex: 1; display: flex; overflow: hidden; }
+
+    .sidebar {
+      width: 280px; background: #141414; border-right: 1px solid #252525;
+      overflow-y: auto; flex-shrink: 0;
+    }
+    .sidebar h3 {
+      font-size: 12px; text-transform: uppercase; color: #666;
+      padding: 16px 16px 8px;
+    }
+    .contact {
+      padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1e1e1e;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .contact:hover { background: #1e1e1e; }
+    .contact.active { background: #252525; }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: #3b82f6; color: #fff; display: flex;
+      align-items: center; justify-content: center;
+      font-weight: 600; flex-shrink: 0;
+    }
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name { font-size: 14px; font-weight: 500; }
+    .contact-fp { font-size: 11px; color: #666; font-family: monospace;
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Чат */
+    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .chat-header {
+      padding: 12px 16px; background: #1a1a1a;
+      border-bottom: 1px solid #252525;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .chat-header .title { font-size: 15px; font-weight: 500; }
+    .chat-header .timer { font-size: 12px; color: #f59e0b; }
+
+    .messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .msg {
+      max-width: 70%; padding: 10px 14px; border-radius: 14px;
+      font-size: 14px; word-wrap: break-word;
+    }
+    .msg.me { align-self: flex-end; background: #3b82f6; color: #fff; }
+    .msg.other { align-self: flex-start; background: #252525; }
+    .msg.sys {
+      align-self: center; background: transparent; color: #666;
+      font-size: 12px; padding: 4px;
+    }
+
+    .input-area {
+      padding: 12px 16px; background: #1a1a1a;
+      border-top: 1px solid #252525;
+      display: flex; gap: 10px; flex-shrink: 0;
+    }
+    .input-area input {
+      flex: 1; padding: 10px 14px; background: #252525;
+      border: 1px solid #333; border-radius: 10px; color: #fff;
+      font-size: 14px; outline: none;
+    }
+    .input-area input:focus { border-color: #3b82f6; }
+    .input-area button {
+      background: #3b82f6; border: none; color: #fff;
+      padding: 10px 20px; border-radius: 10px; cursor: pointer;
+      font-size: 14px; font-weight: 500;
+    }
+    .empty {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      color: #444; font-size: 14px;
+    }
+
+    /* Модалки */
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 1000;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal.active { display: flex; }
+    .modal-card {
+      background: #1a1a1a; border-radius: 16px; padding: 24px;
+      max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-card h2 { font-size: 18px; margin-bottom: 16px; }
+    .modal-card textarea {
+      width: 100%; min-height: 100px; padding: 12px;
+      background: #252525; border: 1px solid #333; border-radius: 10px;
+      color: #fff; font-family: monospace; font-size: 12px;
+      resize: vertical; outline: none;
+    }
+    .modal-card button {
+      width: 100%; padding: 12px; background: #3b82f6;
+      border: none; border-radius: 10px; color: #fff;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      margin-top: 10px;
+    }
+    .modal-card button.secondary { background: #333; }
+    .qr-box {
+      background: #fff; padding: 16px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 16px 0;
+    }
+    .qr-box img, .qr-box canvas { display: block; max-width: 100%; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="me">Вы: <b id="meName">...</b> <span id="meFp" style="font-family: monospace; color: #555;"></span></div>
+    <div>
+      <button id="btnMyCard" class="secondary">Моя карточка</button>
+      <button id="btnAddContact">Добавить контакт</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <h3>Контакты</h3>
+      <div id="contactsList"></div>
+    </div>
+
+    <div class="chat-area">
+      <div class="chat-header" id="chatHeader" style="display: none;">
+        <div>
+          <div class="title" id="chatTitle">—</div>
+          <div class="timer" id="chatTimer"></div>
+        </div>
+        <button id="btnEndChat" style="background: #ef4444;">Завершить чат</button>
+      </div>
+
+      <div id="chatEmpty" class="empty">Выберите контакт слева</div>
+
+      <div class="messages" id="messages" style="display: none;"></div>
+
+      <div class="input-area" id="inputArea" style="display: none;">
+        <input type="text" id="msgInput" placeholder="Сообщение..." autocomplete="off">
+        <button id="btnSend">Отправить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка: моя карточка -->
+  <div class="modal" id="modalMyCard">
+    <div class="modal-card">
+      <h2>Моя карточка</h2>
+      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
+        Покажите этот QR тому, с кем хотите связаться.
+      </p>
+      <div class="qr-box" id="qrBox"></div>
+      <textarea id="myCardJson" readonly></textarea>
+      <button id="btnCopyCard" class="secondary">Скопировать JSON</button>
+      <button id="btnCloseMyCard" class="secondary">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Модалка: добавить контакт -->
+  <div class="modal" id="modalAddContact">
+    <div class="modal-card">
+      <h2>Добавить контакт</h2>
+      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
+        Вставьте JSON-карточку, которую вам прислали.
+      </p>
+      <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
+      <button id="btnSaveContact">Добавить</button>
+      <button id="btnCloseAddContact" class="secondary">Отмена</button>
+      <div id="addError" style="color: #ef4444; font-size: 13px; margin-top: 8px;"></div>
+    </div>
+  </div>
+
+  <script type="module" src="messenger.js"></script>
+</body>
+</html>
