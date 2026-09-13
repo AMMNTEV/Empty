@@ -1,9 +1,10 @@
 // ============================================
-// index.js — создание / разблокировка identity
+// index.js — создание / разблокировка / импорт identity
 // ============================================
 import {
   opfsWrite, opfsRead, opfsExists,
-  generateIdentity, encryptIdentity, decryptIdentity
+  generateIdentity, encryptIdentity, decryptIdentity,
+  importIdentity
 } from './crypto.js';
 
 const IDENTITY_FILE = 'identity.enc';
@@ -15,18 +16,10 @@ function showScreen(id) {
 
 // ---------- Валидация ника ----------
 function sanitizeNickname(raw) {
-  // NFC нормализация — й, ё, é приводятся к каноническому виду
   let s = (raw || '').normalize('NFC').trim();
-
-  // Разрешены: буквы (любые Unicode), цифры, пробел, _ - .
   s = s.replace(/[^\p{L}\p{N} _\-.]+/gu, '');
-
-  // Схлопываем множественные пробелы
   s = s.replace(/\s+/g, ' ');
-
-  // Обрезаем до 24
   if (s.length > 24) s = s.slice(0, 24).trim();
-
   return s;
 }
 
@@ -49,15 +42,9 @@ async function handleCreate() {
   btn.textContent = 'Генерация ключей...';
 
   try {
-    console.log('▶ generateIdentity:', nickname);
     const identity = await generateIdentity(nickname);
-    console.log('✅ identity ok:', identity.fingerprint);
-    console.log('   nickname codePoints:', [...identity.nickname].map(c => c.codePointAt(0).toString(16)));
-
     const encrypted = await encryptIdentity(identity, password);
     await opfsWrite(IDENTITY_FILE, encrypted);
-    console.log('✅ записано в OPFS');
-
     sessionStorage.setItem('_pw', password);
     window.location.href = 'messenger.html';
   } catch (e) {
@@ -81,8 +68,6 @@ async function handleUnlock() {
   try {
     const encrypted = await opfsRead(IDENTITY_FILE);
     const identity = await decryptIdentity(encrypted, password);
-    console.log('✅ разблокировано:', identity.fingerprint);
-    console.log('   nickname codePoints:', [...identity.nickname].map(c => c.codePointAt(0).toString(16)));
     sessionStorage.setItem('_pw', password);
     window.location.href = 'messenger.html';
   } catch (e) {
@@ -93,10 +78,58 @@ async function handleUnlock() {
   }
 }
 
+// ---------- Импорт с другого устройства ----------
+async function handleImport() {
+  const json = document.getElementById('importJson').value.trim();
+  const exportPassword = document.getElementById('importPassword').value;
+  const newPassword = document.getElementById('importNewPassword').value;
+  const newPassword2 = document.getElementById('importNewPassword2').value;
+  const errEl = document.getElementById('importError');
+  const btn = document.getElementById('importBtn');
+
+  errEl.textContent = '';
+  if (!json) { errEl.textContent = 'Вставьте данные экспорта'; return; }
+  if (!exportPassword) { errEl.textContent = 'Введите пароль экспорта'; return; }
+  if (newPassword.length < 6) { errEl.textContent = 'Новый пароль минимум 6 символов'; return; }
+  if (newPassword !== newPassword2) { errEl.textContent = 'Новые пароли не совпадают'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Импорт...';
+
+  try {
+    const exportObj = JSON.parse(json);
+    const identity = await importIdentity(exportObj, exportPassword);
+    console.log('✅ импортирована identity:', identity.fingerprint);
+
+    // Сохраняем локально уже с НОВЫМ паролем пользователя
+    const encrypted = await encryptIdentity(identity, newPassword);
+    await opfsWrite(IDENTITY_FILE, encrypted);
+    sessionStorage.setItem('_pw', newPassword);
+
+    window.location.href = 'messenger.html';
+  } catch (e) {
+    console.error('❌', e);
+    errEl.textContent = 'Ошибка: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = 'Импортировать';
+  }
+}
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createBtn').addEventListener('click', handleCreate);
   document.getElementById('unlockBtn').addEventListener('click', handleUnlock);
+  document.getElementById('importBtn').addEventListener('click', handleImport);
+
+  // Ссылки на экраны
+  document.getElementById('linkToImport').addEventListener('click', (e) => {
+    e.preventDefault();
+    showScreen('screen-import');
+  });
+  document.getElementById('linkBackToCreate').addEventListener('click', (e) => {
+    e.preventDefault();
+    showScreen('screen-create');
+  });
 
   const exists = await opfsExists(IDENTITY_FILE);
   showScreen(exists ? 'screen-unlock' : 'screen-create');

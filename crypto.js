@@ -225,3 +225,82 @@ export async function verifyBlob(data, signatureBase64, ed25519PubBase64) {
 export function uuid() {
   return crypto.randomUUID();
 }
+
+// ---------- Экспорт / Импорт identity ----------
+
+// Зашифровать приватные ключи временным паролем для передачи на другое устройство
+export async function exportIdentity(identity, exportPassword) {
+  // Что передаём в зашифрованном виде:
+  const payload = {
+    nickname: identity.nickname,
+    x25519_private: identity.x25519.private,
+    ed25519_private: identity.ed25519.private
+  };
+
+  // Публичные ключи + fingerprint передаём открыто — они и так публичны
+  const publicData = {
+    version: 1,
+    type: 'identity-export',
+    x25519_public: identity.x25519.public,
+    ed25519_public: identity.ed25519.public,
+    fingerprint: identity.fingerprint,
+    createdAt: identity.createdAt
+  };
+
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = await deriveKeyFromPassword(exportPassword, salt);
+
+  const json = JSON.stringify(payload);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, utf8Encode(json)
+  );
+
+  return {
+    ...publicData,
+    salt: bufToBase64(salt),
+    iv: bufToBase64(iv),
+    ciphertext: bufToBase64(encrypted)
+  };
+}
+
+// Восстановить identity из экспорта с временным паролем
+export async function importIdentity(exportObj, exportPassword) {
+  if (!exportObj || exportObj.type !== 'identity-export') {
+    throw new Error('Это не файл экспорта identity');
+  }
+  if (!exportObj.salt || !exportObj.iv || !exportObj.ciphertext) {
+    throw new Error('Повреждённый экспорт');
+  }
+
+  const salt = base64ToBuf(exportObj.salt);
+  const iv = base64ToBuf(exportObj.iv);
+  const ciphertext = base64ToBuf(exportObj.ciphertext);
+  const key = await deriveKeyFromPassword(exportPassword, salt);
+
+  let decrypted;
+  try {
+    decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv }, key, ciphertext
+    );
+  } catch {
+    throw new Error('Неверный пароль экспорта');
+  }
+
+  const payload = JSON.parse(utf8Decode(decrypted));
+
+  return {
+    version: 1,
+    createdAt: exportObj.createdAt || Date.now(),
+    nickname: payload.nickname,
+    x25519: {
+      public: exportObj.x25519_public,
+      private: payload.x25519_private
+    },
+    ed25519: {
+      public: exportObj.ed25519_public,
+      private: payload.ed25519_private
+    },
+    fingerprint: exportObj.fingerprint
+  };
+}

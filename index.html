@@ -23,6 +23,7 @@
       padding: 20px;
       padding-top: calc(20px + env(safe-area-inset-top));
       padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      overflow-y: auto;
     }
 
     .card {
@@ -34,12 +35,11 @@
     }
 
     h1 { font-size: 22px; margin-bottom: 8px; font-weight: 600; }
-
     .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; line-height: 1.4; }
 
     label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
 
-    input {
+    input, textarea {
       width: 100%;
       padding: 12px 14px;
       background: #252525;
@@ -53,7 +53,14 @@
       transition: border-color 0.15s;
     }
 
-    input:focus { border-color: #3b82f6; }
+    textarea {
+      font-family: monospace;
+      font-size: 12px;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    input:focus, textarea:focus { border-color: #3b82f6; }
 
     button {
       width: 100%;
@@ -73,6 +80,15 @@
     button:hover { background: #2563eb; }
     button:disabled { background: #444; cursor: not-allowed; }
 
+    button.secondary {
+      background: transparent;
+      color: #888;
+      font-weight: 500;
+      font-size: 13px;
+      padding: 8px;
+    }
+    button.secondary:hover { color: #e0e0e0; background: transparent; }
+
     .error {
       color: #ef4444;
       font-size: 13px;
@@ -89,6 +105,16 @@
       line-height: 1.3;
     }
 
+    .warning {
+      font-size: 12px;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
     .screen { display: none; }
     .screen.active { display: block; }
 
@@ -100,6 +126,7 @@
 </head>
 <body>
 
+  <!-- Создание -->
   <div class="card screen" id="screen-create">
     <h1>Добро пожаловать</h1>
     <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
@@ -116,8 +143,11 @@
 
     <button id="createBtn">Создать</button>
     <div class="error" id="createError"></div>
+
+    <button class="secondary" id="linkToImport">У меня уже есть аккаунт на другом устройстве →</button>
   </div>
 
+  <!-- Разблокировка -->
   <div class="card screen" id="screen-unlock">
     <h1>С возвращением</h1>
     <p class="subtitle">Введите пароль для разблокировки</p>
@@ -127,6 +157,33 @@
 
     <button id="unlockBtn">Войти</button>
     <div class="error" id="unlockError"></div>
+  </div>
+
+  <!-- Импорт с другого устройства -->
+  <div class="card screen" id="screen-import">
+    <h1>Импорт аккаунта</h1>
+    <p class="subtitle">Вставьте данные, которые вам показало старое устройство.</p>
+
+    <div class="warning">
+      ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
+    </div>
+
+    <label>Данные экспорта (JSON)</label>
+    <textarea id="importJson" placeholder='{"version":1,"type":"identity-export",...}'></textarea>
+
+    <label>Пароль экспорта (задан на старом устройстве)</label>
+    <input type="password" id="importPassword" placeholder="Временный пароль">
+
+    <label>Новый пароль для этого устройства</label>
+    <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
+
+    <label>Повторите новый пароль</label>
+    <input type="password" id="importNewPassword2" placeholder="Ещё раз">
+
+    <button id="importBtn">Импортировать</button>
+    <div class="error" id="importError"></div>
+
+    <button class="secondary" id="linkBackToCreate">← Назад</button>
   </div>
 
   <script type="module" src="index.js"></script>

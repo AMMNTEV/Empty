@@ -527,6 +527,14 @@
       <div class="me-fp" id="meFp"></div>
     </div>
     <div class="topbar-actions">
+      <button id="btnDevices" title="Устройства">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+    <line x1="8" y1="21" x2="16" y2="21"></line>
+    <line x1="12" y1="17" x2="12" y2="21"></line>
+  </svg>
+  <span class="btn-label">Устройства</span>
+</button>
       <button id="btnMyCard" title="Моя карточка">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7"></rect>
@@ -631,5 +639,38 @@
   </div>
 
   <script type="module" src="messenger.js"></script>
+<!-- МОДАЛКА: УСТРОЙСТВА -->
+<div class="modal" id="modalDevices">
+  <div class="modal-card">
+    <h2>Устройства</h2>
+    <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
+
+    <div class="warning" style="font-size: 12px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; line-height: 1.4;">
+      ⚠️ QR/код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
+    </div>
+
+    <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px;">
+      Временный пароль для передачи
+    </label>
+    <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)"
+           style="width:100%; padding:12px 14px; background:#252525; border:1px solid #333;
+                  border-radius:10px; color:#fff; font-size:15px; margin-bottom:16px; outline:none;">
+
+    <button id="btnGenerateExport">Сгенерировать код</button>
+
+    <div id="exportResult" style="display:none; margin-top:16px;">
+      <div class="qr-box" id="exportQrBox" style="background:#fff; padding:12px; border-radius:12px;
+           display:flex; align-items:center; justify-content:center; margin:12px 0;">
+      </div>
+      <textarea id="exportJson" readonly
+                style="width:100%; min-height:100px; padding:12px; background:#252525;
+                       border:1px solid #333; border-radius:10px; color:#fff;
+                       font-family:monospace; font-size:12px; resize:vertical; outline:none;"></textarea>
+      <button id="btnCopyExport" class="secondary">Скопировать код</button>
+    </div>
+
+    <button id="btnCloseDevices" class="secondary">Закрыть</button>
+  </div>
+</div>
 </body>
 </html>

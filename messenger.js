@@ -13,7 +13,8 @@ import {
   decryptIdentity, encryptIdentity,
   deriveSharedKey, encryptMessage, decryptMessage,
   hashPubkey,
-  signBlob, verifyBlob, uuid
+  signBlob, verifyBlob, uuid,
+  exportIdentity  // ← НОВОЕ
 } from './crypto.js';
 
 const IDENTITY_FILE = 'identity.enc';
@@ -330,12 +331,35 @@ async function addContactFromCard(card) {
     throw new Error('Это ваша карточка');
   }
 
-  console.log('[ADD CONTACT] nickname:', card.nickname,
-              'codePoints:', [...(card.nickname || '')].map(c => c.codePointAt(0).toString(16)));
+  const existing = contacts[card.fingerprint];
+  if (existing) {
+    const keysChanged = existing.x25519 !== card.x25519 || existing.ed25519 !== card.ed25519;
+    const nameChanged = existing.nickname !== card.nickname;
+
+    if (keysChanged) {
+      const ok = confirm(
+        `Ключи контакта "${card.nickname}" изменились.\n` +
+        `Собеседник пересоздал профиль.\n\n` +
+        `Обновить контакт? Старая переписка будет удалена.`
+      );
+      if (!ok) return;
+      delete chatHistory[card.fingerprint];
+      await saveChats();
+    } else if (nameChanged) {
+      console.log(`[UPDATE] ${existing.nickname} → ${card.nickname}`);
+    } else {
+      console.log('[UPDATE] без изменений');
+    }
+  }
 
   contacts[card.fingerprint] = card;
   await saveContacts();
   renderContacts();
+
+  if (activeChat && activeChat.fingerprint === card.fingerprint) {
+    activeChat.peerCard = card;
+    renderChat();
+  }
 }
 
 async function addContactFromJson(json) {
@@ -703,6 +727,11 @@ function bindUI() {
     document.getElementById('modalMyCard').classList.remove('active');
   });
 
+  document.getElementById('btnDevices').addEventListener('click', openDevicesModal); 
+  document.getElementById('btnCloseDevices').addEventListener('click', closeDevicesModal);
+  document.getElementById('btnGenerateExport').addEventListener('click', generateExport);
+  document.getElementById('btnCopyExport').addEventListener('click', copyExport);
+
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
   document.getElementById('btnStopScan').addEventListener('click', stopScanner);
   document.getElementById('btnSaveContact').addEventListener('click', () => {
@@ -748,6 +777,94 @@ function bindUI() {
       endChat();
     }
   });
+}
+
+// ============================================
+// УСТРОЙСТВА (экспорт identity)
+// ============================================
+function openDevicesModal() {
+  document.getElementById('exportPassword').value = '';
+  document.getElementById('exportResult').style.display = 'none';
+  document.getElementById('exportJson').value = '';
+  document.getElementById('exportQrBox').innerHTML = '';
+  document.getElementById('modalDevices').classList.add('active');
+}
+
+function closeDevicesModal() {
+  document.getElementById('modalDevices').classList.remove('active');
+}
+
+async function generateExport() {
+  const pw = document.getElementById('exportPassword').value;
+  if (pw.length < 6) {
+    alert('Пароль минимум 6 символов');
+    return;
+  }
+
+  try {
+    const exportObj = await exportIdentity(myIdentity, pw);
+    const json = JSON.stringify(exportObj);
+    document.getElementById('exportJson').value = json;
+
+    // Рисуем QR
+    const qrBox = document.getElementById('exportQrBox');
+    qrBox.innerHTML = '';
+
+    if (typeof qrcode === 'function') {
+      const qr = qrcode(0, 'L');   // L — минимальная коррекция, больше данных влезет
+      qr.addData(json);
+      qr.make();
+
+      const cellSize = 4;
+      const margin = 4;
+      const count = qr.getModuleCount();
+      const size = count * cellSize + margin * 2;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#000000';
+
+      for (let row = 0; row < count; row++) {
+        for (let col = 0; col < count; col++) {
+          if (qr.isDark(row, col)) {
+            ctx.fillRect(
+              margin + col * cellSize,
+              margin + row * cellSize,
+              cellSize,
+              cellSize
+            );
+          }
+        }
+      }
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
+      qrBox.appendChild(canvas);
+    }
+
+    document.getElementById('exportResult').style.display = 'block';
+  } catch (e) {
+    console.error(e);
+    alert('Ошибка: ' + e.message);
+  }
+}
+
+async function copyExport() {
+  const ta = document.getElementById('exportJson');
+  ta.select();
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    const btn = document.getElementById('btnCopyExport');
+    const prev = btn.textContent;
+    btn.textContent = 'Скопировано ✓';
+    setTimeout(() => { btn.textContent = prev; }, 1200);
+  } catch {
+    document.execCommand('copy');
+  }
 }
 
 
