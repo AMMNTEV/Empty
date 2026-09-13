@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Empty — Мессенджер</title>
+
+  <!-- QR-библиотеки (UMD, доступны глобально) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,23 +17,21 @@
       display: flex; flex-direction: column; overflow: hidden;
     }
 
-    /* Верхняя панель */
     .topbar {
       padding: 12px 16px; background: #1a1a1a;
       border-bottom: 1px solid #252525;
       display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0;
+      flex-shrink: 0; flex-wrap: wrap; gap: 8px;
     }
     .me { font-size: 13px; color: #888; }
     .me b { color: #e0e0e0; }
     .topbar button {
       background: #3b82f6; border: none; color: #fff;
       padding: 8px 14px; border-radius: 8px; font-size: 13px;
-      cursor: pointer; margin-left: 8px;
+      cursor: pointer; margin-left: 6px;
     }
     .topbar button.secondary { background: #333; }
 
-    /* Основная область: слева контакты, справа чат */
     .main { flex: 1; display: flex; overflow: hidden; }
 
     .sidebar {
@@ -56,7 +59,6 @@
     .contact-fp { font-size: 11px; color: #666; font-family: monospace;
                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* Чат */
     .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .chat-header {
       padding: 12px 16px; background: #1a1a1a;
@@ -103,7 +105,6 @@
       color: #444; font-size: 14px;
     }
 
-    /* Модалки */
     .modal {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.85); z-index: 1000;
@@ -134,6 +135,13 @@
       margin: 16px 0;
     }
     .qr-box img, .qr-box canvas { display: block; max-width: 100%; }
+
+    #scannerVideo {
+      width: 100%;
+      border-radius: 12px;
+      background: #000;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -142,6 +150,7 @@
     <div class="me">Вы: <b id="meName">...</b> <span id="meFp" style="font-family: monospace; color: #555;"></span></div>
     <div>
       <button id="btnMyCard" class="secondary">Моя карточка</button>
+      <button id="btnScanQR" class="secondary">Сканировать QR</button>
       <button id="btnAddContact">Добавить контакт</button>
     </div>
   </div>
@@ -186,7 +195,7 @@
     </div>
   </div>
 
-  <!-- Модалка: добавить контакт -->
+  <!-- Модалка: добавить контакт вручную -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
@@ -197,6 +206,19 @@
       <button id="btnSaveContact">Добавить</button>
       <button id="btnCloseAddContact" class="secondary">Отмена</button>
       <div id="addError" style="color: #ef4444; font-size: 13px; margin-top: 8px;"></div>
+    </div>
+  </div>
+
+  <!-- Модалка: сканер QR -->
+  <div class="modal" id="modalScanQR">
+    <div class="modal-card">
+      <h2>Сканировать QR</h2>
+      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
+        Наведите камеру на карточку собеседника.
+      </p>
+      <video id="scannerVideo" playsinline></video>
+      <button id="btnCloseScanQR" class="secondary">Закрыть</button>
+      <div id="scanError" style="color: #ef4444; font-size: 13px; margin-top: 8px;"></div>
     </div>
   </div>
 

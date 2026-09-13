@@ -1,18 +1,18 @@
 // ============================================
 // messenger.js — контакты, чаты, E2EE, relay
-// Store-and-forward: Firestore = транзит, история = OPFS
+// Store-and-forward + авто-handshake
 // ============================================
 import { db } from './firebase-init.js';
 import {
   collection, addDoc, query, where, onSnapshot,
-  getDocs, deleteDoc, doc, serverTimestamp
+  deleteDoc, doc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 import {
   opfsWrite, opfsRead, opfsExists,
   decryptIdentity, encryptIdentity,
   deriveSharedKey, encryptMessage, decryptMessage,
-  hashPubkey, formatFingerprint,
+  hashPubkey,
   signBlob, verifyBlob, uuid
 } from './crypto.js';
 
@@ -21,26 +21,28 @@ import {
 // ============================================
 const IDENTITY_FILE = 'identity.enc';
 const CONTACTS_FILE = 'contacts.enc';
-const CHATS_FILE = 'chats.enc';         // NEW: файл с перепиской
+const CHATS_FILE = 'chats.enc';
 
-const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;  // NEW: блоб живёт в Firestore 7 дней
-const CHAT_TTL_MS = 24 * 60 * 60 * 1000;       // CHANGED: локальная история живёт 24 часа
+const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;  // блоб в Firestore
+const CHAT_TTL_MS = 24 * 60 * 60 * 1000;       // локальная история
 
 // ============================================
 // СОСТОЯНИЕ
 // ============================================
 let myIdentity = null;
 let myPassword = null;
-let contacts = {};                       // { fp: card }
-let chatHistory = {};                    // NEW: { fp: { peerNickname, messages[], lastActivity, expiresAt } }
-let activeChat = null;                   // { fingerprint, peerCard, sharedKey }
+let contacts = {};
+let chatHistory = {};
+let activeChat = null;
 let unsubscribeIncoming = null;
 let timerInterval = null;
-let saveChatsTimer = null;               // NEW: дебаунс на запись в OPFS
+let saveChatsTimer = null;
+let scannerStream = null;   // NEW: поток камеры
+let scannerRAF = null;      // NEW: requestAnimationFrame для сканера
 
 
 // ============================================
-// OPFS: КОНТАКТЫ + ИСТОРИЯ
+// OPFS
 // ============================================
 async function saveContacts() {
   if (!myPassword) return;
@@ -60,7 +62,6 @@ async function loadContacts() {
   }
 }
 
-// NEW: сохраняем историю с дебаунсом (не чаще раза в 500мс)
 async function saveChats() {
   if (!myPassword) return;
   if (saveChatsTimer) clearTimeout(saveChatsTimer);
@@ -86,7 +87,6 @@ async function loadChats() {
   }
 }
 
-// NEW: очистка просроченных чатов
 function purgeExpiredChats() {
   const now = Date.now();
   let changed = false;
@@ -122,7 +122,6 @@ async function init() {
   document.getElementById('meName').textContent = myIdentity.nickname;
   document.getElementById('meFp').textContent = myIdentity.fingerprint;
 
-  // NEW: загружаем историю
   contacts = await loadContacts();
   chatHistory = await loadChats();
   purgeExpiredChats();
@@ -131,8 +130,21 @@ async function init() {
   listenIncoming();
   bindUI();
 
-  // NEW: переодическая очистка просроченных чатов
   setInterval(purgeExpiredChats, 60 * 1000);
+}
+
+
+// ============================================
+// КАРТОЧКА
+// ============================================
+function buildMyCard() {
+  return {
+    version: 1,
+    nickname: myIdentity.nickname,
+    x25519: myIdentity.x25519.public,
+    ed25519: myIdentity.ed25519.public,
+    fingerprint: myIdentity.fingerprint
+  };
 }
 
 
@@ -144,7 +156,7 @@ function renderContacts() {
   const keys = Object.keys(contacts);
 
   if (keys.length === 0) {
-    list.innerHTML = '<div style="padding: 20px; color: #555; font-size: 13px;">Нет контактов. Нажмите "Добавить контакт".</div>';
+    list.innerHTML = '<div style="padding: 20px; color: #555; font-size: 13px;">Нет контактов. Нажмите "Добавить контакт" или "Сканировать QR".</div>';
     return;
   }
 
@@ -180,18 +192,8 @@ function escapeHtml(s) {
 
 
 // ============================================
-// МОЯ КАРТОЧКА
+// МОЯ КАРТОЧКА (QR)
 // ============================================
-function buildMyCard() {
-  return {
-    version: 1,
-    nickname: myIdentity.nickname,
-    x25519: myIdentity.x25519.public,
-    ed25519: myIdentity.ed25519.public,   // NEW: публичный ключ для подписей
-    fingerprint: myIdentity.fingerprint
-  };
-}
-
 async function showMyCard() {
   const card = buildMyCard();
   const json = JSON.stringify(card);
@@ -199,13 +201,28 @@ async function showMyCard() {
 
   const qrBox = document.getElementById('qrBox');
   qrBox.innerHTML = '';
+
+  // Рисуем QR через qrcode-generator (глобальный `qrcode`)
   try {
-    const QR = await import('https://cdn.jsdelivr.net/npm/qrcode@1.5.3/lib/browser.js');
-    const dataUrl = await QR.toDataURL(json, { width: 300, margin: 1 });
-    const img = document.createElement('img');
-    img.src = dataUrl;
-    qrBox.appendChild(img);
+    if (typeof qrcode !== 'function') {
+      throw new Error('qrcode-generator не загружен');
+    }
+    // typeNumber: 0 = авто, errorCorrectionLevel: 'M'
+    const qr = qrcode(0, 'M');
+    qr.addData(json);
+    qr.make();
+
+    // Вставляем SVG (чётче чем canvas)
+    const svg = qr.createSvgTag({ scalable: true });
+    qrBox.innerHTML = svg;
+    // Ограничим размер
+    const svgEl = qrBox.querySelector('svg');
+    if (svgEl) {
+      svgEl.style.width = '280px';
+      svgEl.style.height = '280px';
+    }
   } catch (e) {
+    console.error('QR generation error:', e);
     qrBox.innerHTML = '<div style="color: #333; font-size: 12px;">QR недоступен — используйте JSON</div>';
   }
 
@@ -214,8 +231,99 @@ async function showMyCard() {
 
 
 // ============================================
+// QR-СКАНЕР
+// ============================================
+async function openScanner() {
+  const modal = document.getElementById('modalScanQR');
+  const video = document.getElementById('scannerVideo');
+  const errEl = document.getElementById('scanError');
+  errEl.textContent = '';
+  modal.classList.add('active');
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+    video.srcObject = scannerStream;
+    await video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const tick = () => {
+      if (!scannerStream) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        if (typeof jsQR === 'function') {
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+          });
+          if (code && code.data) {
+            handleScannedQR(code.data);
+            return;
+          }
+        }
+      }
+      scannerRAF = requestAnimationFrame(tick);
+    };
+    tick();
+
+  } catch (e) {
+    console.error('Camera error:', e);
+    errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
+  }
+}
+
+function closeScanner() {
+  if (scannerRAF) {
+    cancelAnimationFrame(scannerRAF);
+    scannerRAF = null;
+  }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  const video = document.getElementById('scannerVideo');
+  if (video) video.srcObject = null;
+  document.getElementById('modalScanQR').classList.remove('active');
+}
+
+async function handleScannedQR(text) {
+  // Останавливаем сканер
+  closeScanner();
+
+  // Пробуем распарсить как карточку
+  try {
+    const card = JSON.parse(text);
+    await addContactFromCard(card);
+    // Открываем уведомление, что контакт добавлен
+    setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
+  } catch (e) {
+    console.error('QR parse error:', e);
+    alert('Не удалось распознать карточку: ' + e.message);
+  }
+}
+
+
+// ============================================
 // ДОБАВЛЕНИЕ КОНТАКТА
 // ============================================
+async function addContactFromCard(card) {
+  if (!card || !card.x25519 || !card.fingerprint || !card.ed25519) {
+    throw new Error('В карточке нет ключей');
+  }
+  if (card.fingerprint === myIdentity.fingerprint) {
+    throw new Error('Это ваша карточка');
+  }
+  contacts[card.fingerprint] = card;
+  await saveContacts();
+  renderContacts();
+}
+
 async function addContactFromJson(json) {
   const errEl = document.getElementById('addError');
   errEl.textContent = '';
@@ -228,21 +336,13 @@ async function addContactFromJson(json) {
     return;
   }
 
-  if (!card.x25519 || !card.fingerprint || !card.ed25519) {  // CHANGED: требуем ed25519
-    errEl.textContent = 'В карточке нет ключей';
-    return;
+  try {
+    await addContactFromCard(card);
+    document.getElementById('modalAddContact').classList.remove('active');
+    document.getElementById('addCardJson').value = '';
+  } catch (e) {
+    errEl.textContent = e.message;
   }
-
-  if (card.fingerprint === myIdentity.fingerprint) {
-    errEl.textContent = 'Это ваша карточка';
-    return;
-  }
-
-  contacts[card.fingerprint] = card;
-  await saveContacts();
-  renderContacts();
-  document.getElementById('modalAddContact').classList.remove('active');
-  document.getElementById('addCardJson').value = '';
 }
 
 
@@ -260,7 +360,6 @@ async function openChat(fingerprint) {
 
   activeChat = { fingerprint, peerCard: card, sharedKey };
 
-  // NEW: если истории нет — создаём пустую запись
   if (!chatHistory[fingerprint]) {
     chatHistory[fingerprint] = {
       peerNickname: card.nickname,
@@ -301,7 +400,6 @@ function renderChat() {
 
   document.getElementById('chatTitle').textContent = activeChat.peerCard.nickname;
 
-  // CHANGED: рендерим из chatHistory
   const history = chatHistory[activeChat.fingerprint];
   const msgs = history ? history.messages : [];
 
@@ -332,17 +430,13 @@ function startTimer() {
   }, 1000);
 }
 
-// CHANGED: endChat теперь стирает историю с этим контактом
 function endChat() {
   if (!activeChat) return;
 
   const fp = activeChat.fingerprint;
-
-  // Удаляем историю
   delete chatHistory[fp];
   saveChats();
 
-  // Сбрасываем активный чат
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -366,20 +460,16 @@ async function sendMessage() {
   const msgId = uuid();
   const ts = Date.now();
 
-  // 1. Формируем payload
   const payload = JSON.stringify({ id: msgId, text, ts });
-
-  // 2. Шифруем
   const blob = await encryptMessage(payload, activeChat.sharedKey);
-
-  // 3. Подписываем (NEW)
   const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
 
-  // 4. Считаем relay-адреса
   const toHash = await hashPubkey(activeChat.peerCard.x25519);
   const fromHash = await hashPubkey(myIdentity.x25519.public);
 
-  // 5. Пишем в Firestore (транзит)
+  // NEW: прикладываем свою карточку, чтобы получатель мог добавить нас автоматически
+  const senderCard = buildMyCard();
+
   try {
     await addDoc(collection(db, 'relay'), {
       to: toHash,
@@ -387,15 +477,14 @@ async function sendMessage() {
       iv: blob.iv,
       ciphertext: blob.ciphertext,
       signature: signature,
-      senderEd25519: myIdentity.ed25519.public,   // NEW: чтобы получатель проверил
+      senderEd25519: myIdentity.ed25519.public,
+      senderCard: senderCard,     // NEW
       ttl: Date.now() + RELAY_TTL_MS
     });
   } catch (e) {
     console.error('Не удалось отправить:', e);
-    // Даже если не ушло — сохраняем локально
   }
 
-  // 6. Локально сохраняем
   if (!chatHistory[fp]) {
     chatHistory[fp] = {
       peerNickname: activeChat.peerCard.nickname,
@@ -404,9 +493,7 @@ async function sendMessage() {
       expiresAt: ts + CHAT_TTL_MS
     };
   }
-  chatHistory[fp].messages.push({
-    id: msgId, from: 'me', text, ts
-  });
+  chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
   chatHistory[fp].lastActivity = ts;
   chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
@@ -416,7 +503,7 @@ async function sendMessage() {
 
 
 // ============================================
-// СЛУШАТЕЛЬ ВХОДЯЩИХ (store-and-forward)
+// СЛУШАТЕЛЬ ВХОДЯЩИХ
 // ============================================
 async function listenIncoming() {
   const myHash = await hashPubkey(myIdentity.x25519.public);
@@ -433,14 +520,12 @@ async function listenIncoming() {
       const data = change.doc.data();
       const docId = change.doc.id;
 
-      // Сразу удаляем из Firestore — store-and-forward
       try {
         await deleteDoc(doc(db, 'relay', docId));
       } catch (e) {
         console.warn('Не удалось удалить блоб:', e);
       }
 
-      // Просроченные игнорируем
       if (data.ttl && data.ttl < Date.now()) continue;
 
       // Ищем отправителя
@@ -449,16 +534,46 @@ async function listenIncoming() {
         const h = await hashPubkey(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
+
+      // NEW: авто-handshake — если отправитель незнаком, добавляем его из senderCard
+      if (!peerFp && data.senderCard) {
+        try {
+          const card = data.senderCard;
+          if (!card.x25519 || !card.fingerprint || !card.ed25519) {
+            console.warn('Карточка отправителя неполная');
+            continue;
+          }
+          // Защита: хэш публичного ключа из карточки должен совпасть с from
+          const cardHash = await hashPubkey(card.x25519);
+          if (cardHash !== data.from) {
+            console.warn('Карточка не соответствует from');
+            continue;
+          }
+          // Защита: подпись senderEd25519 должна валидироваться карточкой
+          if (data.senderEd25519 !== card.ed25519) {
+            console.warn('senderEd25519 не совпадает с карточкой');
+            continue;
+          }
+          contacts[card.fingerprint] = card;
+          await saveContacts();
+          peerFp = card.fingerprint;
+          console.log('✅ Авто-добавлен контакт:', card.nickname);
+          renderContacts();
+        } catch (e) {
+          console.error('Авто-handshake ошибка:', e);
+          continue;
+        }
+      }
+
       if (!peerFp) continue;
 
-      // NEW: проверяем подпись
+      // Проверка подписи
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
         if (!valid) {
           console.warn('Подпись невалидна, пропускаем');
           continue;
         }
-        // Проверяем, что senderEd25519 совпадает с карточкой контакта
         if (data.senderEd25519 !== contacts[peerFp].ed25519) {
           console.warn('Отправитель не совпадает с карточкой');
           continue;
@@ -468,7 +583,6 @@ async function listenIncoming() {
         continue;
       }
 
-      // Расшифровываем
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -486,7 +600,6 @@ async function listenIncoming() {
         continue;
       }
 
-      // NEW: сохраняем в локальную историю
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
           peerNickname: contacts[peerFp].nickname,
@@ -506,11 +619,10 @@ async function listenIncoming() {
 
       saveChats();
 
-      // Если открыт этот чат — обновляем UI
       if (activeChat && activeChat.fingerprint === peerFp) {
         renderChat();
       } else {
-        renderContacts(); // обновим бейджи
+        renderContacts();
       }
     }
   });
@@ -522,9 +634,13 @@ async function listenIncoming() {
 // ============================================
 function bindUI() {
   document.getElementById('btnMyCard').addEventListener('click', showMyCard);
+  document.getElementById('btnScanQR').addEventListener('click', openScanner);
+
   document.getElementById('btnCloseMyCard').addEventListener('click', () => {
     document.getElementById('modalMyCard').classList.remove('active');
   });
+  document.getElementById('btnCloseScanQR').addEventListener('click', closeScanner);
+
   document.getElementById('btnCopyCard').addEventListener('click', () => {
     const ta = document.getElementById('myCardJson');
     ta.select();
