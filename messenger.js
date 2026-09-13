@@ -541,6 +541,8 @@ function renderChat() {
     header.classList.remove('active');
     messages.classList.remove('active');
     inputArea.classList.remove('active');
+    // NEW: очищаем содержимое
+    messages.innerHTML = '';
     return;
   }
 
@@ -907,9 +909,9 @@ function bindUI() {
     }
   });
   msgInput.addEventListener('input', () => {
-    msgInput.style.height = 'auto';
-    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
-  });
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
 
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
