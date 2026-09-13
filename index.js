@@ -261,7 +261,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderAccountsList();
     showScreen('screen-accounts');
   });
-  document.getElementById('linkBackFromImport').addEventListener('click', async () => {
+    document.getElementById('linkBackFromImport').addEventListener('click', async () => {
+    stopImportScanner();
     await renderAccountsList();
     showScreen('screen-accounts');
   });
@@ -270,6 +271,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleUnlock();
   });
+    document.getElementById('btnScanImport').addEventListener('click', startImportScanner);
+  document.getElementById('btnStopImportScan').addEventListener('click', stopImportScanner);
 
   // Стартовый экран
   const data = await listAccounts();
@@ -280,3 +283,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     showScreen('screen-accounts');
   }
 });
+
+// ============================================
+// QR-СКАНЕР ДЛЯ ИМПОРТА
+// ============================================
+let importScannerStream = null;
+let importScannerRAF = null;
+
+async function startImportScanner() {
+  const wrap = document.getElementById('importScannerWrap');
+  const video = document.getElementById('importScannerVideo');
+  const errEl = document.getElementById('importScanError');
+  errEl.textContent = '';
+  wrap.style.display = 'block';
+
+  if (importScannerStream) return;
+
+  try {
+    importScannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    });
+    video.srcObject = importScannerStream;
+    await video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const tick = () => {
+      if (!importScannerStream) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        if (typeof jsQR === 'function') {
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+          });
+          if (code && code.data) {
+            document.getElementById('importJson').value = code.data;
+            stopImportScanner();
+            return;
+          }
+        }
+      }
+      importScannerRAF = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (e) {
+    console.error('Camera error:', e);
+    errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
+  }
+}
+
+function stopImportScanner() {
+  if (importScannerRAF) { cancelAnimationFrame(importScannerRAF); importScannerRAF = null; }
+  if (importScannerStream) {
+    importScannerStream.getTracks().forEach(t => t.stop());
+    importScannerStream = null;
+  }
+  const video = document.getElementById('importScannerVideo');
+  if (video) video.srcObject = null;
+  const wrap = document.getElementById('importScannerWrap');
+  if (wrap) wrap.style.display = 'none';
+}

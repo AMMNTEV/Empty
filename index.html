@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Empty — Вход</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     body { font-family: Tahoma, Arial, sans-serif; background: #3b5998; margin: 0; padding: 20px; }
     .card { background: #fff; border: 1px solid #29487d; border-radius: 4px; padding: 20px; max-width: 400px; margin: 0 auto; }
@@ -79,12 +80,21 @@
   </div>
 
   <!-- Импорт -->
+    <!-- Импорт -->
   <div class="card screen" id="screen-import">
     <h1>Импорт аккаунта</h1>
-    <p class="subtitle">Вставьте данные, которые вам показало старое устройство.</p>
+    <p class="subtitle">Отсканируйте QR со старого устройства или вставьте данные вручную.</p>
 
     <div class="warning">
       ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
+    </div>
+
+    <button id="btnScanImport" style="width:100%;">📷 Сканировать QR</button>
+
+    <div id="importScannerWrap" style="display:none; margin-top:10px;">
+      <video id="importScannerVideo" playsinline style="width:100%; background:#000; aspect-ratio:1/1; object-fit:cover;"></video>
+      <button class="secondary" id="btnStopImportScan">Остановить сканер</button>
+      <div class="error" id="importScanError"></div>
     </div>
 
     <label>Данные экспорта (JSON)</label>
