@@ -2,239 +2,45 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Empty — Вход</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-    html, body {
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f0f0f;
-      color: #e0e0e0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      padding-top: calc(20px + env(safe-area-inset-top));
-      padding-bottom: calc(20px + env(safe-area-inset-bottom));
-      overflow-y: auto;
-    }
-
-    .card {
-      background: #1a1a1a;
-      border-radius: 16px;
-      padding: 32px 24px;
-      max-width: 400px;
-      width: 100%;
-    }
-
-    h1 { font-size: 22px; margin-bottom: 8px; font-weight: 600; }
-    .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; line-height: 1.4; }
-
-    label { display: block; font-size: 13px; color: #aaa; margin-bottom: 6px; }
-
-    input, textarea {
-      width: 100%;
-      padding: 12px 14px;
-      background: #252525;
-      border: 1px solid #333;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 15px;
-      font-family: inherit;
-      margin-bottom: 16px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    textarea {
-      font-family: monospace;
-      font-size: 12px;
-      min-height: 100px;
-      resize: vertical;
-    }
-
-    input:focus, textarea:focus { border-color: #3b82f6; }
-
-    button {
-      width: 100%;
-      padding: 13px;
-      background: #3b82f6;
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: background 0.15s;
-      font-family: inherit;
-    }
-
-    button:hover { background: #2563eb; }
-    button:disabled { background: #444; cursor: not-allowed; }
-
-    button.secondary {
-      background: transparent;
-      color: #888;
-      font-weight: 500;
-      font-size: 13px;
-      padding: 8px;
-    }
-    button.secondary:hover { color: #e0e0e0; background: transparent; }
-
-    button.danger {
-      background: transparent;
-      color: #ef4444;
-      font-weight: 500;
-      font-size: 13px;
-      padding: 8px;
-      margin-top: 4px;
-    }
-    button.danger:hover { color: #dc2626; background: transparent; }
-
-    .error {
-      color: #ef4444;
-      font-size: 13px;
-      margin-top: 12px;
-      min-height: 18px;
-      line-height: 1.4;
-    }
-
-    .hint {
-      font-size: 12px;
-      color: #666;
-      margin-top: -10px;
-      margin-bottom: 14px;
-      line-height: 1.3;
-    }
-
-    .warning {
-      font-size: 12px;
-      color: #f59e0b;
-      background: rgba(245, 158, 11, 0.1);
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      line-height: 1.4;
-    }
-
-    /* Список аккаунтов */
-    .account-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
-      max-height: 320px;
-      overflow-y: auto;
-    }
-
-    .account-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
-      background: #252525;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: background 0.15s;
-      border: 1px solid transparent;
-    }
-
-    .account-item:hover {
-      background: #2d2d2d;
-    }
-
-    .account-item.current {
-      border-color: #3b82f6;
-    }
-
-    .account-avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: #3b82f6;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-
-    .account-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .account-name {
-      font-size: 15px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 3px;
-    }
-
-    .account-fp {
-      font-size: 11px;
-      color: #666;
-      font-family: monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .account-delete {
-      background: transparent;
-      border: none;
-      color: #666;
-      cursor: pointer;
-      padding: 6px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin: 0;
-      width: auto;
-    }
-
-    .account-delete:hover {
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.1);
-    }
-
-    .account-delete svg {
-      width: 18px;
-      height: 18px;
-    }
-
+    body { font-family: Tahoma, Arial, sans-serif; background: #3b5998; margin: 0; padding: 20px; }
+    .card { background: #fff; border: 1px solid #29487d; border-radius: 4px; padding: 20px; max-width: 400px; margin: 0 auto; }
+    h1 { color: #3b5998; font-size: 20px; margin: 0 0 15px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 15px; }
+    label { display: block; color: #333; font-size: 13px; margin: 10px 0 4px; font-weight: bold; }
+    input, textarea { width: 100%; padding: 6px 8px; border: 1px solid #bdc7d8; border-radius: 2px; font-size: 14px; box-sizing: border-box; }
+    input:focus, textarea:focus { outline: none; border-color: #3b5998; }
+    textarea { min-height: 100px; font-family: monospace; font-size: 12px; }
+    button { margin-top: 10px; padding: 6px 16px; background: #5b74a8; border: 1px solid #29487d; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 2px; }
+    button:hover { background: #3b5998; }
+    button.secondary { background: #eee; color: #333; border-color: #bdc7d8; width: auto; font-weight: normal; }
+    button.secondary:hover { background: #ddd; }
+    .error { color: #a00; font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .hint { color: #999; font-size: 11px; }
+    .warning { background: #fff9e3; border: 1px solid #f7d674; padding: 8px; font-size: 12px; color: #735005; margin: 10px 0; }
     .screen { display: none; }
     .screen.active { display: block; }
-
-    @media (max-width: 380px) {
-      .card { padding: 24px 18px; }
-      h1 { font-size: 20px; }
-    }
+    .account-list { margin: 10px 0; }
+    .account-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ddd; margin-bottom: 6px; cursor: pointer; background: #f5f6f7; }
+    .account-item:hover { background: #e9ebee; }
+    .account-item.current { border-color: #3b5998; background: #edf2fa; }
+    .account-avatar { width: 36px; height: 36px; background: #3b5998; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .account-info { flex: 1; }
+    .account-name { font-weight: bold; font-size: 14px; }
+    .account-fp { font-size: 11px; color: #999; font-family: monospace; }
+    .account-delete { background: transparent; border: none; color: #999; cursor: pointer; font-size: 16px; }
+    .account-delete:hover { color: #a00; }
   </style>
 </head>
 <body>
 
-  <!-- Экран выбора аккаунта -->
+  <!-- Мои аккаунты -->
   <div class="card screen" id="screen-accounts">
     <h1>Мои аккаунты</h1>
     <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
-
     <div class="account-list" id="accountList"></div>
-
     <button id="btnAddAccount">+ Добавить аккаунт</button>
     <button class="secondary" id="btnImportAccount">Импорт с другого устройства</button>
   </div>
@@ -245,36 +51,34 @@
     <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
 
     <label>Никнейм</label>
-    <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off" spellcheck="false">
+    <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
     <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
 
     <label>Пароль (для шифрования ключей)</label>
-    <input type="password" id="password" placeholder="Минимум 6 символов" autocomplete="new-password">
+    <input type="password" id="password" placeholder="Минимум 6 символов">
 
     <label>Повторите пароль</label>
-    <input type="password" id="password2" placeholder="Ещё раз" autocomplete="new-password">
+    <input type="password" id="password2" placeholder="Ещё раз">
 
     <button id="createBtn">Создать</button>
-    <div class="error" id="createError"></div>
-
     <button class="secondary" id="linkBackFromCreate">← Назад</button>
+    <div class="error" id="createError"></div>
   </div>
 
-  <!-- Разблокировка -->
+  <!-- Вход -->
   <div class="card screen" id="screen-unlock">
     <h1>Вход в аккаунт</h1>
     <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
 
     <label>Пароль</label>
-    <input type="password" id="unlockPassword" placeholder="Ваш пароль" autocomplete="current-password">
+    <input type="password" id="unlockPassword" placeholder="Ваш пароль">
 
     <button id="unlockBtn">Войти</button>
-    <div class="error" id="unlockError"></div>
-
     <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
+    <div class="error" id="unlockError"></div>
   </div>
 
-  <!-- Импорт с другого устройства -->
+  <!-- Импорт -->
   <div class="card screen" id="screen-import">
     <h1>Импорт аккаунта</h1>
     <p class="subtitle">Вставьте данные, которые вам показало старое устройство.</p>
@@ -286,7 +90,7 @@
     <label>Данные экспорта (JSON)</label>
     <textarea id="importJson" placeholder='{"version":1,"type":"identity-export",...}'></textarea>
 
-    <label>Пароль экспорта (задан на старом устройстве)</label>
+    <label>Пароль экспорта</label>
     <input type="password" id="importPassword" placeholder="Временный пароль">
 
     <label>Новый пароль для этого устройства</label>
@@ -296,9 +100,8 @@
     <input type="password" id="importNewPassword2" placeholder="Ещё раз">
 
     <button id="importBtn">Импортировать</button>
-    <div class="error" id="importError"></div>
-
     <button class="secondary" id="linkBackFromImport">← Назад</button>
+    <div class="error" id="importError"></div>
   </div>
 
   <script type="module" src="index.js"></script>

@@ -2,649 +2,138 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Empty — Мессенджер</title>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    * { box-sizing: border-box; }
+    body { font-family: Tahoma, Arial, sans-serif; background: #e9ebee; margin: 0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
 
-    :root {
-      --bg: #0f0f0f;
-      --bg-2: #1a1a1a;
-      --bg-3: #141414;
-      --bg-4: #252525;
-      --border: #252525;
-      --border-2: #333;
-      --text: #e0e0e0;
-      --text-dim: #888;
-      --text-dim-2: #555;
-      --blue: #3b82f6;
-      --blue-hover: #2563eb;
-      --red: #ef4444;
-      --orange: #f59e0b;
-      --topbar-h: 56px;
-    }
+    /* Шапка */
+    .topbar { background: #3b5998; color: #fff; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
+    .me-name { font-weight: bold; font-size: 14px; }
+    .me-fp { font-size: 10px; color: #cfd8ea; font-family: monospace; }
+    .topbar-actions button { background: #5b74a8; border: 1px solid #29487d; color: #fff; padding: 4px 10px; margin-left: 4px; cursor: pointer; font-size: 12px; border-radius: 2px; }
+    .topbar-actions button:hover { background: #4a6494; }
+    .topbar-actions button.primary { background: #4caf50; border-color: #388e3c; }
+    .topbar-actions button.primary:hover { background: #388e3c; }
 
-    html, body {
-      height: 100%;
-      height: 100dvh;
-      overflow: hidden;
-      overscroll-behavior: none;
-    }
+    /* Основной контейнер */
+    .main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 15px;
-      display: flex;
-      flex-direction: column;
-    }
+    /* Список контактов */
+    .sidebar { width: 280px; background: #fff; border-right: 1px solid #bdc7d8; display: flex; flex-direction: column; }
+    .sidebar-header { padding: 8px 12px; background: #f5f6f7; border-bottom: 1px solid #ddd; font-weight: bold; color: #333; }
+    .contacts-list { flex: 1; overflow-y: auto; }
+    .contact { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .contact:hover { background: #f5f6f7; }
+    .contact.active { background: #edf2fa; }
+    .avatar { width: 36px; height: 36px; background: #3b5998; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .contact-name { font-weight: bold; }
+    .contact-fp { font-size: 11px; color: #999; font-family: monospace; }
+    .empty-sidebar { padding: 20px 12px; color: #999; text-align: center; }
 
-    /* ============ TOPBAR ============ */
-    .topbar {
-      min-height: var(--topbar-h);
-      padding: 8px 12px;
-      padding-top: calc(8px + env(safe-area-inset-top));
-      background: var(--bg-2);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .me {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      flex: 1;
-    }
-    .me-name {
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .me-fp {
-      font-size: 10px;
-      font-family: monospace;
-      color: var(--text-dim-2);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .topbar-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    .topbar button {
-      background: var(--bg-4);
-      border: none;
-      color: var(--text);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 13px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-    }
-    .topbar button.primary { background: var(--blue); color: #fff; }
-    .topbar button svg { width: 18px; height: 18px; }
-
-    @media (max-width: 600px) {
-      .topbar button .btn-label { display: none; }
-      .topbar button { padding: 8px 10px; }
-    }
-
-    /* ============ MAIN ============ */
-    .main {
-      flex: 1;
-      display: flex;
-      min-height: 0;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ============ SIDEBAR ============ */
-    .sidebar {
-      width: 320px;
-      background: var(--bg-3);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .sidebar-header {
-      padding: 12px 16px 8px;
-      font-size: 12px;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
-    }
-
-    .contacts-list {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .contact {
-      padding: 12px 16px;
-      cursor: pointer;
-      border-bottom: 1px solid #1e1e1e;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .contact:hover { background: #1e1e1e; }
-    .contact.active { background: #252525; }
-
-    .avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: var(--blue);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    .contact-info { flex: 1; min-width: 0; }
-    .contact-name {
-      font-size: 15px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-bottom: 3px;
-    }
-    .contact-fp {
-      font-size: 11px;
-      color: var(--text-dim);
-      font-family: monospace;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .empty-sidebar {
-      padding: 24px 16px;
-      color: var(--text-dim-2);
-      font-size: 13px;
-      text-align: center;
-      line-height: 1.5;
-    }
-
-    /* ============ CHAT AREA ============ */
-    .chat-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .chat-empty {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-dim-2);
-      font-size: 14px;
-      padding: 20px;
-      text-align: center;
-    }
-
-    .chat-header {
-      padding: 10px 16px;
-      background: var(--bg-2);
-      border-bottom: 1px solid var(--border);
-      display: none;
-      align-items: center;
-      gap: 12px;
-      flex-shrink: 0;
-      min-height: var(--topbar-h);
-    }
+    /* Область чата */
+    .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #999; }
+    .chat-header { background: #fff; border-bottom: 1px solid #bdc7d8; padding: 8px 12px; display: none; align-items: center; gap: 10px; }
     .chat-header.active { display: flex; }
+    .chat-title { font-weight: bold; font-size: 14px; }
+    .chat-timer { font-size: 11px; color: #999; }
+    .btn-end-chat { background: #d9534f; color: #fff; border: 1px solid #b52b27; padding: 4px 10px; cursor: pointer; border-radius: 2px; margin-left: auto; }
+    .btn-end-chat:hover { background: #b52b27; }
+    .mobile-back { display: none; background: none; border: none; color: #3b5998; font-size: 18px; cursor: pointer; }
 
-    .mobile-back {
-      display: none;
-      background: none;
-      border: none;
-      color: var(--text);
-      cursor: pointer;
-      padding: 6px;
-      margin-left: -6px;
-      border-radius: 8px;
-    }
-
-    .chat-header-info { flex: 1; min-width: 0; }
-    .chat-title {
-      font-size: 15px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .chat-timer {
-      font-size: 12px;
-      color: var(--orange);
-      margin-top: 2px;
-    }
-
-    .btn-end-chat {
-      background: var(--red);
-      border: none;
-      color: #fff;
-      padding: 8px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      cursor: pointer;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    /* ============ СООБЩЕНИЯ ============ */
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 16px;
-      display: none;
-      min-height: 0;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-    }
-    .messages.active { display: block; }
-
-    .msg {
-      display: block;
-      width: fit-content;
-      max-width: 75%;
-      padding: 9px 13px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-      margin-bottom: 6px;
-    }
-    .msg.me {
-      margin-left: auto;
-      margin-right: 0;
-      background: var(--blue);
-      color: #fff;
-      border-bottom-right-radius: 4px;
-    }
-    .msg.other {
-      margin-left: 0;
-      margin-right: auto;
-      background: var(--bg-4);
-      border-bottom-left-radius: 4px;
-    }
+    /* Сообщения */
+    .messages { flex: 1; overflow-y: auto; padding: 12px; background: #e9ebee; }
+    .msg { display: block; width: fit-content; max-width: 70%; padding: 6px 10px; margin-bottom: 6px; border: 1px solid #ccc; background: #fff; border-radius: 3px; word-wrap: break-word; }
+    .msg.me { margin-left: auto; background: #dce6f8; border-color: #b7c7e0; }
+    .msg.other { margin-right: auto; }
 
     /* Поле ввода */
-    .input-area {
-      padding: 10px 12px;
-      padding-bottom: calc(10px + env(safe-area-inset-bottom));
-      background: var(--bg-2);
-      border-top: 1px solid var(--border);
-      display: none;
-      gap: 8px;
-      flex-shrink: 0;
-      align-items: flex-end;
-    }
+    .input-area { background: #f5f6f7; border-top: 1px solid #bdc7d8; padding: 8px; display: none; gap: 6px; }
     .input-area.active { display: flex; }
+    .input-area textarea { flex: 1; padding: 6px 8px; border: 1px solid #bdc7d8; border-radius: 2px; resize: none; font-family: inherit; font-size: 13px; max-height: 100px; }
+    .btn-send { background: #3b5998; color: #fff; border: 1px solid #29487d; padding: 6px 14px; cursor: pointer; border-radius: 2px; }
 
-    .input-area textarea {
-      flex: 1;
-      padding: 10px 14px;
-      background: var(--bg-4);
-      border: 1px solid var(--border-2);
-      border-radius: 20px;
-      color: var(--text);
-      font-size: 15px;
-      font-family: inherit;
-      outline: none;
-      resize: none;
-      max-height: 120px;
-      line-height: 1.4;
-    }
-
-    .btn-send {
-      background: var(--blue);
-      border: none;
-      color: #fff;
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .btn-send svg { width: 20px; height: 20px; }
-
-    /* ============ МОДАЛКИ ============ */
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      padding-top: calc(20px + env(safe-area-inset-top));
-      padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    }
+    /* Модалки */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
     .modal.active { display: flex; }
-
-    .modal-card {
-      background: var(--bg-2);
-      border-radius: 16px;
-      padding: 24px;
-      max-width: 440px;
-      width: 100%;
-      max-height: 100%;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-    .modal-card h2 { font-size: 18px; margin-bottom: 12px; }
-    .modal-card .hint {
-      font-size: 13px;
-      color: var(--text-dim);
-      margin-bottom: 16px;
-      line-height: 1.4;
-    }
-    .modal-card textarea {
-      width: 100%;
-      min-height: 100px;
-      padding: 12px;
-      background: var(--bg-4);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: monospace;
-      font-size: 12px;
-      resize: vertical;
-      outline: none;
-    }
-    .modal-card button {
-      width: 100%;
-      padding: 12px;
-      background: var(--blue);
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    .modal-card button.secondary {
-      background: var(--bg-4);
-      color: var(--text);
-      font-weight: 500;
-    }
-
-    .modal-card input {
-      width: 100%;
-      padding: 12px 14px;
-      background: var(--bg-4);
-      border: 1px solid var(--border-2);
-      border-radius: 10px;
-      color: var(--text);
-      font-size: 15px;
-      font-family: inherit;
-      outline: none;
-      margin-bottom: 12px;
-    }
-    .modal-card input:focus { border-color: var(--blue); }
-
-    .modal-card .warning {
-      font-size: 12px;
-      color: var(--orange);
-      background: rgba(245, 158, 11, 0.1);
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      line-height: 1.4;
-    }
+    .modal-card { background: #fff; border: 1px solid #29487d; padding: 16px; max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal-card h2 { color: #3b5998; margin: 0 0 10px; font-size: 16px; }
+    .modal-card .hint { color: #666; font-size: 12px; margin-bottom: 10px; }
+    .modal-card input, .modal-card textarea { width: 100%; padding: 6px 8px; border: 1px solid #bdc7d8; border-radius: 2px; font-size: 13px; font-family: inherit; }
+    .modal-card textarea { min-height: 100px; font-family: monospace; font-size: 11px; }
+    .modal-card button { width: 100%; padding: 6px; background: #5b74a8; color: #fff; border: 1px solid #29487d; cursor: pointer; margin-top: 8px; border-radius: 2px; }
+    .modal-card button:hover { background: #3b5998; }
+    .modal-card button.secondary { background: #eee; color: #333; border-color: #bdc7d8; }
+    .modal-card button.secondary:hover { background: #ddd; }
+    .warning { background: #fff9e3; border: 1px solid #f7d674; padding: 8px; font-size: 12px; color: #735005; margin-bottom: 10px; }
 
     /* Вкладки */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      background: var(--bg-4);
-      border-radius: 10px;
-      padding: 4px;
-      margin-bottom: 16px;
-    }
-    .tab {
-      flex: 1;
-      text-align: center;
-      padding: 8px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-dim);
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      transition: background 0.15s, color 0.15s;
-      margin-top: 0;
-    }
-    .tab.active {
-      background: var(--bg-2);
-      color: var(--text);
-    }
-
+    .tabs { display: flex; margin-bottom: 10px; }
+    .tab { flex: 1; padding: 6px; background: #eee; border: 1px solid #bdc7d8; cursor: pointer; font-size: 13px; }
+    .tab.active { background: #3b5998; color: #fff; border-color: #29487d; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
+    .qr-box { background: #fff; padding: 10px; border: 1px solid #ddd; text-align: center; margin: 10px 0; }
+    #scannerVideo { width: 100%; background: #000; margin-bottom: 10px; }
+
+    .error-text { color: #a00; font-size: 12px; margin-top: 6px; }
+
     /* Аккаунты в модалке */
-    .acct-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 14px;
-      background: var(--bg-4);
-      border-radius: 12px;
-      border: 1px solid transparent;
-      transition: background 0.15s;
-    }
-    .acct-item.current { border-color: var(--blue); }
-    .acct-avatar {
-      width: 40px; height: 40px; border-radius: 50%;
-      background: var(--blue); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 600; font-size: 16px; flex-shrink: 0;
-    }
-    .acct-info { flex: 1; min-width: 0; }
-    .acct-name {
-      font-size: 14px; font-weight: 500;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .acct-fp {
-      font-size: 11px; color: var(--text-dim); font-family: monospace;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .acct-switch {
-      font-size: 12px; color: var(--blue);
-      background: transparent; border: none;
-      cursor: pointer; padding: 6px 10px;
-      border-radius: 6px; flex-shrink: 0;
-      width: auto; margin: 0;
-    }
-    .acct-switch:hover { background: rgba(59, 130, 246, 0.1); }
+    .acct-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ddd; margin-bottom: 6px; background: #f5f6f7; }
+    .acct-item.current { border-color: #3b5998; background: #edf2fa; }
+    .acct-avatar { width: 34px; height: 34px; background: #3b5998; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+    .acct-info { flex: 1; }
+    .acct-name { font-weight: bold; }
+    .acct-fp { font-size: 11px; color: #999; font-family: monospace; }
+    .acct-switch { background: #5b74a8; color: #fff; border: 1px solid #29487d; padding: 4px 10px; cursor: pointer; font-size: 12px; border-radius: 2px; }
 
-    .qr-box {
-      background: #fff;
-      padding: 12px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 12px 0;
-    }
-    .qr-box svg, .qr-box img, .qr-box canvas {
-      display: block;
-      max-width: 100%;
-      height: auto;
-    }
-
-    #scannerVideo {
-      width: 100%;
-      border-radius: 12px;
-      background: #000;
-      margin-bottom: 12px;
-      aspect-ratio: 1 / 1;
-      object-fit: cover;
-    }
-
-    .error-text {
-      color: var(--red);
-      font-size: 13px;
-      margin-top: 8px;
-      min-height: 18px;
-    }
-
-    /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
+    /* Мобильный адаптив */
     @media (max-width: 768px) {
-      .sidebar {
-        width: 100%;
-        border-right: none;
-      }
-      .chat-area {
-        position: absolute;
-        inset: 0;
-        background: var(--bg);
-        transform: translateX(100%);
-        transition: transform 0.25s ease;
-        z-index: 10;
-      }
+      .sidebar { width: 100%; border: none; }
+      .chat-area { position: absolute; inset: 0; background: #e9ebee; transform: translateX(100%); transition: transform 0.2s; z-index: 10; }
       .chat-area.active { transform: translateX(0); }
-      .mobile-back { display: inline-flex; }
+      .mobile-back { display: block; }
       .msg { max-width: 85%; }
-    }
-
-    @media (max-width: 380px) {
-      .topbar { padding: 0 8px; }
-      .topbar button { padding: 7px 9px; }
-      .avatar { width: 38px; height: 38px; font-size: 15px; }
-      .contact { padding: 10px 12px; }
-      .messages { padding: 12px; }
-      .msg { font-size: 13.5px; }
-    }
-
-    @media (min-width: 769px) and (max-width: 1024px) {
-      .sidebar { width: 280px; }
-    }
-
-    .contacts-list::-webkit-scrollbar,
-    .messages::-webkit-scrollbar,
-    .modal-card::-webkit-scrollbar {
-      width: 6px;
-    }
-    .contacts-list::-webkit-scrollbar-thumb,
-    .messages::-webkit-scrollbar-thumb,
-    .modal-card::-webkit-scrollbar-thumb {
-      background: #333;
-      border-radius: 3px;
+      .topbar-actions button .btn-label { display: none; }
     }
   </style>
 </head>
 <body>
 
-  <!-- TOPBAR -->
+  <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
   <div class="topbar">
-    <div class="me">
+    <div>
       <div class="me-name" id="meName">...</div>
       <div class="me-fp" id="meFp"></div>
     </div>
     <div class="topbar-actions">
-      <button id="btnMyCard" title="Моя карточка">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7"></rect>
-          <rect x="14" y="3" width="7" height="7"></rect>
-          <rect x="3" y="14" width="7" height="7"></rect>
-          <rect x="14" y="14" width="7" height="7"></rect>
-        </svg>
-        <span class="btn-label">Моя карточка</span>
-      </button>
-      <button id="btnDevices" title="Устройства">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
-        </svg>
-        <span class="btn-label">Устройства</span>
-      </button>
-      <button id="btnAccounts" title="Аккаунты">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="8.5" cy="7" r="4"></circle>
-          <line x1="20" y1="8" x2="20" y2="14"></line>
-          <line x1="23" y1="11" x2="17" y2="11"></line>
-        </svg>
-        <span class="btn-label">Аккаунты</span>
-      </button>
-      <button id="btnAddContact" class="primary" title="Добавить контакт">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span class="btn-label">Добавить</span>
-      </button>
+      <button id="btnMyCard">Моя карточка</button>
+      <button id="btnDevices">Устройства</button>
+      <button id="btnAccounts">Аккаунты</button>
+      <button id="btnAddContact" class="primary">+ Добавить</button>
     </div>
   </div>
 
-  <!-- MAIN -->
+  <!-- ОСНОВНОЙ БЛОК -->
   <div class="main">
-
-    <!-- SIDEBAR -->
     <div class="sidebar">
       <div class="sidebar-header">Контакты</div>
       <div class="contacts-list" id="contactsList"></div>
     </div>
 
-    <!-- CHAT -->
     <div class="chat-area" id="chatArea">
-
       <div class="chat-empty" id="chatEmpty">Выберите контакт слева</div>
 
       <div class="chat-header" id="chatHeader">
-        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-        </button>
-        <div class="chat-header-info">
+        <button class="mobile-back" id="btnMobileBack">←</button>
+        <div>
           <div class="chat-title" id="chatTitle">—</div>
           <div class="chat-timer" id="chatTimer"></div>
         </div>
@@ -654,15 +143,9 @@
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
-        <textarea id="msgInput" placeholder="Сообщение..." rows="1" autocomplete="off"></textarea>
-        <button class="btn-send" id="btnSend" aria-label="Отправить">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2L11 13"></path>
-            <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
-          </svg>
-        </button>
+        <textarea id="msgInput" rows="1" placeholder="Сообщение..."></textarea>
+        <button class="btn-send" id="btnSend">Отправить</button>
       </div>
-
     </div>
   </div>
 
@@ -684,8 +167,8 @@
       <h2>Добавить контакт</h2>
 
       <div class="tabs">
-        <button class="tab active" data-tab="scan">Сканировать</button>
-        <button class="tab" data-tab="manual">Вручную</button>
+        <div class="tab active" data-tab="scan">Сканировать</div>
+        <div class="tab" data-tab="manual">Вручную</div>
       </div>
 
       <div class="tab-panel active" id="tabScan">
@@ -711,10 +194,10 @@
       <h2>Аккаунты</h2>
       <p class="hint">Переключение между вашими локальными аккаунтами.</p>
 
-      <div id="accountsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+      <div id="accountsList" style="margin-bottom: 10px;"></div>
 
       <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
-      <button id="btnLogout" class="secondary" style="color:#ef4444; margin-top:4px;">Выйти из текущего аккаунта</button>
+      <button id="btnLogout" class="secondary" style="color:#a00;">Выйти из текущего аккаунта</button>
       <button id="btnCloseAccounts" class="secondary">Закрыть</button>
     </div>
   </div>
@@ -729,14 +212,12 @@
         ⚠️ QR/код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
       </div>
 
-      <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px;">
-        Временный пароль для передачи
-      </label>
+      <label>Временный пароль для передачи</label>
       <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
 
       <button id="btnGenerateExport">Сгенерировать код</button>
 
-      <div id="exportResult" style="display:none; margin-top:16px;">
+      <div id="exportResult" style="display:none; margin-top: 10px;">
         <div class="qr-box" id="exportQrBox"></div>
         <textarea id="exportJson" readonly></textarea>
         <button id="btnCopyExport" class="secondary">Скопировать код</button>
