@@ -89,6 +89,16 @@
     }
     button.secondary:hover { color: #e0e0e0; background: transparent; }
 
+    button.danger {
+      background: transparent;
+      color: #ef4444;
+      font-weight: 500;
+      font-size: 13px;
+      padding: 8px;
+      margin-top: 4px;
+    }
+    button.danger:hover { color: #dc2626; background: transparent; }
+
     .error {
       color: #ef4444;
       font-size: 13px;
@@ -115,6 +125,98 @@
       line-height: 1.4;
     }
 
+    /* Список аккаунтов */
+    .account-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .account-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #252525;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .account-item:hover {
+      background: #2d2d2d;
+    }
+
+    .account-item.current {
+      border-color: #3b82f6;
+    }
+
+    .account-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .account-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+
+    .account-fp {
+      font-size: 11px;
+      color: #666;
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-delete {
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin: 0;
+      width: auto;
+    }
+
+    .account-delete:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .account-delete svg {
+      width: 18px;
+      height: 18px;
+    }
+
     .screen { display: none; }
     .screen.active { display: block; }
 
@@ -126,9 +228,20 @@
 </head>
 <body>
 
+  <!-- Экран выбора аккаунта -->
+  <div class="card screen" id="screen-accounts">
+    <h1>Мои аккаунты</h1>
+    <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
+
+    <div class="account-list" id="accountList"></div>
+
+    <button id="btnAddAccount">+ Добавить аккаунт</button>
+    <button class="secondary" id="btnImportAccount">Импорт с другого устройства</button>
+  </div>
+
   <!-- Создание -->
   <div class="card screen" id="screen-create">
-    <h1>Добро пожаловать</h1>
+    <h1>Новый аккаунт</h1>
     <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
 
     <label>Никнейм</label>
@@ -144,19 +257,21 @@
     <button id="createBtn">Создать</button>
     <div class="error" id="createError"></div>
 
-    <button class="secondary" id="linkToImport">У меня уже есть аккаунт на другом устройстве →</button>
+    <button class="secondary" id="linkBackFromCreate">← Назад</button>
   </div>
 
   <!-- Разблокировка -->
   <div class="card screen" id="screen-unlock">
-    <h1>С возвращением</h1>
-    <p class="subtitle">Введите пароль для разблокировки</p>
+    <h1>Вход в аккаунт</h1>
+    <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
 
     <label>Пароль</label>
     <input type="password" id="unlockPassword" placeholder="Ваш пароль" autocomplete="current-password">
 
     <button id="unlockBtn">Войти</button>
     <div class="error" id="unlockError"></div>
+
+    <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
   </div>
 
   <!-- Импорт с другого устройства -->
@@ -183,7 +298,7 @@
     <button id="importBtn">Импортировать</button>
     <div class="error" id="importError"></div>
 
-    <button class="secondary" id="linkBackToCreate">← Назад</button>
+    <button class="secondary" id="linkBackFromImport">← Назад</button>
   </div>
 
   <script type="module" src="index.js"></script>

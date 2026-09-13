@@ -304,3 +304,69 @@ export async function importIdentity(exportObj, exportPassword) {
     fingerprint: exportObj.fingerprint
   };
 }
+
+// ---------- Мультиаккаунт ----------
+const ACCOUNTS_FILE = 'accounts.json';
+
+export async function listAccounts() {
+  try {
+    if (!await opfsExists(ACCOUNTS_FILE)) return { accounts: [], lastActive: null };
+    const buf = await opfsRead(ACCOUNTS_FILE);
+    const json = utf8Decode(buf);
+    const data = JSON.parse(json);
+    if (!Array.isArray(data.accounts)) data.accounts = [];
+    return data;
+  } catch (e) {
+    console.error('Не удалось прочитать accounts.json:', e);
+    return { accounts: [], lastActive: null };
+  }
+}
+
+export async function saveAccounts(data) {
+  const json = JSON.stringify(data, null, 2);
+  await opfsWrite(ACCOUNTS_FILE, utf8Encode(json));
+}
+
+export async function addAccountToIndex(identity) {
+  const data = await listAccounts();
+  const existing = data.accounts.find(a => a.fingerprint === identity.fingerprint);
+  if (!existing) {
+    data.accounts.push({
+      fingerprint: identity.fingerprint,
+      nickname: identity.nickname,
+      createdAt: identity.createdAt || Date.now()
+    });
+  } else {
+    // Обновим ник на случай изменения
+    existing.nickname = identity.nickname;
+  }
+  data.lastActive = identity.fingerprint;
+  await saveAccounts(data);
+}
+
+export async function removeAccountFromIndex(fingerprint) {
+  const data = await listAccounts();
+  data.accounts = data.accounts.filter(a => a.fingerprint !== fingerprint);
+  if (data.lastActive === fingerprint) {
+    data.lastActive = data.accounts[0]?.fingerprint || null;
+  }
+  await saveAccounts(data);
+}
+
+export async function setLastActive(fingerprint) {
+  const data = await listAccounts();
+  data.lastActive = fingerprint;
+  await saveAccounts(data);
+}
+
+export function identityFilePath(fingerprint) {
+  // Имя файла без символов, которые ломают OPFS
+  return `identity_${fingerprint.replace(/[:\s]/g, '_')}.enc`;
+}
+
+export async function deleteAccountFile(fingerprint) {
+  const path = identityFilePath(fingerprint);
+  if (await opfsExists(path)) {
+    await opfsDelete(path);
+  }
+}

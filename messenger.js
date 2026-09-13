@@ -14,7 +14,8 @@ import {
   deriveSharedKey, encryptMessage, decryptMessage,
   hashPubkey,
   signBlob, verifyBlob, uuid,
-  exportIdentity  // ← НОВОЕ
+  exportIdentity,
+  listAccounts, setLastActive, identityFilePath
 } from './crypto.js';
 
 const IDENTITY_FILE = 'identity.enc';
@@ -100,22 +101,27 @@ function purgeExpiredChats() {
 // ============================================
 async function init() {
   myPassword = sessionStorage.getItem('_pw');
-  if (!myPassword) {
+  const myFp = sessionStorage.getItem('_fp');
+
+  if (!myPassword || !myFp) {
     window.location.href = 'index.html';
     return;
   }
 
   try {
-    const enc = await opfsRead(IDENTITY_FILE);
+    const path = identityFilePath(myFp);
+    if (!await opfsExists(path)) {
+      throw new Error('Файл аккаунта не найден');
+    }
+    const enc = await opfsRead(path);
     myIdentity = await decryptIdentity(enc, myPassword);
   } catch (e) {
     console.error('Не удалось расшифровать identity:', e);
+    sessionStorage.removeItem('_pw');
+    sessionStorage.removeItem('_fp');
     window.location.href = 'index.html';
     return;
   }
-
-  console.log('[ME] nickname:', myIdentity.nickname,
-              'codePoints:', [...myIdentity.nickname].map(c => c.codePointAt(0).toString(16)));
 
   document.getElementById('meName').textContent = myIdentity.nickname;
   document.getElementById('meFp').textContent = myIdentity.fingerprint;
@@ -347,8 +353,6 @@ async function addContactFromCard(card) {
       await saveChats();
     } else if (nameChanged) {
       console.log(`[UPDATE] ${existing.nickname} → ${card.nickname}`);
-    } else {
-      console.log('[UPDATE] без изменений');
     }
   }
 
@@ -726,6 +730,10 @@ function bindUI() {
   document.getElementById('btnCloseMyCard').addEventListener('click', () => {
     document.getElementById('modalMyCard').classList.remove('active');
   });
+  document.getElementById('btnAccounts').addEventListener('click', openAccountsModal);
+  document.getElementById('btnCloseAccounts').addEventListener('click', closeAccountsModal);
+  document.getElementById('btnLogout').addEventListener('click', handleLogout);
+  document.getElementById('btnAddAnotherAccount').addEventListener('click', handleAddAnotherAccount);
 
   document.getElementById('btnDevices').addEventListener('click', openDevicesModal); 
   document.getElementById('btnCloseDevices').addEventListener('click', closeDevicesModal);
@@ -865,6 +873,83 @@ async function copyExport() {
   } catch {
     document.execCommand('copy');
   }
+}
+
+// ============================================
+// АККАУНТЫ
+// ============================================
+async function openAccountsModal() {
+  await renderAccountsModal();
+  document.getElementById('modalAccounts').classList.add('active');
+}
+
+function closeAccountsModal() {
+  document.getElementById('modalAccounts').classList.remove('active');
+}
+
+async function renderAccountsModal() {
+  const data = await listAccounts();
+  const list = document.getElementById('accountsList');
+
+  if (data.accounts.length === 0) {
+    list.innerHTML = '<div style="text-align:center; color:#666; font-size:13px;">Нет аккаунтов</div>';
+    return;
+  }
+
+  const sorted = [...data.accounts].sort((a, b) => {
+    if (a.fingerprint === myIdentity.fingerprint) return -1;
+    if (b.fingerprint === myIdentity.fingerprint) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  list.innerHTML = sorted.map(acc => {
+    const initial = (acc.nickname || '?').charAt(0).toUpperCase();
+    const isCurrent = acc.fingerprint === myIdentity.fingerprint;
+
+    return `
+      <div class="acct-item ${isCurrent ? 'current' : ''}">
+        <div class="acct-avatar">${initial}</div>
+        <div class="acct-info">
+          <div class="acct-name">${escapeHtml(acc.nickname || 'Без имени')}${isCurrent ? ' (текущий)' : ''}</div>
+          <div class="acct-fp">${acc.fingerprint}</div>
+        </div>
+        ${isCurrent ? '' : `<button class="acct-switch" data-switch="${acc.fingerprint}">Перейти</button>`}
+      </div>
+    `;
+  }).join('');
+
+  // Переключение
+  list.querySelectorAll('.acct-switch').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const fp = btn.dataset.switch;
+
+      // Спросим подтверждение (потому что пароль от другого аккаунта нужен)
+      if (!confirm('Переключиться на другой аккаунт? Вас попросят ввести пароль.')) return;
+
+      // Очищаем текущую сессию
+      sessionStorage.removeItem('_pw');
+      sessionStorage.removeItem('_fp');
+
+      // Ставим целевой аккаунт как lastActive и идём на index
+      await setLastActive(fp);
+      window.location.href = 'index.html';
+    });
+  });
+}
+
+async function handleLogout() {
+  if (!confirm('Выйти из аккаунта? Данные останутся на устройстве — сможете вернуться с паролем.')) return;
+  sessionStorage.removeItem('_pw');
+  sessionStorage.removeItem('_fp');
+  window.location.href = 'index.html';
+}
+
+function handleAddAnotherAccount() {
+  // Просто идём на index — там уже есть кнопка "Добавить"
+  sessionStorage.removeItem('_pw');
+  sessionStorage.removeItem('_fp');
+  window.location.href = 'index.html';
 }
 
 

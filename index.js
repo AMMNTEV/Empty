@@ -1,13 +1,16 @@
 // ============================================
-// index.js — создание / разблокировка / импорт identity
+// index.js — мультиаккаунт: список, создание, вход, импорт
 // ============================================
 import {
-  opfsWrite, opfsRead, opfsExists,
+  opfsWrite, opfsRead, opfsExists, opfsDelete,
   generateIdentity, encryptIdentity, decryptIdentity,
-  importIdentity
+  importIdentity,
+  listAccounts, saveAccounts, addAccountToIndex,
+  removeAccountFromIndex, setLastActive,
+  identityFilePath, deleteAccountFile
 } from './crypto.js';
 
-const IDENTITY_FILE = 'identity.enc';
+let selectedFingerprint = null;   // для экрана разблокировки
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -23,6 +26,91 @@ function sanitizeNickname(raw) {
   return s;
 }
 
+// ---------- Рендер списка аккаунтов ----------
+async function renderAccountsList() {
+  const data = await listAccounts();
+  const list = document.getElementById('accountList');
+
+  if (data.accounts.length === 0) {
+    list.innerHTML = '<div style="text-align:center; color:#666; font-size:13px; padding:20px 0;">Пока нет аккаунтов</div>';
+    return;
+  }
+
+  // Сортируем: сначала lastActive, потом по дате создания (новые выше)
+  const sorted = [...data.accounts].sort((a, b) => {
+    if (a.fingerprint === data.lastActive) return -1;
+    if (b.fingerprint === data.lastActive) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  list.innerHTML = sorted.map(acc => {
+    const initial = (acc.nickname || '?').charAt(0).toUpperCase();
+    const isCurrent = acc.fingerprint === data.lastActive ? 'current' : '';
+    return `
+      <div class="account-item ${isCurrent}" data-fp="${acc.fingerprint}">
+        <div class="account-avatar">${initial}</div>
+        <div class="account-info">
+          <div class="account-name">${escapeHtml(acc.nickname || 'Без имени')}</div>
+          <div class="account-fp">${acc.fingerprint}</div>
+        </div>
+        <button class="account-delete" data-delete="${acc.fingerprint}" title="Удалить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  // Клик по аккаунту — открыть экран входа
+  list.querySelectorAll('.account-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.account-delete')) return;
+      const fp = el.dataset.fp;
+      const acc = sorted.find(a => a.fingerprint === fp);
+      openUnlockScreen(acc);
+    });
+  });
+
+  // Удалить аккаунт
+  list.querySelectorAll('.account-delete').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const fp = btn.dataset.delete;
+      const acc = data.accounts.find(a => a.fingerprint === fp);
+      if (!acc) return;
+      const ok = confirm(
+        `Удалить аккаунт "${acc.nickname}"?\n\n` +
+        `Все контакты, чаты и ключи будут удалены безвозвратно.\n` +
+        `Это действие нельзя отменить.`
+      );
+      if (!ok) return;
+      await deleteAccountFile(fp);
+      await removeAccountFromIndex(fp);
+      await renderAccountsList();
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ---------- Экран входа в аккаунт ----------
+function openUnlockScreen(account) {
+  selectedFingerprint = account.fingerprint;
+  document.getElementById('unlockSubtitle').textContent = `Введите пароль для "${account.nickname}"`;
+  document.getElementById('unlockPassword').value = '';
+  document.getElementById('unlockError').textContent = '';
+  showScreen('screen-unlock');
+  setTimeout(() => document.getElementById('unlockPassword').focus(), 100);
+}
+
 // ---------- Создание ----------
 async function handleCreate() {
   const rawNickname = document.getElementById('nickname').value;
@@ -33,7 +121,7 @@ async function handleCreate() {
   const btn = document.getElementById('createBtn');
 
   errEl.textContent = '';
-  if (!nickname) { errEl.textContent = 'Введите никнейм (буквы, цифры, пробел, _ - .)'; return; }
+  if (!nickname) { errEl.textContent = 'Введите никнейм'; return; }
   if (nickname.length < 2) { errEl.textContent = 'Ник минимум 2 символа'; return; }
   if (password.length < 6) { errEl.textContent = 'Пароль минимум 6 символов'; return; }
   if (password !== password2) { errEl.textContent = 'Пароли не совпадают'; return; }
@@ -44,8 +132,12 @@ async function handleCreate() {
   try {
     const identity = await generateIdentity(nickname);
     const encrypted = await encryptIdentity(identity, password);
-    await opfsWrite(IDENTITY_FILE, encrypted);
+    await opfsWrite(identityFilePath(identity.fingerprint), encrypted);
+    await addAccountToIndex(identity);
+
     sessionStorage.setItem('_pw', password);
+    sessionStorage.setItem('_fp', identity.fingerprint);
+
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error('❌', e);
@@ -61,14 +153,27 @@ async function handleUnlock() {
   const errEl = document.getElementById('unlockError');
   const btn = document.getElementById('unlockBtn');
 
+  if (!selectedFingerprint) {
+    errEl.textContent = 'Аккаунт не выбран';
+    return;
+  }
+
   errEl.textContent = '';
   btn.disabled = true;
   btn.textContent = 'Расшифровка...';
 
   try {
-    const encrypted = await opfsRead(IDENTITY_FILE);
+    const path = identityFilePath(selectedFingerprint);
+    if (!await opfsExists(path)) {
+      throw new Error('Файл аккаунта не найден');
+    }
+    const encrypted = await opfsRead(path);
     const identity = await decryptIdentity(encrypted, password);
+
+    await setLastActive(identity.fingerprint);
     sessionStorage.setItem('_pw', password);
+    sessionStorage.setItem('_fp', identity.fingerprint);
+
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error(e);
@@ -78,7 +183,7 @@ async function handleUnlock() {
   }
 }
 
-// ---------- Импорт с другого устройства ----------
+// ---------- Импорт ----------
 async function handleImport() {
   const json = document.getElementById('importJson').value.trim();
   const exportPassword = document.getElementById('importPassword').value;
@@ -99,12 +204,27 @@ async function handleImport() {
   try {
     const exportObj = JSON.parse(json);
     const identity = await importIdentity(exportObj, exportPassword);
-    console.log('✅ импортирована identity:', identity.fingerprint);
 
-    // Сохраняем локально уже с НОВЫМ паролем пользователя
+    // Проверим, нет ли уже такого аккаунта
+    const data = await listAccounts();
+    const exists = data.accounts.find(a => a.fingerprint === identity.fingerprint);
+    if (exists) {
+      const overwrite = confirm(
+        `Аккаунт "${identity.nickname}" уже есть на этом устройстве.\nПерезаписать его?`
+      );
+      if (!overwrite) {
+        btn.disabled = false;
+        btn.textContent = 'Импортировать';
+        return;
+      }
+    }
+
     const encrypted = await encryptIdentity(identity, newPassword);
-    await opfsWrite(IDENTITY_FILE, encrypted);
+    await opfsWrite(identityFilePath(identity.fingerprint), encrypted);
+    await addAccountToIndex(identity);
+
     sessionStorage.setItem('_pw', newPassword);
+    sessionStorage.setItem('_fp', identity.fingerprint);
 
     window.location.href = 'messenger.html';
   } catch (e) {
@@ -121,16 +241,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('unlockBtn').addEventListener('click', handleUnlock);
   document.getElementById('importBtn').addEventListener('click', handleImport);
 
-  // Ссылки на экраны
-  document.getElementById('linkToImport').addEventListener('click', (e) => {
-    e.preventDefault();
-    showScreen('screen-import');
-  });
-  document.getElementById('linkBackToCreate').addEventListener('click', (e) => {
-    e.preventDefault();
+  // Навигация
+  document.getElementById('btnAddAccount').addEventListener('click', () => {
+    document.getElementById('nickname').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('password2').value = '';
+    document.getElementById('createError').textContent = '';
     showScreen('screen-create');
   });
+  document.getElementById('btnImportAccount').addEventListener('click', () => {
+    showScreen('screen-import');
+  });
+  document.getElementById('linkBackFromCreate').addEventListener('click', async () => {
+    await renderAccountsList();
+    showScreen('screen-accounts');
+  });
+  document.getElementById('linkBackFromUnlock').addEventListener('click', async () => {
+    selectedFingerprint = null;
+    await renderAccountsList();
+    showScreen('screen-accounts');
+  });
+  document.getElementById('linkBackFromImport').addEventListener('click', async () => {
+    await renderAccountsList();
+    showScreen('screen-accounts');
+  });
 
-  const exists = await opfsExists(IDENTITY_FILE);
-  showScreen(exists ? 'screen-unlock' : 'screen-create');
+  // Enter на поле пароля в экране разблокировки
+  document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleUnlock();
+  });
+
+  // Стартовый экран
+  const data = await listAccounts();
+  if (data.accounts.length === 0) {
+    showScreen('screen-create');
+  } else {
+    await renderAccountsList();
+    showScreen('screen-accounts');
+  }
 });
