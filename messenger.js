@@ -2,7 +2,6 @@
 // messenger.js — контакты, чаты, E2EE, relay
 // Новая схема: users/{hashHex}/inbox/{blobId}
 // Store-and-forward + авто-handshake + адаптив
-// Двусторонняя очистка при завершении чата
 // ============================================
 import { db } from './firebase-init.js';
 import {
@@ -14,7 +13,7 @@ import {
   opfsWrite, opfsRead, opfsExists,
   decryptIdentity, encryptIdentity,
   deriveSharedKey, encryptMessage, decryptMessage,
-  hashPubkey, hashPubkeyHex,
+  hashPubkey, hashPubkeyHex,                    // ← добавлен hashPubkeyHex
   signBlob, verifyBlob, uuid,
   exportIdentity,
   listAccounts, setLastActive, identityFilePath
@@ -26,11 +25,10 @@ const CHATS_FILE = 'chats.enc';
 
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;          // блоб живёт 25 часов
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
-const CHAT_END_WAIT_MS = 2000;                     // ждём перед чисткой, чтобы сигнал дошёл
 
 let myIdentity = null;
 let myPassword = null;
-let myHashHex = null;
+let myHashHex = null;                              // кэш hex-хэша моей identity
 let contacts = {};
 let chatHistory = {};
 let activeChat = null;
@@ -93,109 +91,13 @@ async function loadChats() {
 // ПУТЬ К INBOX
 // ============================================
 function myInboxRef() {
+  // users/{myHashHex}/inbox
   return collection(db, 'users', myHashHex, 'inbox');
 }
 
-
-// ============================================
-// ОЧИСТКА RELAY
-// ============================================
-// Удалить из СВОЕГО inbox блобы от контакта + из ЕГО inbox мои блобы
-async function purgeRelayForContact(peerFingerprint) {
-  try {
-    const peer = contacts[peerFingerprint];
-    if (!peer) return 0;
-
-    const peerHashHex = await hashPubkeyHex(peer.x25519);
-
-    let totalDeleted = 0;
-
-    // 1. Свой inbox — удаляем его блобы
-    {
-      const snapshot = await getDocs(collection(db, 'users', myHashHex, 'inbox'));
-      const toDelete = [];
-      snapshot.forEach(d => {
-        const data = d.data();
-        if (data.system === true) return;  // не трогаем системные сигналы
-        if (data.from === peerHashHex) toDelete.push(d.ref);
-      });
-      for (let i = 0; i < toDelete.length; i += 500) {
-        const batch = writeBatch(db);
-        toDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
-        await batch.commit();
-      }
-      totalDeleted += toDelete.length;
-    }
-
-    // 2. Его inbox — удаляем мои блобы (тоже не трогаем системные)
-    {
-      const snapshot = await getDocs(collection(db, 'users', peerHashHex, 'inbox'));
-      const toDelete = [];
-      snapshot.forEach(d => {
-        const data = d.data();
-        if (data.system === true) return;  // не трогаем системные сигналы
-        if (data.from === myHashHex) toDelete.push(d.ref);
-      });
-      for (let i = 0; i < toDelete.length; i += 500) {
-        const batch = writeBatch(db);
-        toDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
-        await batch.commit();
-      }
-      totalDeleted += toDelete.length;
-    }
-
-    if (totalDeleted > 0) {
-      console.log(`🗑 Удалено блобов (свой + его inbox): ${totalDeleted}`);
-    }
-    return totalDeleted;
-  } catch (e) {
-    console.warn('purgeRelayForContact error:', e);
-    return 0;
-  }
-}
-
-
-// ============================================
-// СИГНАЛ "ЧАТ ЗАКРЫТ"
-// ============================================
-async function sendChatEndSignal(peerFingerprint) {
-  try {
-    const peer = contacts[peerFingerprint];
-    if (!peer) return;
-
-    const peerHashHex = await hashPubkeyHex(peer.x25519);
-    const inboxRef = collection(db, 'users', peerHashHex, 'inbox');
-
-    const payload = JSON.stringify({
-      type: 'chat_end',
-      ts: Date.now()
-    });
-
-    const sharedKey = await deriveSharedKey(
-      myIdentity.x25519.private,
-      peer.x25519
-    );
-
-    const blob = await encryptMessage(payload, sharedKey);
-    const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
-    const senderCardB64 = btoa(unescape(encodeURIComponent(JSON.stringify(buildMyCard()))));
-
-    await addDoc(inboxRef, {
-      from: myHashHex,
-      iv: blob.iv,
-      ciphertext: blob.ciphertext,
-      signature: signature,
-      senderEd25519: myIdentity.ed25519.public,
-      senderCardB64: senderCardB64,
-      ttl: Date.now() + RELAY_TTL_MS,
-      system: true,                          // ← помечаем как системный
-      systemType: 'chat_end'
-    });
-
-    console.log('📤 Сигнал "чат закрыт" отправлен');
-  } catch (e) {
-    console.warn('sendChatEndSignal error:', e);
-  }
+function peerInboxRef(peerPubBase64) {
+  // Асинхронно — вернёт Promise<ref>
+  return hashPubkeyHex(peerPubBase64).then(h => collection(db, 'users', h, 'inbox'));
 }
 
 
@@ -210,7 +112,6 @@ async function purgeExpiredChats() {
     if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
       console.log(`⏱ Чат с "${chatHistory[fp].peerNickname}" истёк — очищаю`);
 
-      sendChatEndSignal(fp).catch(e => console.warn('signal error:', e));
       purgeRelayForContact(fp).catch(e => console.warn('purgeRelay error:', e));
 
       if (activeChat && activeChat.fingerprint === fp) {
@@ -228,6 +129,38 @@ async function purgeExpiredChats() {
     saveChats();
     renderContacts();
     renderChat();
+  }
+}
+
+// Удалить из своего inbox всё, что пришло от конкретного контакта
+async function purgeRelayForContact(peerFingerprint) {
+  try {
+    const peer = contacts[peerFingerprint];
+    if (!peer) return 0;
+
+    const peerHashHex = await hashPubkeyHex(peer.x25519);
+    const inboxRef = myInboxRef();
+    const snapshot = await getDocs(inboxRef);
+
+    const toDelete = [];
+    snapshot.forEach(d => {
+      if (d.data().from === peerHashHex) toDelete.push(d.ref);
+    });
+
+    // Удаляем пачками по 500 (лимит Firestore batch)
+    for (let i = 0; i < toDelete.length; i += 500) {
+      const batch = writeBatch(db);
+      toDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    if (toDelete.length > 0) {
+      console.log(`🗑 Удалено блобов от "${peer.nickname}": ${toDelete.length}`);
+    }
+    return toDelete.length;
+  } catch (e) {
+    console.warn('purgeRelayForContact error:', e);
+    return 0;
   }
 }
 
@@ -259,6 +192,7 @@ async function init() {
     return;
   }
 
+  // Считаем hex-хэш один раз — он нам нужен постоянно
   myHashHex = await hashPubkeyHex(myIdentity.x25519.public);
   console.log('[ME] myHashHex:', myHashHex);
 
@@ -278,6 +212,14 @@ async function init() {
   purgeCheckInterval = setInterval(() => {
     purgeExpiredChats().catch(e => console.warn('purge timer error:', e));
   }, 60 * 1000);
+
+  window.addEventListener('beforeunload', () => {
+    for (const fp in chatHistory) {
+      if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < Date.now()) {
+        purgeRelayForContact(fp).catch(() => {});
+      }
+    }
+  });
 }
 
 
@@ -661,21 +603,13 @@ function startTimer() {
   }
 }
 
-async function endChat() {
+function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. Отправляем собеседнику сигнал "чат закрыт" (помечен system:true)
-  await sendChatEndSignal(fp);
+  purgeRelayForContact(fp);
 
-  // 2. Ждём немного — чтобы он успел получить сигнал и удалить у себя
-  await new Promise(r => setTimeout(r, CHAT_END_WAIT_MS));
-
-  // 3. Чистим оба inbox (кроме системных сигналов)
-  await purgeRelayForContact(fp);
-
-  // 4. Чистим свою локальную историю
   delete chatHistory[fp];
   saveChats();
 
@@ -717,10 +651,12 @@ async function sendMessage() {
   const blob = await encryptMessage(payload, activeChat.sharedKey);
   const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
 
+  // from теперь в hex (совпадает с форматом hashPubkeyHex)
   const fromHashHex = myHashHex;
   const senderCardB64 = btoa(unescape(encodeURIComponent(JSON.stringify(buildMyCard()))));
 
   try {
+    // Получатель блоба = hash(peer.x25519)
     const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
     const inboxRef = collection(db, 'users', toHashHex, 'inbox');
 
@@ -826,6 +762,12 @@ async function listenIncoming() {
       const chatMissing = !existingChat;
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
 
+      if ((chatExpired || chatMissing) && !isActiveWithPeer) {
+        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат завершён`);
+        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
+        continue;
+      }
+
       // Просрочка самого блоба
       if (data.ttl && data.ttl < Date.now()) {
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
@@ -862,39 +804,6 @@ async function listenIncoming() {
         payload = JSON.parse(plain);
       } catch (e) {
         console.error('Не удалось расшифровать:', e);
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
-      }
-
-      // ============ СИГНАЛ "ЧАТ ЗАКРЫТ" ============
-      if (payload && payload.type === 'chat_end') {
-        console.log(`📥 Получен сигнал "чат закрыт" от "${contacts[peerFp].nickname}"`);
-
-        // Удаляем блоб-сигнал
-        try { await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId)); } catch (e) {}
-
-        // Удаляем локальную историю чата с этим контактом
-        if (chatHistory[peerFp]) {
-          delete chatHistory[peerFp];
-          saveChats();
-        }
-
-        // Если этот чат открыт — сбрасываем
-        if (activeChat && activeChat.fingerprint === peerFp) {
-          if (timerInterval) clearInterval(timerInterval);
-          timerInterval = null;
-          activeChat = null;
-          renderChat();
-        }
-
-        renderContacts();
-        continue;
-      }
-      // ============ /СИГНАЛ ============
-
-      // Обычное сообщение. Проверяем: чат истёк / не открыт?
-      if ((chatExpired || chatMissing) && !isActiveWithPeer) {
-        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат завершён`);
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
