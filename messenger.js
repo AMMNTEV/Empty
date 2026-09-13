@@ -1,7 +1,7 @@
 // ============================================
 // messenger.js — контакты, чаты, E2EE, relay
-// Новая схема: users/{hashHex}/inbox/{blobId}
-// Store-and-forward + авто-handshake + адаптив
+// Схема: users/{hashHex}/inbox/{blobId}
+// Файлы контактов и чатов — свои на каждый аккаунт
 // ============================================
 import { db } from './firebase-init.js';
 import {
@@ -13,22 +13,18 @@ import {
   opfsWrite, opfsRead, opfsExists,
   decryptIdentity, encryptIdentity,
   deriveSharedKey, encryptMessage, decryptMessage,
-  hashPubkey, hashPubkeyHex,                    // ← добавлен hashPubkeyHex
+  hashPubkeyHex,
   signBlob, verifyBlob, uuid,
   exportIdentity,
   listAccounts, setLastActive, identityFilePath
 } from './crypto.js';
-
-const IDENTITY_FILE = 'identity.enc';
-const CONTACTS_FILE = 'contacts.enc';
-const CHATS_FILE = 'chats.enc';
 
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;          // блоб живёт 25 часов
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
 
 let myIdentity = null;
 let myPassword = null;
-let myHashHex = null;                              // кэш hex-хэша моей identity
+let myHashHex = null;
 let contacts = {};
 let chatHistory = {};
 let activeChat = null;
@@ -39,49 +35,53 @@ let scannerStream = null;
 let scannerRAF = null;
 let purgeCheckInterval = null;
 
+// Имена файлов для текущего аккаунта (устанавливаются в init)
+let CONTACTS_FILE = null;
+let CHATS_FILE = null;
+
 
 // ============================================
-// OPFS
+// OPFS — контакты и чаты привязаны к myHashHex
 // ============================================
 async function saveContacts() {
-  if (!myPassword) return;
+  if (!myPassword || !CONTACTS_FILE) return;
   const encrypted = await encryptIdentity(contacts, myPassword);
   await opfsWrite(CONTACTS_FILE, encrypted);
 }
 
 async function loadContacts() {
-  if (!myPassword) return {};
+  if (!myPassword || !CONTACTS_FILE) return {};
   if (!await opfsExists(CONTACTS_FILE)) return {};
   try {
     const enc = await opfsRead(CONTACTS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('Не удалось расшифровать контакты:', e);
+    console.error('[OPFS] Не удалось расшифровать контакты:', e);
     return {};
   }
 }
 
 async function saveChats() {
-  if (!myPassword) return;
+  if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) clearTimeout(saveChatsTimer);
   saveChatsTimer = setTimeout(async () => {
     try {
       const encrypted = await encryptIdentity(chatHistory, myPassword);
       await opfsWrite(CHATS_FILE, encrypted);
     } catch (e) {
-      console.error('Не удалось сохранить историю:', e);
+      console.error('[OPFS] Не удалось сохранить историю:', e);
     }
   }, 500);
 }
 
 async function loadChats() {
-  if (!myPassword) return {};
+  if (!myPassword || !CHATS_FILE) return {};
   if (!await opfsExists(CHATS_FILE)) return {};
   try {
     const enc = await opfsRead(CHATS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('Не удалось расшифровать историю:', e);
+    console.error('[OPFS] Не удалось расшифровать историю:', e);
     return {};
   }
 }
@@ -91,13 +91,7 @@ async function loadChats() {
 // ПУТЬ К INBOX
 // ============================================
 function myInboxRef() {
-  // users/{myHashHex}/inbox
   return collection(db, 'users', myHashHex, 'inbox');
-}
-
-function peerInboxRef(peerPubBase64) {
-  // Асинхронно — вернёт Promise<ref>
-  return hashPubkeyHex(peerPubBase64).then(h => collection(db, 'users', h, 'inbox'));
 }
 
 
@@ -110,9 +104,9 @@ async function purgeExpiredChats() {
 
   for (const fp in chatHistory) {
     if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
-      console.log(`⏱ Чат с "${chatHistory[fp].peerNickname}" истёк — очищаю`);
+      console.log(`[PURGE] Чат с "${chatHistory[fp].peerNickname}" истёк`);
 
-      purgeRelayForContact(fp).catch(e => console.warn('purgeRelay error:', e));
+      purgeRelayForContact(fp).catch(e => console.warn('[PURGE] relay error:', e));
 
       if (activeChat && activeChat.fingerprint === fp) {
         if (timerInterval) clearInterval(timerInterval);
@@ -139,15 +133,13 @@ async function purgeRelayForContact(peerFingerprint) {
     if (!peer) return 0;
 
     const peerHashHex = await hashPubkeyHex(peer.x25519);
-    const inboxRef = myInboxRef();
-    const snapshot = await getDocs(inboxRef);
+    const snapshot = await getDocs(myInboxRef());
 
     const toDelete = [];
     snapshot.forEach(d => {
       if (d.data().from === peerHashHex) toDelete.push(d.ref);
     });
 
-    // Удаляем пачками по 500 (лимит Firestore batch)
     for (let i = 0; i < toDelete.length; i += 500) {
       const batch = writeBatch(db);
       toDelete.slice(i, i + 500).forEach(ref => batch.delete(ref));
@@ -155,11 +147,11 @@ async function purgeRelayForContact(peerFingerprint) {
     }
 
     if (toDelete.length > 0) {
-      console.log(`🗑 Удалено блобов от "${peer.nickname}": ${toDelete.length}`);
+      console.log(`[PURGE] Удалено блобов от "${peer.nickname}": ${toDelete.length}`);
     }
     return toDelete.length;
   } catch (e) {
-    console.warn('purgeRelayForContact error:', e);
+    console.warn('[PURGE] error:', e);
     return 0;
   }
 }
@@ -185,22 +177,31 @@ async function init() {
     const enc = await opfsRead(path);
     myIdentity = await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('Не удалось расшифровать identity:', e);
+    console.error('[INIT] Не удалось расшифровать identity:', e);
     sessionStorage.removeItem('_pw');
     sessionStorage.removeItem('_fp');
     window.location.href = 'index.html';
     return;
   }
 
-  // Считаем hex-хэш один раз — он нам нужен постоянно
+  // Считаем hex-хэш — на его основе строим имена файлов контактов/чатов
   myHashHex = await hashPubkeyHex(myIdentity.x25519.public);
+  CONTACTS_FILE = `contacts_${myHashHex}.enc`;
+  CHATS_FILE = `chats_${myHashHex}.enc`;
+
+  console.log('[ME] nickname:', myIdentity.nickname);
   console.log('[ME] myHashHex:', myHashHex);
+  console.log('[ME] CONTACTS_FILE:', CONTACTS_FILE);
+  console.log('[ME] CHATS_FILE:', CHATS_FILE);
 
   document.getElementById('meName').textContent = myIdentity.nickname;
   document.getElementById('meFp').textContent = myIdentity.fingerprint;
 
   contacts = await loadContacts();
   chatHistory = await loadChats();
+
+  console.log('[INIT] loaded contacts:', Object.keys(contacts).length);
+  console.log('[INIT] loaded chats:', Object.keys(chatHistory).length);
 
   await purgeExpiredChats();
 
@@ -210,16 +211,8 @@ async function init() {
 
   if (purgeCheckInterval) clearInterval(purgeCheckInterval);
   purgeCheckInterval = setInterval(() => {
-    purgeExpiredChats().catch(e => console.warn('purge timer error:', e));
+    purgeExpiredChats().catch(e => console.warn('[PURGE] timer error:', e));
   }, 60 * 1000);
-
-  window.addEventListener('beforeunload', () => {
-    for (const fp in chatHistory) {
-      if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < Date.now()) {
-        purgeRelayForContact(fp).catch(() => {});
-      }
-    }
-  });
 }
 
 
@@ -331,7 +324,7 @@ async function showMyCard() {
     qrBox.appendChild(canvas);
 
   } catch (e) {
-    console.error('QR generation error:', e);
+    console.error('[QR] generation error:', e);
     qrBox.innerHTML = '<div style="color: #333; font-size: 12px; padding: 10px;">QR недоступен — используйте JSON</div>';
   }
 
@@ -381,7 +374,7 @@ async function startScanner() {
     };
     tick();
   } catch (e) {
-    console.error('Camera error:', e);
+    console.error('[SCAN] Camera error:', e);
     errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
   }
 }
@@ -404,7 +397,7 @@ async function handleScannedQR(text) {
     closeAddContactModal();
     setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
   } catch (e) {
-    console.error('QR parse error:', e);
+    console.error('[SCAN] parse error:', e);
     document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
   }
 }
@@ -436,7 +429,7 @@ async function addContactFromCard(card) {
       delete chatHistory[card.fingerprint];
       await saveChats();
     } else if (nameChanged) {
-      console.log(`[UPDATE] ${existing.nickname} → ${card.nickname}`);
+      console.log(`[CONTACT] обновлён ник: ${existing.nickname} → ${card.nickname}`);
     }
   }
 
@@ -620,7 +613,7 @@ function endChat() {
   renderContacts();
   renderChat();
 
-  console.log(`💬 Чат с "${peerNickname}" завершён`);
+  console.log(`[END] Чат с "${peerNickname}" завершён`);
 }
 
 function exitChat() {
@@ -651,17 +644,16 @@ async function sendMessage() {
   const blob = await encryptMessage(payload, activeChat.sharedKey);
   const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
 
-  // from теперь в hex (совпадает с форматом hashPubkeyHex)
-  const fromHashHex = myHashHex;
   const senderCardB64 = btoa(unescape(encodeURIComponent(JSON.stringify(buildMyCard()))));
 
   try {
-    // Получатель блоба = hash(peer.x25519)
     const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
     const inboxRef = collection(db, 'users', toHashHex, 'inbox');
 
+    console.log(`[SEND] → ${activeChat.peerCard.nickname} (${toHashHex.slice(0,8)}...) text="${text}"`);
+
     await addDoc(inboxRef, {
-      from: fromHashHex,
+      from: myHashHex,
       iv: blob.iv,
       ciphertext: blob.ciphertext,
       signature: signature,
@@ -669,8 +661,10 @@ async function sendMessage() {
       senderCardB64: senderCardB64,
       ttl: Date.now() + RELAY_TTL_MS
     });
+
+    console.log('[SEND] ✅ отправлено в Firestore');
   } catch (e) {
-    console.error('Не удалось отправить:', e);
+    console.error('[SEND] ❌ ошибка:', e);
   }
 
   if (!chatHistory[fp]) {
@@ -697,12 +691,18 @@ async function sendMessage() {
 async function listenIncoming() {
   const inboxRef = myInboxRef();
 
+  console.log('[LISTEN] subscribing to:', `users/${myHashHex}/inbox`);
+
   unsubscribeIncoming = onSnapshot(inboxRef, async (snapshot) => {
+    console.log('[LISTEN] snapshot, changes:', snapshot.docChanges().length);
+
     for (const change of snapshot.docChanges()) {
       if (change.type !== 'added') continue;
 
       const data = change.doc.data();
       const docId = change.doc.id;
+
+      console.log('[RECV] ← blob', docId.slice(0,8), 'from:', data.from?.slice(0,8), '...');
 
       // Парсим карточку отправителя
       let senderCard = null;
@@ -711,65 +711,58 @@ async function listenIncoming() {
           const json = decodeURIComponent(escape(atob(data.senderCardB64)));
           senderCard = JSON.parse(json);
         } catch (e) {
-          console.warn('Не удалось распарсить senderCardB64:', e);
+          console.warn('[RECV] не распарсил senderCardB64:', e);
         }
       }
 
-      // Ищем отправителя в контактах по hex-хэшу
+      // Ищем отправителя в контактах
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
 
-      // Незнакомый отправитель — авто-handshake
+      // Авто-handshake для нового контакта
       if (!peerFp && senderCard) {
         try {
           const card = senderCard;
           if (!card.x25519 || !card.fingerprint || !card.ed25519) {
+            console.log('[RECV] SKIP: неполная карточка');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           const cardHash = await hashPubkeyHex(card.x25519);
           if (cardHash !== data.from) {
+            console.log('[RECV] SKIP: cardHash != from');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           if (data.senderEd25519 !== card.ed25519) {
+            console.log('[RECV] SKIP: senderEd25519 mismatch');
             await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
             continue;
           }
           contacts[card.fingerprint] = card;
           await saveContacts();
           peerFp = card.fingerprint;
-          console.log('✅ Авто-добавлен контакт:', card.nickname);
+          console.log('[RECV] ✅ авто-добавлен контакт:', card.nickname);
           renderContacts();
         } catch (e) {
-          console.error('Авто-handshake ошибка:', e);
+          console.error('[RECV] авто-handshake error:', e);
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
       }
 
       if (!peerFp) {
+        console.log('[RECV] SKIP: peerFp не найден');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Проверка: чат был и истёк?
-      const existingChat = chatHistory[peerFp];
-      const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
-      const chatMissing = !existingChat;
-      const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
-
-      if ((chatExpired || chatMissing) && !isActiveWithPeer) {
-        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат завершён`);
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
-      }
-
-      // Просрочка самого блоба
+      // Просрочка блоба
       if (data.ttl && data.ttl < Date.now()) {
+        console.log('[RECV] SKIP: ttl expired');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
@@ -778,18 +771,22 @@ async function listenIncoming() {
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
         if (!valid) {
+          console.log('[RECV] SKIP: signature invalid');
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
         if (data.senderEd25519 !== contacts[peerFp].ed25519) {
+          console.log('[RECV] SKIP: senderEd25519 != contact');
           await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
           continue;
         }
       } else {
+        console.log('[RECV] SKIP: no signature');
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
+      // Расшифровка
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -803,7 +800,18 @@ async function listenIncoming() {
         );
         payload = JSON.parse(plain);
       } catch (e) {
-        console.error('Не удалось расшифровать:', e);
+        console.error('[RECV] SKIP: decrypt error', e);
+        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
+        continue;
+      }
+
+      // ПРОПУСКАЕМ только если чат ИСТЁК (не "отсутствует")
+      const existingChat = chatHistory[peerFp];
+      const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
+      const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
+
+      if (chatExpired && !isActiveWithPeer) {
+        console.log(`[RECV] SKIP: чат с "${contacts[peerFp].nickname}" истёк`);
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
@@ -830,6 +838,8 @@ async function listenIncoming() {
 
       saveChats();
 
+      console.log(`[RECV] ✅ от "${contacts[peerFp].nickname}": "${payload.text}"`);
+
       if (activeChat && activeChat.fingerprint === peerFp) {
         renderChat();
         startTimer();
@@ -837,6 +847,8 @@ async function listenIncoming() {
         renderContacts();
       }
     }
+  }, (error) => {
+    console.error('[LISTEN] onSnapshot ERROR:', error);
   });
 }
 
