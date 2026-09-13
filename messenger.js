@@ -868,28 +868,31 @@ async function listenIncoming() {
 
       // ============ СИГНАЛ "ЧАТ ЗАКРЫТ" ============
       if (payload && payload.type === 'chat_end') {
-        console.log(`📥 Получен сигнал "чат закрыт" от "${contacts[peerFp].nickname}"`);
+  console.log(`📥 Получен сигнал "чат закрыт" от "${contacts[peerFp].nickname}"`);
 
-        // Удаляем блоб-сигнал
-        try { await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId)); } catch (e) {}
+  // 1. УДАЛЯЕМ БЛОБ ИЗ БАЗЫ (Этого вызова не хватало перед continue)
+  try {
+    await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
+  } catch (e) {
+    console.error('Ошибка удаления системного блоба:', e);
+  }
 
-        // Удаляем локальную историю чата с этим контактом
-        if (chatHistory[peerFp]) {
-          delete chatHistory[peerFp];
-          saveChats();
-        }
-
-        // Если этот чат открыт — сбрасываем
-        if (activeChat && activeChat.fingerprint === peerFp) {
-          if (timerInterval) clearInterval(timerInterval);
-          timerInterval = null;
-          activeChat = null;
-          renderChat();
-        }
-
-        renderContacts();
-        continue;
-      }
+  // 2. Очищаем локальную историю
+  if (chatHistory[peerFp]) {
+    delete chatHistory[peerFp];
+    saveChats();
+  }
+  
+  // 3. Обновляем UI, если чат открыт прямо сейчас
+  if (activeChat && activeChat.fingerprint === peerFp) {
+    closeChat();
+    alert(`Собеседник "${contacts[peerFp].nickname}" завершил чат.`);
+  }
+  renderContacts();
+  
+  // 4. Переходим к следующему изменению
+  continue;
+}
       // ============ /СИГНАЛ ============
 
       // Обычное сообщение. Проверяем: чат истёк / не открыт?
