@@ -1,11 +1,12 @@
 // ============================================
 // messenger.js — контакты, чаты, E2EE, relay
 // Store-and-forward + авто-handshake + адаптив
+// Авто-очистка блобов при истечении чата
 // ============================================
 import { db } from './firebase-init.js';
 import {
   collection, addDoc, query, where, onSnapshot,
-  deleteDoc, doc
+  deleteDoc, doc, getDocs
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 import {
@@ -22,7 +23,7 @@ const IDENTITY_FILE = 'identity.enc';
 const CONTACTS_FILE = 'contacts.enc';
 const CHATS_FILE = 'chats.enc';
 
-const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;      // блоб живёт на сервере 7 дней
+const RELAY_TTL_MS = 25 * 60 * 60 * 1000;          // блоб живёт 25 часов
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
 
 let myIdentity = null;
@@ -35,6 +36,7 @@ let timerInterval = null;
 let saveChatsTimer = null;
 let scannerStream = null;
 let scannerRAF = null;
+let purgeCheckInterval = null;                     // NEW: интервал автоочистки
 
 
 // ============================================
@@ -83,16 +85,36 @@ async function loadChats() {
   }
 }
 
-function purgeExpiredChats() {
+// NEW: удаляет истёкшие чаты + чистит их блобы в relay
+async function purgeExpiredChats() {
   const now = Date.now();
   let changed = false;
+
   for (const fp in chatHistory) {
     if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
+      // Чат истёк — чистим relay и удаляем локально
+      console.log(`⏱ Чат с "${chatHistory[fp].peerNickname}" истёк — очищаю`);
+
+      // Асинхронно удаляем блобы (не ждём, чтобы не тормозить итерацию)
+      purgeRelayForContact(fp).catch(e => console.warn('purgeRelay error:', e));
+
+      // Если это активный чат — сбросим его
+      if (activeChat && activeChat.fingerprint === fp) {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
+        activeChat = null;
+      }
+
       delete chatHistory[fp];
       changed = true;
     }
   }
-  if (changed) saveChats();
+
+  if (changed) {
+    saveChats();
+    renderContacts();
+    renderChat();
+  }
 }
 
 
@@ -128,13 +150,29 @@ async function init() {
 
   contacts = await loadContacts();
   chatHistory = await loadChats();
-  purgeExpiredChats();
+
+  // При старте — сразу чистим всё истёкшее
+  await purgeExpiredChats();
 
   renderContacts();
   listenIncoming();
   bindUI();
 
-  setInterval(purgeExpiredChats, 60 * 1000);
+  // Проверяем каждую минуту
+  if (purgeCheckInterval) clearInterval(purgeCheckInterval);
+  purgeCheckInterval = setInterval(() => {
+    purgeExpiredChats().catch(e => console.warn('purge timer error:', e));
+  }, 60 * 1000);
+
+  // NEW: чистим при закрытии вкладки (по возможности)
+  window.addEventListener('beforeunload', () => {
+    // Это не гарантирует завершения async-операций, но попытка не помешает
+    for (const fp in chatHistory) {
+      if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < Date.now()) {
+        purgeRelayForContact(fp).catch(() => {});
+      }
+    }
+  });
 }
 
 
@@ -209,7 +247,6 @@ async function showMyCard() {
   try {
     if (typeof qrcode !== 'function') throw new Error('QR-библиотека не загружена');
 
-    // UTF-8 friendly: qrcode-generator сам умеет с UTF-8 если передать строку
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
@@ -495,7 +532,11 @@ function startTimer() {
     const history = chatHistory[activeChat.fingerprint];
     if (!history) return;
     const left = history.expiresAt - Date.now();
-    if (left <= 0) { endChat(); return; }
+    if (left <= 0) {
+      // Чат истёк прямо во время просмотра — endChat() сделает очистку
+      endChat();
+      return;
+    }
     const h = Math.floor(left / 3600000);
     const min = Math.floor((left % 3600000) / 60000);
     const sec = Math.floor((left % 60000) / 1000);
@@ -516,9 +557,49 @@ function startTimer() {
   }
 }
 
+// NEW: удалить блобы в relay, относящиеся к контакту
+async function purgeRelayForContact(peerFingerprint) {
+  try {
+    const peer = contacts[peerFingerprint];
+    if (!peer) return 0;
+
+    const myHash = await hashPubkey(myIdentity.x25519.public);
+    const peerHash = await hashPubkey(peer.x25519);
+
+    const q = query(collection(db, 'relay'), where('to', '==', myHash));
+    const snapshot = await getDocs(q);
+
+    let deleted = 0;
+    for (const d of snapshot.docs) {
+      const data = d.data();
+      if (data.from === peerHash) {
+        try {
+          await deleteDoc(doc(db, 'relay', d.id));
+          deleted++;
+        } catch (e) {
+          console.warn('Не удалось удалить блоб:', d.id, e);
+        }
+      }
+    }
+    if (deleted > 0) {
+      console.log(`🗑 Удалено блобов от "${peer.nickname}": ${deleted}`);
+    }
+    return deleted;
+  } catch (e) {
+    console.warn('purgeRelayForContact error:', e);
+    return 0;
+  }
+}
+
 function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
+  const peerNickname = activeChat.peerCard.nickname;
+
+  // Удаляем недоставленные блобы от этого контакта
+  purgeRelayForContact(fp);
+
+  // Удаляем локальную историю
   delete chatHistory[fp];
   saveChats();
 
@@ -528,6 +609,8 @@ function endChat() {
 
   renderContacts();
   renderChat();
+
+  console.log(`💬 Чат с "${peerNickname}" завершён`);
 }
 
 function exitChat() {
@@ -561,14 +644,9 @@ async function sendMessage() {
   const toHash = await hashPubkey(activeChat.peerCard.x25519);
   const fromHash = await hashPubkey(myIdentity.x25519.public);
 
-  // ГЛАВНЫЙ ФИКС: карточка передаётся как JSON-строка (UTF-8 в base64),
-  // чтобы Firestore не ломал кириллицу при сериализации объекта.
   const senderCard = buildMyCard();
   const senderCardStr = JSON.stringify(senderCard);
   const senderCardB64 = btoa(unescape(encodeURIComponent(senderCardStr)));
-
-  console.log('[SEND] my nickname:', senderCard.nickname,
-              'codePoints:', [...senderCard.nickname].map(c => c.codePointAt(0).toString(16)));
 
   try {
     await addDoc(collection(db, 'relay'), {
@@ -578,8 +656,7 @@ async function sendMessage() {
       ciphertext: blob.ciphertext,
       signature: signature,
       senderEd25519: myIdentity.ed25519.public,
-      senderCardB64: senderCardB64,         // НОВОЕ: карточка как base64-строка
-      senderCard: senderCard,               // оставили для совместимости
+      senderCardB64: senderCardB64,
       ttl: Date.now() + RELAY_TTL_MS
     });
   } catch (e) {
@@ -619,41 +696,44 @@ async function listenIncoming() {
       const data = change.doc.data();
       const docId = change.doc.id;
 
-      try { await deleteDoc(doc(db, 'relay', docId)); } catch (e) {}
-
-      if (data.ttl && data.ttl < Date.now()) continue;
-
-      // ГЛАВНЫЙ ФИКС: сначала пробуем достать карточку из base64-строки
+      // Парсим карточку отправителя
       let senderCard = null;
       if (typeof data.senderCardB64 === 'string') {
         try {
           const json = decodeURIComponent(escape(atob(data.senderCardB64)));
           senderCard = JSON.parse(json);
-          console.log('[RECV] senderCard from B64:', senderCard.nickname,
-                      'codePoints:', [...senderCard.nickname].map(c => c.codePointAt(0).toString(16)));
         } catch (e) {
           console.warn('Не удалось распарсить senderCardB64:', e);
         }
       }
-      // Fallback на старый формат
       if (!senderCard && data.senderCard && typeof data.senderCard === 'object') {
         senderCard = data.senderCard;
-        console.log('[RECV] senderCard from object (fallback):', senderCard.nickname);
       }
 
+      // Ищем отправителя в контактах
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkey(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
 
+      // Незнакомый отправитель — авто-handshake
       if (!peerFp && senderCard) {
         try {
           const card = senderCard;
-          if (!card.x25519 || !card.fingerprint || !card.ed25519) continue;
+          if (!card.x25519 || !card.fingerprint || !card.ed25519) {
+            await deleteDoc(doc(db, 'relay', docId));
+            continue;
+          }
           const cardHash = await hashPubkey(card.x25519);
-          if (cardHash !== data.from) continue;
-          if (data.senderEd25519 !== card.ed25519) continue;
+          if (cardHash !== data.from) {
+            await deleteDoc(doc(db, 'relay', docId));
+            continue;
+          }
+          if (data.senderEd25519 !== card.ed25519) {
+            await deleteDoc(doc(db, 'relay', docId));
+            continue;
+          }
           contacts[card.fingerprint] = card;
           await saveContacts();
           peerFp = card.fingerprint;
@@ -661,17 +741,51 @@ async function listenIncoming() {
           renderContacts();
         } catch (e) {
           console.error('Авто-handshake ошибка:', e);
+          await deleteDoc(doc(db, 'relay', docId));
           continue;
         }
       }
 
-      if (!peerFp) continue;
+      if (!peerFp) {
+        await deleteDoc(doc(db, 'relay', docId));
+        continue;
+      }
 
+      // Проверка: чат был и истёк?
+      const existingChat = chatHistory[peerFp];
+      const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
+      const chatMissing = !existingChat;
+
+      const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
+
+      // Если чат истёк или его нет и он не активный — просто удаляем блоб
+      if ((chatExpired || chatMissing) && !isActiveWithPeer) {
+        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат завершён`);
+        await deleteDoc(doc(db, 'relay', docId));
+        continue;
+      }
+
+      // Просрочка самого блоба
+      if (data.ttl && data.ttl < Date.now()) {
+        await deleteDoc(doc(db, 'relay', docId));
+        continue;
+      }
+
+      // Подпись
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
-        if (!valid) continue;
-        if (data.senderEd25519 !== contacts[peerFp].ed25519) continue;
-      } else continue;
+        if (!valid) {
+          await deleteDoc(doc(db, 'relay', docId));
+          continue;
+        }
+        if (data.senderEd25519 !== contacts[peerFp].ed25519) {
+          await deleteDoc(doc(db, 'relay', docId));
+          continue;
+        }
+      } else {
+        await deleteDoc(doc(db, 'relay', docId));
+        continue;
+      }
 
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
@@ -687,8 +801,12 @@ async function listenIncoming() {
         payload = JSON.parse(plain);
       } catch (e) {
         console.error('Не удалось расшифровать:', e);
+        await deleteDoc(doc(db, 'relay', docId));
         continue;
       }
+
+      // Удаляем блоб и добавляем сообщение
+      try { await deleteDoc(doc(db, 'relay', docId)); } catch (e) {}
 
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
@@ -735,7 +853,7 @@ function bindUI() {
   document.getElementById('btnLogout').addEventListener('click', handleLogout);
   document.getElementById('btnAddAnotherAccount').addEventListener('click', handleAddAnotherAccount);
 
-  document.getElementById('btnDevices').addEventListener('click', openDevicesModal); 
+  document.getElementById('btnDevices').addEventListener('click', openDevicesModal);
   document.getElementById('btnCloseDevices').addEventListener('click', closeDevicesModal);
   document.getElementById('btnGenerateExport').addEventListener('click', generateExport);
   document.getElementById('btnCopyExport').addEventListener('click', copyExport);
@@ -814,12 +932,11 @@ async function generateExport() {
     const json = JSON.stringify(exportObj);
     document.getElementById('exportJson').value = json;
 
-    // Рисуем QR
     const qrBox = document.getElementById('exportQrBox');
     qrBox.innerHTML = '';
 
     if (typeof qrcode === 'function') {
-      const qr = qrcode(0, 'L');   // L — минимальная коррекция, больше данных влезет
+      const qr = qrcode(0, 'L');
       qr.addData(json);
       qr.make();
 
@@ -918,20 +1035,16 @@ async function renderAccountsModal() {
     `;
   }).join('');
 
-  // Переключение
   list.querySelectorAll('.acct-switch').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const fp = btn.dataset.switch;
 
-      // Спросим подтверждение (потому что пароль от другого аккаунта нужен)
       if (!confirm('Переключиться на другой аккаунт? Вас попросят ввести пароль.')) return;
 
-      // Очищаем текущую сессию
       sessionStorage.removeItem('_pw');
       sessionStorage.removeItem('_fp');
 
-      // Ставим целевой аккаунт как lastActive и идём на index
       await setLastActive(fp);
       window.location.href = 'index.html';
     });
@@ -946,7 +1059,6 @@ async function handleLogout() {
 }
 
 function handleAddAnotherAccount() {
-  // Просто идём на index — там уже есть кнопка "Добавить"
   sessionStorage.removeItem('_pw');
   sessionStorage.removeItem('_fp');
   window.location.href = 'index.html';
