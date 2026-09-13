@@ -98,11 +98,8 @@
       align-items: center;
       gap: 6px;
       white-space: nowrap;
-      transition: background 0.15s;
     }
-    .topbar button:hover { background: #2d2d2d; }
     .topbar button.primary { background: var(--blue); color: #fff; }
-    .topbar button.primary:hover { background: var(--blue-hover); }
     .topbar button svg { width: 18px; height: 18px; }
 
     @media (max-width: 600px) {
@@ -154,7 +151,6 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      transition: background 0.1s;
     }
     .contact:hover { background: #1e1e1e; }
     .contact.active { background: #252525; }
@@ -242,7 +238,6 @@
       margin-left: -6px;
       border-radius: 8px;
     }
-    .mobile-back:hover { background: var(--bg-4); }
 
     .chat-header-info { flex: 1; min-width: 0; }
     .chat-title {
@@ -270,29 +265,23 @@
       white-space: nowrap;
     }
 
-    /* === СООБЩЕНИЯ — новая структура с .msg-row === */
+    /* ============ СООБЩЕНИЯ ============ */
     .messages {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 16px;
       display: none;
-      flex-direction: column;
-      gap: 6px;
+      min-height: 0;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-      min-height: 0;
     }
-    .messages.active { display: flex; }
+    .messages.active { display: block; }
 
-    .msg-row {
-      display: flex;
-      width: 100%;
-    }
-    .msg-row.me { justify-content: flex-end; }
-    .msg-row.other { justify-content: flex-start; }
-
+    /* Простой блочный рендер — каждое сообщение обнимает контент */
     .msg {
+      display: block;
+      width: fit-content;
       max-width: 75%;
       padding: 9px 13px;
       border-radius: 16px;
@@ -301,13 +290,18 @@
       word-wrap: break-word;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
+      margin-bottom: 6px;
     }
-    .msg-row.me .msg {
+    .msg.me {
+      margin-left: auto;
+      margin-right: 0;
       background: var(--blue);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
-    .msg-row.other .msg {
+    .msg.other {
+      margin-left: 0;
+      margin-right: auto;
       background: var(--bg-4);
       border-bottom-left-radius: 4px;
     }
@@ -339,7 +333,6 @@
       max-height: 120px;
       line-height: 1.4;
     }
-    .input-area textarea:focus { border-color: var(--blue); }
 
     .btn-send {
       background: var(--blue);
@@ -419,6 +412,36 @@
       font-weight: 500;
     }
 
+    /* Вкладки */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-4);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 16px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab.active {
+      background: var(--bg-2);
+      color: var(--text);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
     .qr-box {
       background: #fff;
       padding: 12px;
@@ -456,8 +479,6 @@
         width: 100%;
         border-right: none;
       }
-
-      /* Чат по умолчанию скрыт за экраном */
       .chat-area {
         position: absolute;
         inset: 0;
@@ -466,19 +487,9 @@
         transition: transform 0.25s ease;
         z-index: 10;
       }
-
-      /* Когда чат открыт — выезжает */
-      .chat-area.active {
-        transform: translateX(0);
-      }
-
-      .mobile-back {
-        display: inline-flex;
-      }
-
-      .msg {
-        max-width: 85%;
-      }
+      .chat-area.active { transform: translateX(0); }
+      .mobile-back { display: inline-flex; }
+      .msg { max-width: 85%; }
     }
 
     @media (max-width: 380px) {
@@ -525,16 +536,6 @@
         </svg>
         <span class="btn-label">Моя карточка</span>
       </button>
-      <button id="btnScanQR" title="Сканировать QR">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-          <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-          <line x1="7" y1="12" x2="17" y2="12"></line>
-        </svg>
-        <span class="btn-label">Сканировать</span>
-      </button>
       <button id="btnAddContact" class="primary" title="Добавить контакт">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -570,9 +571,7 @@
           <div class="chat-title" id="chatTitle">—</div>
           <div class="chat-timer" id="chatTimer"></div>
         </div>
-        <button class="btn-end-chat" id="btnEndChat">
-          <span class="btn-label">Завершить</span>
-        </button>
+        <button class="btn-end-chat" id="btnEndChat">Завершить</button>
       </div>
 
       <div class="messages" id="messages"></div>
@@ -602,26 +601,32 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
+  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ (со вкладками) -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
-      <p class="hint">Вставьте JSON-карточку, которую вам прислали.</p>
-      <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
-      <button id="btnSaveContact">Добавить</button>
-      <button id="btnCloseAddContact" class="secondary">Отмена</button>
-      <div class="error-text" id="addError"></div>
-    </div>
-  </div>
 
-  <!-- МОДАЛКА: СКАНЕР QR -->
-  <div class="modal" id="modalScanQR">
-    <div class="modal-card">
-      <h2>Сканировать QR</h2>
-      <p class="hint">Наведите камеру на карточку собеседника.</p>
-      <video id="scannerVideo" playsinline></video>
-      <button id="btnCloseScanQR" class="secondary">Закрыть</button>
-      <div class="error-text" id="scanError"></div>
+      <div class="tabs">
+        <button class="tab active" data-tab="scan">Сканировать</button>
+        <button class="tab" data-tab="manual">Вручную</button>
+      </div>
+
+      <!-- Вкладка: камера -->
+      <div class="tab-panel active" id="tabScan">
+        <video id="scannerVideo" playsinline></video>
+        <button id="btnStopScan" class="secondary">Остановить</button>
+        <div class="error-text" id="scanError"></div>
+      </div>
+
+      <!-- Вкладка: вставить JSON -->
+      <div class="tab-panel" id="tabManual">
+        <p class="hint">Вставьте JSON-карточку, которую вам прислали.</p>
+        <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
+        <button id="btnSaveContact">Добавить</button>
+        <div class="error-text" id="addError"></div>
+      </div>
+
+      <button id="btnCloseAddContact" class="secondary">Закрыть</button>
     </div>
   </div>
 

@@ -150,7 +150,7 @@ function renderContacts() {
   const keys = Object.keys(contacts);
 
   if (keys.length === 0) {
-    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «Добавить» или «Сканировать».</div>';
+    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «Добавить».</div>';
     return;
   }
 
@@ -201,13 +201,40 @@ async function showMyCard() {
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
-    qrBox.innerHTML = qr.createSvgTag({ scalable: true, margin: 0 });
-    const svgEl = qrBox.querySelector('svg');
-    if (svgEl) {
-      svgEl.style.width = '100%';
-      svgEl.style.maxWidth = '280px';
-      svgEl.style.height = 'auto';
+
+    // Рисуем на canvas — надёжнее чем SVG
+    const cellSize = 6;
+    const margin = 4;
+    const count = qr.getModuleCount();
+    const size = count * cellSize + margin * 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#000000';
+
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(
+            margin + col * cellSize,
+            margin + row * cellSize,
+            cellSize,
+            cellSize
+          );
+        }
+      }
     }
+
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
+    canvas.style.display = 'block';
+    qrBox.appendChild(canvas);
+
   } catch (e) {
     console.error('QR generation error:', e);
     qrBox.innerHTML = '<div style="color: #333; font-size: 12px; padding: 10px;">QR недоступен — используйте JSON</div>';
@@ -218,14 +245,14 @@ async function showMyCard() {
 
 
 // ============================================
-// QR-СКАНЕР
+// QR-СКАНЕР (внутри модалки добавления)
 // ============================================
-async function openScanner() {
-  const modal = document.getElementById('modalScanQR');
+async function startScanner() {
   const video = document.getElementById('scannerVideo');
   const errEl = document.getElementById('scanError');
   errEl.textContent = '';
-  modal.classList.add('active');
+
+  if (scannerStream) return;
 
   try {
     scannerStream = await navigator.mediaDevices.getUserMedia({
@@ -264,7 +291,7 @@ async function openScanner() {
   }
 }
 
-function closeScanner() {
+function stopScanner() {
   if (scannerRAF) { cancelAnimationFrame(scannerRAF); scannerRAF = null; }
   if (scannerStream) {
     scannerStream.getTracks().forEach(t => t.stop());
@@ -272,18 +299,18 @@ function closeScanner() {
   }
   const video = document.getElementById('scannerVideo');
   if (video) video.srcObject = null;
-  document.getElementById('modalScanQR').classList.remove('active');
 }
 
 async function handleScannedQR(text) {
-  closeScanner();
+  stopScanner();
   try {
     const card = JSON.parse(text);
     await addContactFromCard(card);
+    closeAddContactModal();
     setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
   } catch (e) {
     console.error('QR parse error:', e);
-    alert('Не удалось распознать карточку: ' + e.message);
+    document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
   }
 }
 
@@ -315,10 +342,42 @@ async function addContactFromJson(json) {
   }
   try {
     await addContactFromCard(card);
-    document.getElementById('modalAddContact').classList.remove('active');
+    closeAddContactModal();
     document.getElementById('addCardJson').value = '';
   } catch (e) {
     errEl.textContent = e.message;
+  }
+}
+
+
+// ============================================
+// МОДАЛКА ДОБАВЛЕНИЯ — ВКЛАДКИ
+// ============================================
+function openAddContactModal() {
+  document.getElementById('addError').textContent = '';
+  document.getElementById('scanError').textContent = '';
+  document.getElementById('modalAddContact').classList.add('active');
+  switchTab('scan');
+}
+
+function closeAddContactModal() {
+  stopScanner();
+  document.getElementById('modalAddContact').classList.remove('active');
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('#modalAddContact .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabName);
+  });
+  document.querySelectorAll('#modalAddContact .tab-panel').forEach(p => {
+    p.classList.remove('active');
+  });
+  if (tabName === 'scan') {
+    document.getElementById('tabScan').classList.add('active');
+    startScanner();
+  } else {
+    document.getElementById('tabManual').classList.add('active');
+    stopScanner();
   }
 }
 
@@ -364,7 +423,7 @@ function renderChat() {
   const inputArea = document.getElementById('inputArea');
 
   if (!activeChat) {
-    chatArea.classList.remove('active');    // NEW: управляет мобильным слайдом
+    chatArea.classList.remove('active');
     empty.style.display = 'flex';
     header.classList.remove('active');
     messages.classList.remove('active');
@@ -372,7 +431,7 @@ function renderChat() {
     return;
   }
 
-  chatArea.classList.add('active');         // NEW: показывает чат на мобилке
+  chatArea.classList.add('active');
   empty.style.display = 'none';
   header.classList.add('active');
   messages.classList.add('active');
@@ -383,10 +442,10 @@ function renderChat() {
   const history = chatHistory[activeChat.fingerprint];
   const msgs = history ? history.messages : [];
 
-  // NEW: рендер через .msg-row
+  // Простой блочный рендер — каждое сообщение обнимает контент
   messages.innerHTML = msgs.map(m => {
-    const rowCls = m.from === 'me' ? 'me' : 'other';
-    return `<div class="msg-row ${rowCls}"><div class="msg">${escapeHtml(m.text)}</div></div>`;
+    const cls = m.from === 'me' ? 'me' : 'other';
+    return `<div class="msg ${cls}">${escapeHtml(m.text)}</div>`;
   }).join('');
 
   requestAnimationFrame(() => {
@@ -590,12 +649,22 @@ async function listenIncoming() {
 // ============================================
 function bindUI() {
   document.getElementById('btnMyCard').addEventListener('click', showMyCard);
-  document.getElementById('btnScanQR').addEventListener('click', openScanner);
+  document.getElementById('btnAddContact').addEventListener('click', openAddContactModal);
 
   document.getElementById('btnCloseMyCard').addEventListener('click', () => {
     document.getElementById('modalMyCard').classList.remove('active');
   });
-  document.getElementById('btnCloseScanQR').addEventListener('click', closeScanner);
+
+  document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
+  document.getElementById('btnStopScan').addEventListener('click', stopScanner);
+  document.getElementById('btnSaveContact').addEventListener('click', () => {
+    addContactFromJson(document.getElementById('addCardJson').value);
+  });
+
+  // Вкладки в модалке добавления
+  document.querySelectorAll('#modalAddContact .tab').forEach(t => {
+    t.addEventListener('click', () => switchTab(t.dataset.tab));
+  });
 
   document.getElementById('btnCopyCard').addEventListener('click', async () => {
     const ta = document.getElementById('myCardJson');
@@ -609,17 +678,6 @@ function bindUI() {
     const prev = btn.textContent;
     btn.textContent = 'Скопировано ✓';
     setTimeout(() => { btn.textContent = prev; }, 1200);
-  });
-
-  document.getElementById('btnAddContact').addEventListener('click', () => {
-    document.getElementById('addError').textContent = '';
-    document.getElementById('modalAddContact').classList.add('active');
-  });
-  document.getElementById('btnCloseAddContact').addEventListener('click', () => {
-    document.getElementById('modalAddContact').classList.remove('active');
-  });
-  document.getElementById('btnSaveContact').addEventListener('click', () => {
-    addContactFromJson(document.getElementById('addCardJson').value);
   });
 
   document.getElementById('btnSend').addEventListener('click', sendMessage);
