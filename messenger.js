@@ -357,37 +357,36 @@ async function openChat(fingerprint) {
 // РЕНДЕР ЧАТА
 // ============================================
 function renderChat() {
+  const chatArea = document.getElementById('chatArea');
   const empty = document.getElementById('chatEmpty');
   const header = document.getElementById('chatHeader');
   const messages = document.getElementById('messages');
   const inputArea = document.getElementById('inputArea');
 
   if (!activeChat) {
+    chatArea.classList.remove('active');    // NEW: управляет мобильным слайдом
     empty.style.display = 'flex';
     header.classList.remove('active');
     messages.classList.remove('active');
     inputArea.classList.remove('active');
-    document.body.classList.remove('chat-mode');
     return;
   }
 
+  chatArea.classList.add('active');         // NEW: показывает чат на мобилке
   empty.style.display = 'none';
   header.classList.add('active');
   messages.classList.add('active');
   inputArea.classList.add('active');
-
-  if (window.innerWidth <= 768) {
-    document.body.classList.add('chat-mode');
-  }
 
   document.getElementById('chatTitle').textContent = activeChat.peerCard.nickname;
 
   const history = chatHistory[activeChat.fingerprint];
   const msgs = history ? history.messages : [];
 
+  // NEW: рендер через .msg-row
   messages.innerHTML = msgs.map(m => {
-    const cls = m.from === 'me' ? 'me' : 'other';
-    return `<div class="msg ${cls}">${escapeHtml(m.text)}</div>`;
+    const rowCls = m.from === 'me' ? 'me' : 'other';
+    return `<div class="msg-row ${rowCls}"><div class="msg">${escapeHtml(m.text)}</div></div>`;
   }).join('');
 
   requestAnimationFrame(() => {
@@ -429,7 +428,6 @@ function exitChat() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
-  document.body.classList.remove('chat-mode');
   renderContacts();
   renderChat();
 }

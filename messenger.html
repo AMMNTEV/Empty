@@ -26,7 +26,6 @@
       --red: #ef4444;
       --orange: #f59e0b;
       --topbar-h: 56px;
-      --input-h: 60px;
     }
 
     html, body {
@@ -47,9 +46,9 @@
 
     /* ============ TOPBAR ============ */
     .topbar {
-      height: var(--topbar-h);
-      padding: 0 12px;
-      padding-top: env(safe-area-inset-top);
+      min-height: var(--topbar-h);
+      padding: 8px 12px;
+      padding-top: calc(8px + env(safe-area-inset-top));
       background: var(--bg-2);
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -106,18 +105,18 @@
     .topbar button.primary:hover { background: var(--blue-hover); }
     .topbar button svg { width: 18px; height: 18px; }
 
-    /* На мобилке кнопки — только иконки */
     @media (max-width: 600px) {
       .topbar button .btn-label { display: none; }
       .topbar button { padding: 8px 10px; }
     }
 
-    /* ============ MAIN LAYOUT ============ */
+    /* ============ MAIN ============ */
     .main {
       flex: 1;
       display: flex;
       min-height: 0;
       overflow: hidden;
+      position: relative;
     }
 
     /* ============ SIDEBAR ============ */
@@ -138,6 +137,7 @@
       text-transform: uppercase;
       color: var(--text-dim);
       letter-spacing: 0.5px;
+      flex-shrink: 0;
     }
 
     .contacts-list {
@@ -209,7 +209,6 @@
       overflow: hidden;
     }
 
-    /* Пустое состояние */
     .chat-empty {
       flex: 1;
       display: flex;
@@ -221,7 +220,6 @@
       text-align: center;
     }
 
-    /* Шапка чата */
     .chat-header {
       padding: 10px 16px;
       background: var(--bg-2);
@@ -270,12 +268,9 @@
       cursor: pointer;
       font-weight: 500;
       white-space: nowrap;
-      transition: background 0.15s;
     }
-    .btn-end-chat:hover { background: #dc2626; }
-    .btn-end-chat .btn-label { display: inline; }
 
-    /* Сообщения */
+    /* === СООБЩЕНИЯ — новая структура с .msg-row === */
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -286,8 +281,16 @@
       gap: 6px;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      min-height: 0;
     }
     .messages.active { display: flex; }
+
+    .msg-row {
+      display: flex;
+      width: 100%;
+    }
+    .msg-row.me { justify-content: flex-end; }
+    .msg-row.other { justify-content: flex-start; }
 
     .msg {
       max-width: 75%;
@@ -297,20 +300,14 @@
       line-height: 1.4;
       word-wrap: break-word;
       overflow-wrap: anywhere;
-      animation: msg-in 0.15s ease-out;
+      white-space: pre-wrap;
     }
-    @keyframes msg-in {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .msg.me {
-      align-self: flex-end;
+    .msg-row.me .msg {
       background: var(--blue);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
-    .msg.other {
-      align-self: flex-start;
+    .msg-row.other .msg {
       background: var(--bg-4);
       border-bottom-left-radius: 4px;
     }
@@ -341,7 +338,6 @@
       resize: none;
       max-height: 120px;
       line-height: 1.4;
-      transition: border-color 0.15s;
     }
     .input-area textarea:focus { border-color: var(--blue); }
 
@@ -357,9 +353,7 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.15s;
     }
-    .btn-send:hover { background: var(--blue-hover); }
     .btn-send svg { width: 20px; height: 20px; }
 
     /* ============ МОДАЛКИ ============ */
@@ -387,10 +381,7 @@
       overflow-y: auto;
       overscroll-behavior: contain;
     }
-    .modal-card h2 {
-      font-size: 18px;
-      margin-bottom: 12px;
-    }
+    .modal-card h2 { font-size: 18px; margin-bottom: 12px; }
     .modal-card .hint {
       font-size: 13px;
       color: var(--text-dim);
@@ -409,7 +400,6 @@
       font-size: 12px;
       resize: vertical;
       outline: none;
-      -webkit-appearance: none;
     }
     .modal-card button {
       width: 100%;
@@ -422,15 +412,12 @@
       font-weight: 600;
       cursor: pointer;
       margin-top: 10px;
-      transition: background 0.15s;
     }
-    .modal-card button:hover { background: var(--blue-hover); }
     .modal-card button.secondary {
       background: var(--bg-4);
       color: var(--text);
       font-weight: 500;
     }
-    .modal-card button.secondary:hover { background: #2d2d2d; }
 
     .qr-box {
       background: #fff;
@@ -463,17 +450,14 @@
       min-height: 18px;
     }
 
-    /* ============ АДАПТИВ ============ */
+    /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
     @media (max-width: 768px) {
-      .main {
-        position: relative;
-      }
-
       .sidebar {
         width: 100%;
         border-right: none;
       }
 
+      /* Чат по умолчанию скрыт за экраном */
       .chat-area {
         position: absolute;
         inset: 0;
@@ -483,13 +467,9 @@
         z-index: 10;
       }
 
-      /* Когда открыт чат — показываем его */
-      body.chat-mode .chat-area {
+      /* Когда чат открыт — выезжает */
+      .chat-area.active {
         transform: translateX(0);
-      }
-
-      body.chat-mode .sidebar {
-        visibility: hidden;
       }
 
       .mobile-back {
@@ -501,7 +481,6 @@
       }
     }
 
-    /* Маленькие экраны */
     @media (max-width: 380px) {
       .topbar { padding: 0 8px; }
       .topbar button { padding: 7px 9px; }
@@ -511,12 +490,10 @@
       .msg { font-size: 13.5px; }
     }
 
-    /* Планшеты */
     @media (min-width: 769px) and (max-width: 1024px) {
       .sidebar { width: 280px; }
     }
 
-    /* Скроллбары (тонкие) */
     .contacts-list::-webkit-scrollbar,
     .messages::-webkit-scrollbar,
     .modal-card::-webkit-scrollbar {
@@ -527,13 +504,6 @@
     .modal-card::-webkit-scrollbar-thumb {
       background: #333;
       border-radius: 3px;
-    }
-
-    /* Убираем подсветку автозаполнения */
-    input:-webkit-autofill,
-    textarea:-webkit-autofill {
-      -webkit-box-shadow: 0 0 0 1000px var(--bg-4) inset;
-      -webkit-text-fill-color: var(--text);
     }
   </style>
 </head>
