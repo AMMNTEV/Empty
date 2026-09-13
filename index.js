@@ -13,16 +13,35 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
+// ---------- Валидация ника ----------
+function sanitizeNickname(raw) {
+  // NFC нормализация — й, ё, é приводятся к каноническому виду
+  let s = (raw || '').normalize('NFC').trim();
+
+  // Разрешены: буквы (любые Unicode), цифры, пробел, _ - .
+  s = s.replace(/[^\p{L}\p{N} _\-.]+/gu, '');
+
+  // Схлопываем множественные пробелы
+  s = s.replace(/\s+/g, ' ');
+
+  // Обрезаем до 24
+  if (s.length > 24) s = s.slice(0, 24).trim();
+
+  return s;
+}
+
 // ---------- Создание ----------
 async function handleCreate() {
-  const nickname = document.getElementById('nickname').value.trim();
+  const rawNickname = document.getElementById('nickname').value;
+  const nickname = sanitizeNickname(rawNickname);
   const password = document.getElementById('password').value;
   const password2 = document.getElementById('password2').value;
   const errEl = document.getElementById('createError');
   const btn = document.getElementById('createBtn');
 
   errEl.textContent = '';
-  if (!nickname) { errEl.textContent = 'Введите никнейм'; return; }
+  if (!nickname) { errEl.textContent = 'Введите никнейм (буквы, цифры, пробел, _ - .)'; return; }
+  if (nickname.length < 2) { errEl.textContent = 'Ник минимум 2 символа'; return; }
   if (password.length < 6) { errEl.textContent = 'Пароль минимум 6 символов'; return; }
   if (password !== password2) { errEl.textContent = 'Пароли не совпадают'; return; }
 
@@ -30,15 +49,12 @@ async function handleCreate() {
   btn.textContent = 'Генерация ключей...';
 
   try {
-    console.log('▶ generateIdentity');
+    console.log('▶ generateIdentity:', nickname);
     const identity = await generateIdentity(nickname);
     console.log('✅ identity ok:', identity.fingerprint);
+    console.log('   nickname codePoints:', [...identity.nickname].map(c => c.codePointAt(0).toString(16)));
 
-    console.log('▶ encryptIdentity');
     const encrypted = await encryptIdentity(identity, password);
-    console.log('✅ encrypted, размер:', encrypted.length);
-
-    console.log('▶ opfsWrite');
     await opfsWrite(IDENTITY_FILE, encrypted);
     console.log('✅ записано в OPFS');
 
@@ -65,8 +81,9 @@ async function handleUnlock() {
   try {
     const encrypted = await opfsRead(IDENTITY_FILE);
     const identity = await decryptIdentity(encrypted, password);
-    sessionStorage.setItem('_pw', password);
     console.log('✅ разблокировано:', identity.fingerprint);
+    console.log('   nickname codePoints:', [...identity.nickname].map(c => c.codePointAt(0).toString(16)));
+    sessionStorage.setItem('_pw', password);
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error(e);

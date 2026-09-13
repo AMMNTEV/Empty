@@ -1,6 +1,6 @@
 // ============================================
 // crypto.js — общие крипто-утилиты
-// X25519 + Ed25519 через @noble/curves (работает в Firefox/Safari/Chrome)
+// X25519 + Ed25519 через @noble/curves
 // AES-GCM + PBKDF2 + HKDF через WebCrypto
 // ============================================
 
@@ -9,7 +9,13 @@ import { ed25519 } from 'https://esm.sh/@noble/curves@1.4.0/ed25519';
 
 // ---------- Кодирование ----------
 export function bufToBase64(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 
 export function base64ToBuf(b64) {
@@ -21,6 +27,23 @@ export function base64ToBuf(b64) {
 
 export function randomBytes(n) {
   return crypto.getRandomValues(new Uint8Array(n));
+}
+
+// ---------- UTF-8 ----------
+export function utf8Encode(str) {
+  return new TextEncoder().encode(str);
+}
+
+export function utf8Decode(bytes) {
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+}
+
+export function utf8ToBase64(str) {
+  return bufToBase64(utf8Encode(str));
+}
+
+export function base64ToUtf8(b64) {
+  return utf8Decode(base64ToBuf(b64));
 }
 
 // ---------- OPFS ----------
@@ -56,9 +79,8 @@ export async function opfsDelete(filename) {
 
 // ---------- PBKDF2 ----------
 export async function deriveKeyFromPassword(password, salt) {
-  const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(password),
+    'raw', utf8Encode(password),
     { name: 'PBKDF2' }, false, ['deriveKey']
   );
   return await crypto.subtle.deriveKey(
@@ -77,7 +99,7 @@ export async function encryptIdentity(identity, password) {
   const key = await deriveKeyFromPassword(password, salt);
   const json = JSON.stringify(identity);
   const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv }, key, new TextEncoder().encode(json)
+    { name: 'AES-GCM', iv }, key, utf8Encode(json)
   );
   const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
   result.set(salt, 0);
@@ -95,20 +117,17 @@ export async function decryptIdentity(encryptedBuf, password) {
   const decrypted = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv }, key, ciphertext
   );
-  return JSON.parse(new TextDecoder().decode(decrypted));
+  return JSON.parse(utf8Decode(decrypted));
 }
 
 // ---------- Генерация identity ----------
 export async function generateIdentity(nickname) {
-  // X25519 через noble
   const xPriv = x25519.utils.randomPrivateKey();
   const xPub = x25519.getPublicKey(xPriv);
 
-  // Ed25519 через noble
   const ePriv = ed25519.utils.randomPrivateKey();
   const ePub = ed25519.getPublicKey(ePriv);
 
-  // Fingerprint = SHA-256 от публичного X25519
   const fpBuf = await crypto.subtle.digest('SHA-256', xPub);
 
   return {
@@ -129,15 +148,13 @@ export function formatFingerprint(buf) {
   return hex.match(/.{1,4}/g).join(':');
 }
 
-// ---------- E2EE: X25519 + HKDF + AES-GCM ----------
+// ---------- E2EE ----------
 export async function deriveSharedKey(myPrivBase64, peerPubBase64) {
   const myPriv = base64ToBuf(myPrivBase64);
   const peerPub = base64ToBuf(peerPubBase64);
 
-  // X25519 shared secret (32 байта)
   const sharedSecret = x25519.getSharedSecret(myPriv, peerPub);
 
-  // Превращаем его в AES-ключ через HKDF-SHA256
   const hkdfKey = await crypto.subtle.importKey(
     'raw', sharedSecret,
     { name: 'HKDF' }, false, ['deriveKey']
@@ -148,7 +165,7 @@ export async function deriveSharedKey(myPrivBase64, peerPubBase64) {
       name: 'HKDF',
       hash: 'SHA-256',
       salt: new Uint8Array(0),
-      info: new TextEncoder().encode('empty-messenger-v1')
+      info: utf8Encode('empty-messenger-v1')
     },
     hkdfKey,
     { name: 'AES-GCM', length: 256 },
@@ -162,7 +179,7 @@ export async function encryptMessage(text, sharedKey) {
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     sharedKey,
-    new TextEncoder().encode(text)
+    utf8Encode(text)
   );
   return {
     iv: bufToBase64(iv),
@@ -176,10 +193,10 @@ export async function decryptMessage(blob, sharedKey) {
     sharedKey,
     base64ToBuf(blob.ciphertext)
   );
-  return new TextDecoder().decode(plaintext);
+  return utf8Decode(plaintext);
 }
 
-// ---------- Hash для relay-адресации ----------
+// ---------- Hash ----------
 export async function hashPubkey(pubBase64) {
   const hash = await crypto.subtle.digest('SHA-256', base64ToBuf(pubBase64));
   return bufToBase64(hash);
@@ -188,7 +205,7 @@ export async function hashPubkey(pubBase64) {
 // ---------- Ed25519 подписи ----------
 export async function signBlob(data, ed25519PrivBase64) {
   const priv = base64ToBuf(ed25519PrivBase64);
-  const msg = new TextEncoder().encode(data);
+  const msg = utf8Encode(data);
   const sig = ed25519.sign(msg, priv);
   return bufToBase64(sig);
 }
@@ -197,7 +214,7 @@ export async function verifyBlob(data, signatureBase64, ed25519PubBase64) {
   try {
     const pub = base64ToBuf(ed25519PubBase64);
     const sig = base64ToBuf(signatureBase64);
-    const msg = new TextEncoder().encode(data);
+    const msg = utf8Encode(data);
     return ed25519.verify(sig, msg, pub);
   } catch {
     return false;

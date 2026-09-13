@@ -113,6 +113,9 @@ async function init() {
     return;
   }
 
+  console.log('[ME] nickname:', myIdentity.nickname,
+              'codePoints:', [...myIdentity.nickname].map(c => c.codePointAt(0).toString(16)));
+
   document.getElementById('meName').textContent = myIdentity.nickname;
   document.getElementById('meFp').textContent = myIdentity.fingerprint;
 
@@ -198,6 +201,8 @@ async function showMyCard() {
 
   try {
     if (typeof qrcode !== 'function') throw new Error('QR-библиотека не загружена');
+
+    // UTF-8 friendly: qrcode-generator сам умеет с UTF-8 если передать строку
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
@@ -324,6 +329,10 @@ async function addContactFromCard(card) {
   if (card.fingerprint === myIdentity.fingerprint) {
     throw new Error('Это ваша карточка');
   }
+
+  console.log('[ADD CONTACT] nickname:', card.nickname,
+              'codePoints:', [...(card.nickname || '')].map(c => c.codePointAt(0).toString(16)));
+
   contacts[card.fingerprint] = card;
   await saveContacts();
   renderContacts();
@@ -466,7 +475,6 @@ function startTimer() {
       `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   }, 1000);
 
-  // Сразу обновим отображение, не ждать первую секунду
   const history = chatHistory[activeChat?.fingerprint];
   if (history) {
     const left = history.expiresAt - Date.now();
@@ -524,7 +532,15 @@ async function sendMessage() {
 
   const toHash = await hashPubkey(activeChat.peerCard.x25519);
   const fromHash = await hashPubkey(myIdentity.x25519.public);
+
+  // ГЛАВНЫЙ ФИКС: карточка передаётся как JSON-строка (UTF-8 в base64),
+  // чтобы Firestore не ломал кириллицу при сериализации объекта.
   const senderCard = buildMyCard();
+  const senderCardStr = JSON.stringify(senderCard);
+  const senderCardB64 = btoa(unescape(encodeURIComponent(senderCardStr)));
+
+  console.log('[SEND] my nickname:', senderCard.nickname,
+              'codePoints:', [...senderCard.nickname].map(c => c.codePointAt(0).toString(16)));
 
   try {
     await addDoc(collection(db, 'relay'), {
@@ -534,7 +550,8 @@ async function sendMessage() {
       ciphertext: blob.ciphertext,
       signature: signature,
       senderEd25519: myIdentity.ed25519.public,
-      senderCard: senderCard,
+      senderCardB64: senderCardB64,         // НОВОЕ: карточка как base64-строка
+      senderCard: senderCard,               // оставили для совместимости
       ttl: Date.now() + RELAY_TTL_MS
     });
   } catch (e) {
@@ -551,11 +568,11 @@ async function sendMessage() {
   }
   chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
   chatHistory[fp].lastActivity = ts;
-  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;   // сброс TTL на 24 часа
+  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
   saveChats();
   renderChat();
-  startTimer();   // перезапуск отображения таймера
+  startTimer();
 }
 
 
@@ -578,15 +595,33 @@ async function listenIncoming() {
 
       if (data.ttl && data.ttl < Date.now()) continue;
 
+      // ГЛАВНЫЙ ФИКС: сначала пробуем достать карточку из base64-строки
+      let senderCard = null;
+      if (typeof data.senderCardB64 === 'string') {
+        try {
+          const json = decodeURIComponent(escape(atob(data.senderCardB64)));
+          senderCard = JSON.parse(json);
+          console.log('[RECV] senderCard from B64:', senderCard.nickname,
+                      'codePoints:', [...senderCard.nickname].map(c => c.codePointAt(0).toString(16)));
+        } catch (e) {
+          console.warn('Не удалось распарсить senderCardB64:', e);
+        }
+      }
+      // Fallback на старый формат
+      if (!senderCard && data.senderCard && typeof data.senderCard === 'object') {
+        senderCard = data.senderCard;
+        console.log('[RECV] senderCard from object (fallback):', senderCard.nickname);
+      }
+
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkey(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
 
-      if (!peerFp && data.senderCard) {
+      if (!peerFp && senderCard) {
         try {
-          const card = data.senderCard;
+          const card = senderCard;
           if (!card.x25519 || !card.fingerprint || !card.ed25519) continue;
           const cardHash = await hashPubkey(card.x25519);
           if (cardHash !== data.from) continue;
@@ -642,13 +677,13 @@ async function listenIncoming() {
         ts: payload.ts
       });
       chatHistory[peerFp].lastActivity = payload.ts;
-      chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;   // сброс TTL на 24 часа
+      chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;
 
       saveChats();
 
       if (activeChat && activeChat.fingerprint === peerFp) {
         renderChat();
-        startTimer();   // перезапуск отображения таймера при входящем
+        startTimer();
       } else {
         renderContacts();
       }
