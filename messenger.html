@@ -80,34 +80,6 @@
       text-overflow: ellipsis;
     }
 
-    /* Аккаунты в модалке */
-.acct-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 14px; background: var(--bg-4);
-  border-radius: 12px; cursor: pointer;
-  border: 1px solid transparent;
-  transition: background 0.15s;
-}
-.acct-item:hover { background: #2d2d2d; }
-.acct-item.current { border-color: var(--blue); cursor: default; }
-.acct-avatar {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--blue); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 600; font-size: 16px; flex-shrink: 0;
-}
-.acct-info { flex: 1; min-width: 0; }
-.acct-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.acct-fp { font-size: 11px; color: var(--text-dim); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.acct-switch {
-  font-size: 12px; color: var(--blue);
-  background: transparent; border: none;
-  cursor: pointer; padding: 6px 10px;
-  border-radius: 6px; flex-shrink: 0;
-  width: auto; margin: 0;
-}
-.acct-switch:hover { background: rgba(59, 130, 246, 0.1); }
-
     .topbar-actions {
       display: flex;
       gap: 6px;
@@ -306,7 +278,6 @@
     }
     .messages.active { display: block; }
 
-    /* Простой блочный рендер — каждое сообщение обнимает контент */
     .msg {
       display: block;
       width: fit-content;
@@ -440,6 +411,30 @@
       font-weight: 500;
     }
 
+    .modal-card input {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .modal-card input:focus { border-color: var(--blue); }
+
+    .modal-card .warning {
+      font-size: 12px;
+      color: var(--orange);
+      background: rgba(245, 158, 11, 0.1);
+      padding: 10px 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
     /* Вкладки */
     .tabs {
       display: flex;
@@ -461,6 +456,7 @@
       border: none;
       background: transparent;
       transition: background 0.15s, color 0.15s;
+      margin-top: 0;
     }
     .tab.active {
       background: var(--bg-2);
@@ -469,6 +465,42 @@
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+
+    /* Аккаунты в модалке */
+    .acct-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg-4);
+      border-radius: 12px;
+      border: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .acct-item.current { border-color: var(--blue); }
+    .acct-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--blue); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 16px; flex-shrink: 0;
+    }
+    .acct-info { flex: 1; min-width: 0; }
+    .acct-name {
+      font-size: 14px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .acct-fp {
+      font-size: 11px; color: var(--text-dim); font-family: monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .acct-switch {
+      font-size: 12px; color: var(--blue);
+      background: transparent; border: none;
+      cursor: pointer; padding: 6px 10px;
+      border-radius: 6px; flex-shrink: 0;
+      width: auto; margin: 0;
+    }
+    .acct-switch:hover { background: rgba(59, 130, 246, 0.1); }
 
     .qr-box {
       background: #fff;
@@ -555,40 +587,41 @@
       <div class="me-fp" id="meFp"></div>
     </div>
     <div class="topbar-actions">
-  <button id="btnMyCard" title="Моя карточка">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="7" height="7"></rect>
-      <rect x="14" y="3" width="7" height="7"></rect>
-      <rect x="3" y="14" width="7" height="7"></rect>
-      <rect x="14" y="14" width="7" height="7"></rect>
-    </svg>
-    <span class="btn-label">Моя карточка</span>
-  </button>
-  <button id="btnDevices" title="Устройства">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-      <line x1="8" y1="21" x2="16" y2="21"></line>
-      <line x1="12" y1="17" x2="12" y2="21"></line>
-    </svg>
-    <span class="btn-label">Устройства</span>
-  </button>
-  <button id="btnAccounts" title="Аккаунты">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-      <circle cx="8.5" cy="7" r="4"></circle>
-      <line x1="20" y1="8" x2="20" y2="14"></line>
-      <line x1="23" y1="11" x2="17" y2="11"></line>
-    </svg>
-    <span class="btn-label">Аккаунты</span>
-  </button>
-  <button id="btnAddContact" class="primary" title="Добавить контакт">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-    <span class="btn-label">Добавить</span>
-  </button>
-</div>
+      <button id="btnMyCard" title="Моя карточка">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+        </svg>
+        <span class="btn-label">Моя карточка</span>
+      </button>
+      <button id="btnDevices" title="Устройства">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+          <line x1="8" y1="21" x2="16" y2="21"></line>
+          <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+        <span class="btn-label">Устройства</span>
+      </button>
+      <button id="btnAccounts" title="Аккаунты">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="8.5" cy="7" r="4"></circle>
+          <line x1="20" y1="8" x2="20" y2="14"></line>
+          <line x1="23" y1="11" x2="17" y2="11"></line>
+        </svg>
+        <span class="btn-label">Аккаунты</span>
+      </button>
+      <button id="btnAddContact" class="primary" title="Добавить контакт">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-label">Добавить</span>
+      </button>
+    </div>
+  </div>
 
   <!-- MAIN -->
   <div class="main">
@@ -645,7 +678,7 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ (со вкладками) -->
+  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
@@ -655,14 +688,12 @@
         <button class="tab" data-tab="manual">Вручную</button>
       </div>
 
-      <!-- Вкладка: камера -->
       <div class="tab-panel active" id="tabScan">
         <video id="scannerVideo" playsinline></video>
         <button id="btnStopScan" class="secondary">Остановить</button>
         <div class="error-text" id="scanError"></div>
       </div>
 
-      <!-- Вкладка: вставить JSON -->
       <div class="tab-panel" id="tabManual">
         <p class="hint">Вставьте JSON-карточку, которую вам прислали.</p>
         <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
@@ -673,53 +704,48 @@
       <button id="btnCloseAddContact" class="secondary">Закрыть</button>
     </div>
   </div>
-<!-- МОДАЛКА: АККАУНТЫ -->
-<div class="modal" id="modalAccounts">
-  <div class="modal-card">
-    <h2>Аккаунты</h2>
-    <p class="hint">Переключение между вашими локальными аккаунтами.</p>
 
-    <div id="accountsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+  <!-- МОДАЛКА: АККАУНТЫ -->
+  <div class="modal" id="modalAccounts">
+    <div class="modal-card">
+      <h2>Аккаунты</h2>
+      <p class="hint">Переключение между вашими локальными аккаунтами.</p>
 
-    <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
-    <button id="btnLogout" class="secondary" style="color:#ef4444; margin-top:4px;">Выйти из текущего аккаунта</button>
-    <button id="btnCloseAccounts" class="secondary">Закрыть</button>
+      <div id="accountsList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;"></div>
+
+      <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
+      <button id="btnLogout" class="secondary" style="color:#ef4444; margin-top:4px;">Выйти из текущего аккаунта</button>
+      <button id="btnCloseAccounts" class="secondary">Закрыть</button>
+    </div>
   </div>
-</div>
+
+  <!-- МОДАЛКА: УСТРОЙСТВА -->
+  <div class="modal" id="modalDevices">
+    <div class="modal-card">
+      <h2>Устройства</h2>
+      <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
+
+      <div class="warning">
+        ⚠️ QR/код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
+      </div>
+
+      <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px;">
+        Временный пароль для передачи
+      </label>
+      <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
+
+      <button id="btnGenerateExport">Сгенерировать код</button>
+
+      <div id="exportResult" style="display:none; margin-top:16px;">
+        <div class="qr-box" id="exportQrBox"></div>
+        <textarea id="exportJson" readonly></textarea>
+        <button id="btnCopyExport" class="secondary">Скопировать код</button>
+      </div>
+
+      <button id="btnCloseDevices" class="secondary">Закрыть</button>
+    </div>
+  </div>
 
   <script type="module" src="messenger.js"></script>
-<!-- МОДАЛКА: УСТРОЙСТВА -->
-<div class="modal" id="modalDevices">
-  <div class="modal-card">
-    <h2>Устройства</h2>
-    <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
-
-    <div class="warning" style="font-size: 12px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; line-height: 1.4;">
-      ⚠️ QR/код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
-    </div>
-
-    <label style="display:block; font-size:13px; color:#aaa; margin-bottom:6px;">
-      Временный пароль для передачи
-    </label>
-    <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)"
-           style="width:100%; padding:12px 14px; background:#252525; border:1px solid #333;
-                  border-radius:10px; color:#fff; font-size:15px; margin-bottom:16px; outline:none;">
-
-    <button id="btnGenerateExport">Сгенерировать код</button>
-
-    <div id="exportResult" style="display:none; margin-top:16px;">
-      <div class="qr-box" id="exportQrBox" style="background:#fff; padding:12px; border-radius:12px;
-           display:flex; align-items:center; justify-content:center; margin:12px 0;">
-      </div>
-      <textarea id="exportJson" readonly
-                style="width:100%; min-height:100px; padding:12px; background:#252525;
-                       border:1px solid #333; border-radius:10px; color:#fff;
-                       font-family:monospace; font-size:12px; resize:vertical; outline:none;"></textarea>
-      <button id="btnCopyExport" class="secondary">Скопировать код</button>
-    </div>
-
-    <button id="btnCloseDevices" class="secondary">Закрыть</button>
-  </div>
-</div>
 </body>
 </html>
