@@ -370,3 +370,12 @@ export async function deleteAccountFile(fingerprint) {
     await opfsDelete(path);
   }
 }
+
+// ---------- Hash (hex) для имён коллекций Firestore ----------
+export async function hashPubkeyHex(pubBase64) {
+  const hash = await crypto.subtle.digest('SHA-256', base64ToBuf(pubBase64));
+  const bytes = new Uint8Array(hash);
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
