@@ -1,8 +1,7 @@
 // ============================================
 // messenger.js — контакты, чаты, E2EE, relay
-// Новая схема: users/{hashHex}/inbox/{blobId}
+// Схема: users/{hashHex}/inbox/{blobId}
 // Store-and-forward + авто-handshake + адаптив
-// Двусторонняя очистка при завершении чата
 // ============================================
 import { db } from './firebase-init.js';
 import {
@@ -26,7 +25,6 @@ const CHATS_FILE = 'chats.enc';
 
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;          // блоб живёт 25 часов
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
-const CHAT_END_WAIT_MS = 2000;                     // ждём перед чисткой, чтобы сигнал дошёл
 
 let myIdentity = null;
 let myPassword = null;
@@ -98,16 +96,14 @@ function myInboxRef() {
 
 
 // ============================================
-// ОЧИСТКА RELAY
+// ОЧИСТКА RELAY (свой + собеседника)
 // ============================================
-// Удалить из СВОЕГО inbox блобы от контакта + из ЕГО inbox мои блобы
 async function purgeRelayForContact(peerFingerprint) {
   try {
     const peer = contacts[peerFingerprint];
     if (!peer) return 0;
 
     const peerHashHex = await hashPubkeyHex(peer.x25519);
-
     let totalDeleted = 0;
 
     // 1. Свой inbox — удаляем его блобы
@@ -115,9 +111,7 @@ async function purgeRelayForContact(peerFingerprint) {
       const snapshot = await getDocs(collection(db, 'users', myHashHex, 'inbox'));
       const toDelete = [];
       snapshot.forEach(d => {
-        const data = d.data();
-        if (data.system === true) return;  // не трогаем системные сигналы
-        if (data.from === peerHashHex) toDelete.push(d.ref);
+        if (d.data().from === peerHashHex) toDelete.push(d.ref);
       });
       for (let i = 0; i < toDelete.length; i += 500) {
         const batch = writeBatch(db);
@@ -127,14 +121,12 @@ async function purgeRelayForContact(peerFingerprint) {
       totalDeleted += toDelete.length;
     }
 
-    // 2. Его inbox — удаляем мои блобы (тоже не трогаем системные)
+    // 2. Его inbox — удаляем мои блобы
     {
       const snapshot = await getDocs(collection(db, 'users', peerHashHex, 'inbox'));
       const toDelete = [];
       snapshot.forEach(d => {
-        const data = d.data();
-        if (data.system === true) return;  // не трогаем системные сигналы
-        if (data.from === myHashHex) toDelete.push(d.ref);
+        if (d.data().from === myHashHex) toDelete.push(d.ref);
       });
       for (let i = 0; i < toDelete.length; i += 500) {
         const batch = writeBatch(db);
@@ -156,51 +148,7 @@ async function purgeRelayForContact(peerFingerprint) {
 
 
 // ============================================
-// СИГНАЛ "ЧАТ ЗАКРЫТ"
-// ============================================
-async function sendChatEndSignal(peerFingerprint) {
-  try {
-    const peer = contacts[peerFingerprint];
-    if (!peer) return;
-
-    const peerHashHex = await hashPubkeyHex(peer.x25519);
-    const inboxRef = collection(db, 'users', peerHashHex, 'inbox');
-
-    const payload = JSON.stringify({
-      type: 'chat_end',
-      ts: Date.now()
-    });
-
-    const sharedKey = await deriveSharedKey(
-      myIdentity.x25519.private,
-      peer.x25519
-    );
-
-    const blob = await encryptMessage(payload, sharedKey);
-    const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
-    const senderCardB64 = btoa(unescape(encodeURIComponent(JSON.stringify(buildMyCard()))));
-
-    await addDoc(inboxRef, {
-      from: myHashHex,
-      iv: blob.iv,
-      ciphertext: blob.ciphertext,
-      signature: signature,
-      senderEd25519: myIdentity.ed25519.public,
-      senderCardB64: senderCardB64,
-      ttl: Date.now() + RELAY_TTL_MS,
-      system: true,                          // ← помечаем как системный
-      systemType: 'chat_end'
-    });
-
-    console.log('📤 Сигнал "чат закрыт" отправлен');
-  } catch (e) {
-    console.warn('sendChatEndSignal error:', e);
-  }
-}
-
-
-// ============================================
-// АВТООЧИСТКА
+// АВТООЧИСТКА ИСТЁКШИХ ЧАТОВ
 // ============================================
 async function purgeExpiredChats() {
   const now = Date.now();
@@ -210,7 +158,6 @@ async function purgeExpiredChats() {
     if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
       console.log(`⏱ Чат с "${chatHistory[fp].peerNickname}" истёк — очищаю`);
 
-      sendChatEndSignal(fp).catch(e => console.warn('signal error:', e));
       purgeRelayForContact(fp).catch(e => console.warn('purgeRelay error:', e));
 
       if (activeChat && activeChat.fingerprint === fp) {
@@ -666,16 +613,10 @@ async function endChat() {
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. Отправляем собеседнику сигнал "чат закрыт" (помечен system:true)
-  await sendChatEndSignal(fp);
-
-  // 2. Ждём немного — чтобы он успел получить сигнал и удалить у себя
-  await new Promise(r => setTimeout(r, CHAT_END_WAIT_MS));
-
-  // 3. Чистим оба inbox (кроме системных сигналов)
+  // Чистим оба inbox (свой + собеседника)
   await purgeRelayForContact(fp);
 
-  // 4. Чистим свою локальную историю
+  // Чистим свою локальную историю
   delete chatHistory[fp];
   saveChats();
 
@@ -779,7 +720,7 @@ async function listenIncoming() {
         }
       }
 
-      // Ищем отправителя в контактах по hex-хэшу
+      // Ищем отправителя в контактах
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
@@ -820,19 +761,13 @@ async function listenIncoming() {
         continue;
       }
 
-      // Проверка: чат был и истёк?
-      const existingChat = chatHistory[peerFp];
-      const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
-      const chatMissing = !existingChat;
-      const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
-
-      // Просрочка самого блоба
+      // Просрочка блоба
       if (data.ttl && data.ttl < Date.now()) {
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Подпись
+      // Проверка подписи
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
         if (!valid) {
@@ -848,6 +783,7 @@ async function listenIncoming() {
         continue;
       }
 
+      // Расшифровка
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -866,45 +802,21 @@ async function listenIncoming() {
         continue;
       }
 
-      // ============ СИГНАЛ "ЧАТ ЗАКРЫТ" ============
-      if (payload && payload.type === 'chat_end') {
-  console.log(`📥 Получен сигнал "чат закрыт" от "${contacts[peerFp].nickname}"`);
+      // Если чат с этим контактом ИСТЁК и он не открыт — выбрасываем
+      const existingChat = chatHistory[peerFp];
+      const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
+      const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
 
-  // 1. УДАЛЯЕМ БЛОБ ИЗ БАЗЫ (Этого вызова не хватало перед continue)
-  try {
-    await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-  } catch (e) {
-    console.error('Ошибка удаления системного блоба:', e);
-  }
-
-  // 2. Очищаем локальную историю
-  if (chatHistory[peerFp]) {
-    delete chatHistory[peerFp];
-    saveChats();
-  }
-  
-  // 3. Обновляем UI, если чат открыт прямо сейчас
-  if (activeChat && activeChat.fingerprint === peerFp) {
-    closeChat();
-    alert(`Собеседник "${contacts[peerFp].nickname}" завершил чат.`);
-  }
-  renderContacts();
-  
-  // 4. Переходим к следующему изменению
-  continue;
-}
-      // ============ /СИГНАЛ ============
-
-      // Обычное сообщение. Проверяем: чат истёк / не открыт?
-      if ((chatExpired || chatMissing) && !isActiveWithPeer) {
-        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат завершён`);
+      if (chatExpired && !isActiveWithPeer) {
+        console.log(`🗑 Пропущен блоб от "${contacts[peerFp].nickname}" — чат истёк`);
         await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
         continue;
       }
 
-      // Удаляем блоб и добавляем сообщение
+      // Удаляем блоб
       try { await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId)); } catch (e) {}
 
+      // Добавляем сообщение (создаём чат если его не было)
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
           peerNickname: contacts[peerFp].nickname,
@@ -931,6 +843,8 @@ async function listenIncoming() {
         renderContacts();
       }
     }
+  }, (error) => {
+    console.error('[LISTEN] onSnapshot ERROR:', error);
   });
 }
 
@@ -1001,6 +915,7 @@ function bindUI() {
     }
   });
 }
+
 
 // ============================================
 // УСТРОЙСТВА (экспорт identity)
@@ -1088,6 +1003,7 @@ async function copyExport() {
     document.execCommand('copy');
   }
 }
+
 
 // ============================================
 // АККАУНТЫ
