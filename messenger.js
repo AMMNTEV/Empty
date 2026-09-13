@@ -185,7 +185,6 @@ async function init() {
   CHATS_FILE = `chats_${myHashHex}.enc`;
 
   document.getElementById('meName').textContent = myIdentity.nickname;
-  document.getElementById('meFp').textContent = myIdentity.fingerprint;
 
   contacts = await loadContacts();
   chatHistory = await loadChats();
