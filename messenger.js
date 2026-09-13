@@ -20,8 +20,8 @@ const IDENTITY_FILE = 'identity.enc';
 const CONTACTS_FILE = 'contacts.enc';
 const CHATS_FILE = 'chats.enc';
 
-const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
+const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;      // блоб живёт на сервере 7 дней
+const CHAT_TTL_MS = 24 * 60 * 60 * 1000;           // локальная история — 24 часа
 
 let myIdentity = null;
 let myPassword = null;
@@ -202,7 +202,6 @@ async function showMyCard() {
     qr.addData(json);
     qr.make();
 
-    // Рисуем на canvas — надёжнее чем SVG
     const cellSize = 6;
     const margin = 4;
     const count = qr.getModuleCount();
@@ -245,7 +244,7 @@ async function showMyCard() {
 
 
 // ============================================
-// QR-СКАНЕР (внутри модалки добавления)
+// QR-СКАНЕР
 // ============================================
 async function startScanner() {
   const video = document.getElementById('scannerVideo');
@@ -442,7 +441,6 @@ function renderChat() {
   const history = chatHistory[activeChat.fingerprint];
   const msgs = history ? history.messages : [];
 
-  // Простой блочный рендер — каждое сообщение обнимает контент
   messages.innerHTML = msgs.map(m => {
     const cls = m.from === 'me' ? 'me' : 'other';
     return `<div class="msg ${cls}">${escapeHtml(m.text)}</div>`;
@@ -467,6 +465,19 @@ function startTimer() {
     document.getElementById('chatTimer').textContent =
       `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   }, 1000);
+
+  // Сразу обновим отображение, не ждать первую секунду
+  const history = chatHistory[activeChat?.fingerprint];
+  if (history) {
+    const left = history.expiresAt - Date.now();
+    if (left > 0) {
+      const h = Math.floor(left / 3600000);
+      const min = Math.floor((left % 3600000) / 60000);
+      const sec = Math.floor((left % 60000) / 1000);
+      document.getElementById('chatTimer').textContent =
+        `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+  }
 }
 
 function endChat() {
@@ -540,10 +551,11 @@ async function sendMessage() {
   }
   chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
   chatHistory[fp].lastActivity = ts;
-  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
+  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;   // сброс TTL на 24 часа
 
   saveChats();
   renderChat();
+  startTimer();   // перезапуск отображения таймера
 }
 
 
@@ -630,12 +642,13 @@ async function listenIncoming() {
         ts: payload.ts
       });
       chatHistory[peerFp].lastActivity = payload.ts;
-      chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;
+      chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;   // сброс TTL на 24 часа
 
       saveChats();
 
       if (activeChat && activeChat.fingerprint === peerFp) {
         renderChat();
+        startTimer();   // перезапуск отображения таймера при входящем
       } else {
         renderContacts();
       }
@@ -661,7 +674,6 @@ function bindUI() {
     addContactFromJson(document.getElementById('addCardJson').value);
   });
 
-  // Вкладки в модалке добавления
   document.querySelectorAll('#modalAddContact .tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
