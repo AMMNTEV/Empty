@@ -1,11 +1,11 @@
 // ============================================
 // messenger.js — контакты, чаты, E2EE, relay
-// Store-and-forward + авто-handshake
+// Store-and-forward + авто-handshake + адаптив
 // ============================================
 import { db } from './firebase-init.js';
 import {
   collection, addDoc, query, where, onSnapshot,
-  deleteDoc, doc, serverTimestamp
+  deleteDoc, doc
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 import {
@@ -16,19 +16,13 @@ import {
   signBlob, verifyBlob, uuid
 } from './crypto.js';
 
-// ============================================
-// КОНСТАНТЫ
-// ============================================
 const IDENTITY_FILE = 'identity.enc';
 const CONTACTS_FILE = 'contacts.enc';
 const CHATS_FILE = 'chats.enc';
 
-const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;  // блоб в Firestore
-const CHAT_TTL_MS = 24 * 60 * 60 * 1000;       // локальная история
+const RELAY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
-// ============================================
-// СОСТОЯНИЕ
-// ============================================
 let myIdentity = null;
 let myPassword = null;
 let contacts = {};
@@ -37,8 +31,8 @@ let activeChat = null;
 let unsubscribeIncoming = null;
 let timerInterval = null;
 let saveChatsTimer = null;
-let scannerStream = null;   // NEW: поток камеры
-let scannerRAF = null;      // NEW: requestAnimationFrame для сканера
+let scannerStream = null;
+let scannerRAF = null;
 
 
 // ============================================
@@ -156,7 +150,7 @@ function renderContacts() {
   const keys = Object.keys(contacts);
 
   if (keys.length === 0) {
-    list.innerHTML = '<div style="padding: 20px; color: #555; font-size: 13px;">Нет контактов. Нажмите "Добавить контакт" или "Сканировать QR".</div>';
+    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «Добавить» или «Сканировать».</div>';
     return;
   }
 
@@ -165,7 +159,7 @@ function renderContacts() {
     const initial = (c.nickname || '?').charAt(0).toUpperCase();
     const active = activeChat && activeChat.fingerprint === fp ? 'active' : '';
     const hasHistory = chatHistory[fp] && chatHistory[fp].messages.length > 0;
-    const badge = hasHistory ? ` <span style="color: #3b82f6; font-size: 11px;">●</span>` : '';
+    const badge = hasHistory ? ' <span style="color: var(--blue); font-size: 11px;">●</span>' : '';
     return `
       <div class="contact ${active}" data-fp="${fp}">
         <div class="avatar">${initial}</div>
@@ -202,28 +196,21 @@ async function showMyCard() {
   const qrBox = document.getElementById('qrBox');
   qrBox.innerHTML = '';
 
-  // Рисуем QR через qrcode-generator (глобальный `qrcode`)
   try {
-    if (typeof qrcode !== 'function') {
-      throw new Error('qrcode-generator не загружен');
-    }
-    // typeNumber: 0 = авто, errorCorrectionLevel: 'M'
+    if (typeof qrcode !== 'function') throw new Error('QR-библиотека не загружена');
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
-
-    // Вставляем SVG (чётче чем canvas)
-    const svg = qr.createSvgTag({ scalable: true });
-    qrBox.innerHTML = svg;
-    // Ограничим размер
+    qrBox.innerHTML = qr.createSvgTag({ scalable: true, margin: 0 });
     const svgEl = qrBox.querySelector('svg');
     if (svgEl) {
-      svgEl.style.width = '280px';
-      svgEl.style.height = '280px';
+      svgEl.style.width = '100%';
+      svgEl.style.maxWidth = '280px';
+      svgEl.style.height = 'auto';
     }
   } catch (e) {
     console.error('QR generation error:', e);
-    qrBox.innerHTML = '<div style="color: #333; font-size: 12px;">QR недоступен — используйте JSON</div>';
+    qrBox.innerHTML = '<div style="color: #333; font-size: 12px; padding: 10px;">QR недоступен — используйте JSON</div>';
   }
 
   document.getElementById('modalMyCard').classList.add('active');
@@ -242,7 +229,7 @@ async function openScanner() {
 
   try {
     scannerStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
+      video: { facingMode: { ideal: 'environment' } }
     });
     video.srcObject = scannerStream;
     await video.play();
@@ -271,7 +258,6 @@ async function openScanner() {
       scannerRAF = requestAnimationFrame(tick);
     };
     tick();
-
   } catch (e) {
     console.error('Camera error:', e);
     errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
@@ -279,10 +265,7 @@ async function openScanner() {
 }
 
 function closeScanner() {
-  if (scannerRAF) {
-    cancelAnimationFrame(scannerRAF);
-    scannerRAF = null;
-  }
+  if (scannerRAF) { cancelAnimationFrame(scannerRAF); scannerRAF = null; }
   if (scannerStream) {
     scannerStream.getTracks().forEach(t => t.stop());
     scannerStream = null;
@@ -293,14 +276,10 @@ function closeScanner() {
 }
 
 async function handleScannedQR(text) {
-  // Останавливаем сканер
   closeScanner();
-
-  // Пробуем распарсить как карточку
   try {
     const card = JSON.parse(text);
     await addContactFromCard(card);
-    // Открываем уведомление, что контакт добавлен
     setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
   } catch (e) {
     console.error('QR parse error:', e);
@@ -327,7 +306,6 @@ async function addContactFromCard(card) {
 async function addContactFromJson(json) {
   const errEl = document.getElementById('addError');
   errEl.textContent = '';
-
   let card;
   try {
     card = JSON.parse(json.trim());
@@ -335,7 +313,6 @@ async function addContactFromJson(json) {
     errEl.textContent = 'Некорректный JSON';
     return;
   }
-
   try {
     await addContactFromCard(card);
     document.getElementById('modalAddContact').classList.remove('active');
@@ -387,16 +364,21 @@ function renderChat() {
 
   if (!activeChat) {
     empty.style.display = 'flex';
-    header.style.display = 'none';
-    messages.style.display = 'none';
-    inputArea.style.display = 'none';
+    header.classList.remove('active');
+    messages.classList.remove('active');
+    inputArea.classList.remove('active');
+    document.body.classList.remove('chat-mode');
     return;
   }
 
   empty.style.display = 'none';
-  header.style.display = 'flex';
-  messages.style.display = 'flex';
-  inputArea.style.display = 'flex';
+  header.classList.add('active');
+  messages.classList.add('active');
+  inputArea.classList.add('active');
+
+  if (window.innerWidth <= 768) {
+    document.body.classList.add('chat-mode');
+  }
 
   document.getElementById('chatTitle').textContent = activeChat.peerCard.nickname;
 
@@ -408,7 +390,9 @@ function renderChat() {
     return `<div class="msg ${cls}">${escapeHtml(m.text)}</div>`;
   }).join('');
 
-  messages.scrollTop = messages.scrollHeight;
+  requestAnimationFrame(() => {
+    messages.scrollTop = messages.scrollHeight;
+  });
 }
 
 function startTimer() {
@@ -418,10 +402,7 @@ function startTimer() {
     const history = chatHistory[activeChat.fingerprint];
     if (!history) return;
     const left = history.expiresAt - Date.now();
-    if (left <= 0) {
-      endChat();
-      return;
-    }
+    if (left <= 0) { endChat(); return; }
     const h = Math.floor(left / 3600000);
     const min = Math.floor((left % 3600000) / 60000);
     const sec = Math.floor((left % 60000) / 1000);
@@ -432,7 +413,6 @@ function startTimer() {
 
 function endChat() {
   if (!activeChat) return;
-
   const fp = activeChat.fingerprint;
   delete chatHistory[fp];
   saveChats();
@@ -441,6 +421,15 @@ function endChat() {
   timerInterval = null;
   activeChat = null;
 
+  renderContacts();
+  renderChat();
+}
+
+function exitChat() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  activeChat = null;
+  document.body.classList.remove('chat-mode');
   renderContacts();
   renderChat();
 }
@@ -455,6 +444,7 @@ async function sendMessage() {
   if (!text || !activeChat) return;
 
   input.value = '';
+  input.style.height = 'auto';
 
   const fp = activeChat.fingerprint;
   const msgId = uuid();
@@ -466,8 +456,6 @@ async function sendMessage() {
 
   const toHash = await hashPubkey(activeChat.peerCard.x25519);
   const fromHash = await hashPubkey(myIdentity.x25519.public);
-
-  // NEW: прикладываем свою карточку, чтобы получатель мог добавить нас автоматически
   const senderCard = buildMyCard();
 
   try {
@@ -478,7 +466,7 @@ async function sendMessage() {
       ciphertext: blob.ciphertext,
       signature: signature,
       senderEd25519: myIdentity.ed25519.public,
-      senderCard: senderCard,     // NEW
+      senderCard: senderCard,
       ttl: Date.now() + RELAY_TTL_MS
     });
   } catch (e) {
@@ -508,10 +496,7 @@ async function sendMessage() {
 async function listenIncoming() {
   const myHash = await hashPubkey(myIdentity.x25519.public);
 
-  const q = query(
-    collection(db, 'relay'),
-    where('to', '==', myHash)
-  );
+  const q = query(collection(db, 'relay'), where('to', '==', myHash));
 
   unsubscribeIncoming = onSnapshot(q, async (snapshot) => {
     for (const change of snapshot.docChanges()) {
@@ -520,40 +505,23 @@ async function listenIncoming() {
       const data = change.doc.data();
       const docId = change.doc.id;
 
-      try {
-        await deleteDoc(doc(db, 'relay', docId));
-      } catch (e) {
-        console.warn('Не удалось удалить блоб:', e);
-      }
+      try { await deleteDoc(doc(db, 'relay', docId)); } catch (e) {}
 
       if (data.ttl && data.ttl < Date.now()) continue;
 
-      // Ищем отправителя
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkey(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
 
-      // NEW: авто-handshake — если отправитель незнаком, добавляем его из senderCard
       if (!peerFp && data.senderCard) {
         try {
           const card = data.senderCard;
-          if (!card.x25519 || !card.fingerprint || !card.ed25519) {
-            console.warn('Карточка отправителя неполная');
-            continue;
-          }
-          // Защита: хэш публичного ключа из карточки должен совпасть с from
+          if (!card.x25519 || !card.fingerprint || !card.ed25519) continue;
           const cardHash = await hashPubkey(card.x25519);
-          if (cardHash !== data.from) {
-            console.warn('Карточка не соответствует from');
-            continue;
-          }
-          // Защита: подпись senderEd25519 должна валидироваться карточкой
-          if (data.senderEd25519 !== card.ed25519) {
-            console.warn('senderEd25519 не совпадает с карточкой');
-            continue;
-          }
+          if (cardHash !== data.from) continue;
+          if (data.senderEd25519 !== card.ed25519) continue;
           contacts[card.fingerprint] = card;
           await saveContacts();
           peerFp = card.fingerprint;
@@ -567,21 +535,11 @@ async function listenIncoming() {
 
       if (!peerFp) continue;
 
-      // Проверка подписи
       if (data.signature && data.senderEd25519) {
         const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
-        if (!valid) {
-          console.warn('Подпись невалидна, пропускаем');
-          continue;
-        }
-        if (data.senderEd25519 !== contacts[peerFp].ed25519) {
-          console.warn('Отправитель не совпадает с карточкой');
-          continue;
-        }
-      } else {
-        console.warn('Блоб без подписи, пропускаем');
-        continue;
-      }
+        if (!valid) continue;
+        if (data.senderEd25519 !== contacts[peerFp].ed25519) continue;
+      } else continue;
 
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
@@ -641,10 +599,18 @@ function bindUI() {
   });
   document.getElementById('btnCloseScanQR').addEventListener('click', closeScanner);
 
-  document.getElementById('btnCopyCard').addEventListener('click', () => {
+  document.getElementById('btnCopyCard').addEventListener('click', async () => {
     const ta = document.getElementById('myCardJson');
     ta.select();
-    document.execCommand('copy');
+    try {
+      await navigator.clipboard.writeText(ta.value);
+    } catch {
+      document.execCommand('copy');
+    }
+    const btn = document.getElementById('btnCopyCard');
+    const prev = btn.textContent;
+    btn.textContent = 'Скопировано ✓';
+    setTimeout(() => { btn.textContent = prev; }, 1200);
   });
 
   document.getElementById('btnAddContact').addEventListener('click', () => {
@@ -659,9 +625,20 @@ function bindUI() {
   });
 
   document.getElementById('btnSend').addEventListener('click', sendMessage);
-  document.getElementById('msgInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendMessage();
+
+  const msgInput = document.getElementById('msgInput');
+  msgInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
+  msgInput.addEventListener('input', () => {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+  });
+
+  document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
   document.getElementById('btnEndChat').addEventListener('click', () => {
     if (confirm('Завершить чат? История будет удалена безвозвратно.')) {

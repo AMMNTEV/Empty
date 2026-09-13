@@ -2,192 +2,629 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Empty — Мессенджер</title>
 
-  <!-- QR-библиотеки (UMD, доступны глобально) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0f0f0f;
+      --bg-2: #1a1a1a;
+      --bg-3: #141414;
+      --bg-4: #252525;
+      --border: #252525;
+      --border-2: #333;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --text-dim-2: #555;
+      --blue: #3b82f6;
+      --blue-hover: #2563eb;
+      --red: #ef4444;
+      --orange: #f59e0b;
+      --topbar-h: 56px;
+      --input-h: 60px;
+    }
+
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f0f0f; color: #e0e0e0; height: 100vh;
-      display: flex; flex-direction: column; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      display: flex;
+      flex-direction: column;
     }
 
+    /* ============ TOPBAR ============ */
     .topbar {
-      padding: 12px 16px; background: #1a1a1a;
-      border-bottom: 1px solid #252525;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-shrink: 0; flex-wrap: wrap; gap: 8px;
+      height: var(--topbar-h);
+      padding: 0 12px;
+      padding-top: env(safe-area-inset-top);
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
     }
-    .me { font-size: 13px; color: #888; }
-    .me b { color: #e0e0e0; }
+
+    .me {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .me-name {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .me-fp {
+      font-size: 10px;
+      font-family: monospace;
+      color: var(--text-dim-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
     .topbar button {
-      background: #3b82f6; border: none; color: #fff;
-      padding: 8px 14px; border-radius: 8px; font-size: 13px;
-      cursor: pointer; margin-left: 6px;
+      background: var(--bg-4);
+      border: none;
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background 0.15s;
     }
-    .topbar button.secondary { background: #333; }
+    .topbar button:hover { background: #2d2d2d; }
+    .topbar button.primary { background: var(--blue); color: #fff; }
+    .topbar button.primary:hover { background: var(--blue-hover); }
+    .topbar button svg { width: 18px; height: 18px; }
 
-    .main { flex: 1; display: flex; overflow: hidden; }
+    /* На мобилке кнопки — только иконки */
+    @media (max-width: 600px) {
+      .topbar button .btn-label { display: none; }
+      .topbar button { padding: 8px 10px; }
+    }
 
+    /* ============ MAIN LAYOUT ============ */
+    .main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ============ SIDEBAR ============ */
     .sidebar {
-      width: 280px; background: #141414; border-right: 1px solid #252525;
-      overflow-y: auto; flex-shrink: 0;
+      width: 320px;
+      background: var(--bg-3);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      min-height: 0;
+      overflow: hidden;
     }
-    .sidebar h3 {
-      font-size: 12px; text-transform: uppercase; color: #666;
-      padding: 16px 16px 8px;
+
+    .sidebar-header {
+      padding: 12px 16px 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
     }
+
+    .contacts-list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .contact {
-      padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #1e1e1e;
-      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.1s;
     }
     .contact:hover { background: #1e1e1e; }
     .contact.active { background: #252525; }
-    .avatar {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: #3b82f6; color: #fff; display: flex;
-      align-items: center; justify-content: center;
-      font-weight: 600; flex-shrink: 0;
-    }
-    .contact-info { flex: 1; min-width: 0; }
-    .contact-name { font-size: 14px; font-weight: 500; }
-    .contact-fp { font-size: 11px; color: #666; font-family: monospace;
-                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .chat-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .chat-header {
-      padding: 12px 16px; background: #1a1a1a;
-      border-bottom: 1px solid #252525;
-      display: flex; align-items: center; justify-content: space-between;
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 16px;
       flex-shrink: 0;
     }
-    .chat-header .title { font-size: 15px; font-weight: 500; }
-    .chat-header .timer { font-size: 12px; color: #f59e0b; }
 
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name {
+      font-size: 15px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .contact-fp {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty-sidebar {
+      padding: 24px 16px;
+      color: var(--text-dim-2);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ============ CHAT AREA ============ */
+    .chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Пустое состояние */
+    .chat-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim-2);
+      font-size: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    /* Шапка чата */
+    .chat-header {
+      padding: 10px 16px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      display: none;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      min-height: var(--topbar-h);
+    }
+    .chat-header.active { display: flex; }
+
+    .mobile-back {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      padding: 6px;
+      margin-left: -6px;
+      border-radius: 8px;
+    }
+    .mobile-back:hover { background: var(--bg-4); }
+
+    .chat-header-info { flex: 1; min-width: 0; }
+    .chat-title {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-timer {
+      font-size: 12px;
+      color: var(--orange);
+      margin-top: 2px;
+    }
+
+    .btn-end-chat {
+      background: var(--red);
+      border: none;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .btn-end-chat:hover { background: #dc2626; }
+    .btn-end-chat .btn-label { display: inline; }
+
+    /* Сообщения */
     .messages {
-      flex: 1; overflow-y: auto; padding: 16px;
-      display: flex; flex-direction: column; gap: 8px;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
+    .messages.active { display: flex; }
+
     .msg {
-      max-width: 70%; padding: 10px 14px; border-radius: 14px;
-      font-size: 14px; word-wrap: break-word;
+      max-width: 75%;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+      animation: msg-in 0.15s ease-out;
     }
-    .msg.me { align-self: flex-end; background: #3b82f6; color: #fff; }
-    .msg.other { align-self: flex-start; background: #252525; }
-    .msg.sys {
-      align-self: center; background: transparent; color: #666;
-      font-size: 12px; padding: 4px;
+    @keyframes msg-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg.me {
+      align-self: flex-end;
+      background: var(--blue);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.other {
+      align-self: flex-start;
+      background: var(--bg-4);
+      border-bottom-left-radius: 4px;
     }
 
+    /* Поле ввода */
     .input-area {
-      padding: 12px 16px; background: #1a1a1a;
-      border-top: 1px solid #252525;
-      display: flex; gap: 10px; flex-shrink: 0;
+      padding: 10px 12px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      display: none;
+      gap: 8px;
+      flex-shrink: 0;
+      align-items: flex-end;
     }
-    .input-area input {
-      flex: 1; padding: 10px 14px; background: #252525;
-      border: 1px solid #333; border-radius: 10px; color: #fff;
-      font-size: 14px; outline: none;
-    }
-    .input-area input:focus { border-color: #3b82f6; }
-    .input-area button {
-      background: #3b82f6; border: none; color: #fff;
-      padding: 10px 20px; border-radius: 10px; cursor: pointer;
-      font-size: 14px; font-weight: 500;
-    }
-    .empty {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      color: #444; font-size: 14px;
-    }
+    .input-area.active { display: flex; }
 
+    .input-area textarea {
+      flex: 1;
+      padding: 10px 14px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-2);
+      border-radius: 20px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.4;
+      transition: border-color 0.15s;
+    }
+    .input-area textarea:focus { border-color: var(--blue); }
+
+    .btn-send {
+      background: var(--blue);
+      border: none;
+      color: #fff;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .btn-send:hover { background: var(--blue-hover); }
+    .btn-send svg { width: 20px; height: 20px; }
+
+    /* ============ МОДАЛКИ ============ */
     .modal {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.85); z-index: 1000;
-      align-items: center; justify-content: center; padding: 20px;
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
     }
     .modal.active { display: flex; }
+
     .modal-card {
-      background: #1a1a1a; border-radius: 16px; padding: 24px;
-      max-width: 420px; width: 100%; max-height: 90vh; overflow-y: auto;
+      background: var(--bg-2);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 440px;
+      width: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
-    .modal-card h2 { font-size: 18px; margin-bottom: 16px; }
+    .modal-card h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .modal-card .hint {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
     .modal-card textarea {
-      width: 100%; min-height: 100px; padding: 12px;
-      background: #252525; border: 1px solid #333; border-radius: 10px;
-      color: #fff; font-family: monospace; font-size: 12px;
-      resize: vertical; outline: none;
+      width: 100%;
+      min-height: 100px;
+      padding: 12px;
+      background: var(--bg-4);
+      border: 1px solid var(--border-2);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: monospace;
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+      -webkit-appearance: none;
     }
     .modal-card button {
-      width: 100%; padding: 12px; background: #3b82f6;
-      border: none; border-radius: 10px; color: #fff;
-      font-size: 14px; font-weight: 600; cursor: pointer;
+      width: 100%;
+      padding: 12px;
+      background: var(--blue);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
       margin-top: 10px;
+      transition: background 0.15s;
     }
-    .modal-card button.secondary { background: #333; }
+    .modal-card button:hover { background: var(--blue-hover); }
+    .modal-card button.secondary {
+      background: var(--bg-4);
+      color: var(--text);
+      font-weight: 500;
+    }
+    .modal-card button.secondary:hover { background: #2d2d2d; }
+
     .qr-box {
-      background: #fff; padding: 16px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 16px 0;
+      background: #fff;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 12px 0;
     }
-    .qr-box img, .qr-box canvas { display: block; max-width: 100%; }
+    .qr-box svg, .qr-box img, .qr-box canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
 
     #scannerVideo {
       width: 100%;
       border-radius: 12px;
       background: #000;
       margin-bottom: 12px;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+    }
+
+    .error-text {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+
+    /* ============ АДАПТИВ ============ */
+    @media (max-width: 768px) {
+      .main {
+        position: relative;
+      }
+
+      .sidebar {
+        width: 100%;
+        border-right: none;
+      }
+
+      .chat-area {
+        position: absolute;
+        inset: 0;
+        background: var(--bg);
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        z-index: 10;
+      }
+
+      /* Когда открыт чат — показываем его */
+      body.chat-mode .chat-area {
+        transform: translateX(0);
+      }
+
+      body.chat-mode .sidebar {
+        visibility: hidden;
+      }
+
+      .mobile-back {
+        display: inline-flex;
+      }
+
+      .msg {
+        max-width: 85%;
+      }
+    }
+
+    /* Маленькие экраны */
+    @media (max-width: 380px) {
+      .topbar { padding: 0 8px; }
+      .topbar button { padding: 7px 9px; }
+      .avatar { width: 38px; height: 38px; font-size: 15px; }
+      .contact { padding: 10px 12px; }
+      .messages { padding: 12px; }
+      .msg { font-size: 13.5px; }
+    }
+
+    /* Планшеты */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .sidebar { width: 280px; }
+    }
+
+    /* Скроллбары (тонкие) */
+    .contacts-list::-webkit-scrollbar,
+    .messages::-webkit-scrollbar,
+    .modal-card::-webkit-scrollbar {
+      width: 6px;
+    }
+    .contacts-list::-webkit-scrollbar-thumb,
+    .messages::-webkit-scrollbar-thumb,
+    .modal-card::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
+
+    /* Убираем подсветку автозаполнения */
+    input:-webkit-autofill,
+    textarea:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 1000px var(--bg-4) inset;
+      -webkit-text-fill-color: var(--text);
     }
   </style>
 </head>
 <body>
 
+  <!-- TOPBAR -->
   <div class="topbar">
-    <div class="me">Вы: <b id="meName">...</b> <span id="meFp" style="font-family: monospace; color: #555;"></span></div>
-    <div>
-      <button id="btnMyCard" class="secondary">Моя карточка</button>
-      <button id="btnScanQR" class="secondary">Сканировать QR</button>
-      <button id="btnAddContact">Добавить контакт</button>
+    <div class="me">
+      <div class="me-name" id="meName">...</div>
+      <div class="me-fp" id="meFp"></div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnMyCard" title="Моя карточка">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+        </svg>
+        <span class="btn-label">Моя карточка</span>
+      </button>
+      <button id="btnScanQR" title="Сканировать QR">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+          <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+          <line x1="7" y1="12" x2="17" y2="12"></line>
+        </svg>
+        <span class="btn-label">Сканировать</span>
+      </button>
+      <button id="btnAddContact" class="primary" title="Добавить контакт">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span class="btn-label">Добавить</span>
+      </button>
     </div>
   </div>
 
+  <!-- MAIN -->
   <div class="main">
+
+    <!-- SIDEBAR -->
     <div class="sidebar">
-      <h3>Контакты</h3>
-      <div id="contactsList"></div>
+      <div class="sidebar-header">Контакты</div>
+      <div class="contacts-list" id="contactsList"></div>
     </div>
 
-    <div class="chat-area">
-      <div class="chat-header" id="chatHeader" style="display: none;">
-        <div>
-          <div class="title" id="chatTitle">—</div>
-          <div class="timer" id="chatTimer"></div>
+    <!-- CHAT -->
+    <div class="chat-area" id="chatArea">
+
+      <div class="chat-empty" id="chatEmpty">Выберите контакт слева</div>
+
+      <div class="chat-header" id="chatHeader">
+        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+        <div class="chat-header-info">
+          <div class="chat-title" id="chatTitle">—</div>
+          <div class="chat-timer" id="chatTimer"></div>
         </div>
-        <button id="btnEndChat" style="background: #ef4444;">Завершить чат</button>
+        <button class="btn-end-chat" id="btnEndChat">
+          <span class="btn-label">Завершить</span>
+        </button>
       </div>
 
-      <div id="chatEmpty" class="empty">Выберите контакт слева</div>
+      <div class="messages" id="messages"></div>
 
-      <div class="messages" id="messages" style="display: none;"></div>
-
-      <div class="input-area" id="inputArea" style="display: none;">
-        <input type="text" id="msgInput" placeholder="Сообщение..." autocomplete="off">
-        <button id="btnSend">Отправить</button>
+      <div class="input-area" id="inputArea">
+        <textarea id="msgInput" placeholder="Сообщение..." rows="1" autocomplete="off"></textarea>
+        <button class="btn-send" id="btnSend" aria-label="Отправить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 2L11 13"></path>
+            <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+          </svg>
+        </button>
       </div>
+
     </div>
   </div>
 
-  <!-- Модалка: моя карточка -->
+  <!-- МОДАЛКА: МОЯ КАРТОЧКА -->
   <div class="modal" id="modalMyCard">
     <div class="modal-card">
       <h2>Моя карточка</h2>
-      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
-        Покажите этот QR тому, с кем хотите связаться.
-      </p>
+      <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
       <div class="qr-box" id="qrBox"></div>
       <textarea id="myCardJson" readonly></textarea>
       <button id="btnCopyCard" class="secondary">Скопировать JSON</button>
@@ -195,30 +632,26 @@
     </div>
   </div>
 
-  <!-- Модалка: добавить контакт вручную -->
+  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
-      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
-        Вставьте JSON-карточку, которую вам прислали.
-      </p>
+      <p class="hint">Вставьте JSON-карточку, которую вам прислали.</p>
       <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
       <button id="btnSaveContact">Добавить</button>
       <button id="btnCloseAddContact" class="secondary">Отмена</button>
-      <div id="addError" style="color: #ef4444; font-size: 13px; margin-top: 8px;"></div>
+      <div class="error-text" id="addError"></div>
     </div>
   </div>
 
-  <!-- Модалка: сканер QR -->
+  <!-- МОДАЛКА: СКАНЕР QR -->
   <div class="modal" id="modalScanQR">
     <div class="modal-card">
       <h2>Сканировать QR</h2>
-      <p style="font-size: 13px; color: #888; margin-bottom: 12px;">
-        Наведите камеру на карточку собеседника.
-      </p>
+      <p class="hint">Наведите камеру на карточку собеседника.</p>
       <video id="scannerVideo" playsinline></video>
       <button id="btnCloseScanQR" class="secondary">Закрыть</button>
-      <div id="scanError" style="color: #ef4444; font-size: 13px; margin-top: 8px;"></div>
+      <div class="error-text" id="scanError"></div>
     </div>
   </div>
 
