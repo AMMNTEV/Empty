@@ -341,7 +341,7 @@
 
     .error-text { color: #a00; font-size: 12px; margin-top: 6px; min-height: 16px; }
 
-    .acct-item {
+.acct-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -349,6 +349,9 @@
   border: 1px solid #ddd;
   margin-bottom: 6px;
   background: #f5f6f7;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;   /* ← ключ: не даёт кнопке вылезти */
 }
 
 .acct-info {
@@ -365,17 +368,19 @@
 }
 
 .acct-switch {
-  background: #5b74a8;
-  color: #fff;
-  border: 1px solid #29487d;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-size: 12px;
-  border-radius: 2px;
-  flex-shrink: 0;       /* ключ: кнопка не растягивается и не сжимается */
-  white-space: nowrap;
-  width: auto;          /* ключ: не тянется на всю ширину */
-  margin: 0;
+  background: #5b74a8 !important;
+  color: #fff !important;
+  border: 1px solid #29487d !important;
+  padding: 4px 10px !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  border-radius: 2px !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  width: auto !important;
+  max-width: 100px !important;
+  margin: 0 0 0 auto !important;
+  display: inline-block !important;
 }
 
     /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
