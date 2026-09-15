@@ -6,6 +6,9 @@
 
 **Попробовать →** [Empty](https://ammntev.github.io/Empty)
 
+<img width="1919" height="922" alt="изображение" src="https://github.com/user-attachments/assets/e3b54034-7ca5-44f7-a3a1-f7ab0d3e8459" />
+
+
 ---
 
 ## Что это
