@@ -24,7 +24,6 @@ const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
 // Proof-of-work: сколько ведущих нулевых hex-символов требуем в SHA-256.
 // 4 → в среднем ~65536 попыток, ~0.1–0.5 сек на телефоне.
-// 5 → ~1M попыток, ~2–5 сек. 6 → ~16M, ~30–60 сек (слишком долго).
 const POW_DIFFICULTY = 4;
 
 let myIdentity = null;
@@ -102,8 +101,6 @@ function myInboxRef() {
 // ============================================
 // PROOF-OF-WORK
 // ============================================
-// Ищем nonce, чтобы SHA-256(ciphertext + ':' + nonce) начинался
-// с POW_DIFFICULTY нулевых hex-символов.
 async function computePow(ciphertextB64) {
   let nonce = 0;
   while (true) {
@@ -604,16 +601,89 @@ function startTimer() {
   }
 }
 
-function endChat() {
+
+// ============================================
+// СИГНАЛ ЗАВЕРШЕНИЯ ЧАТА
+// ============================================
+// Шлёт собеседнику шифрованный payload { end: true }.
+// Тот, получив, удаляет чат у себя + чистит свой inbox.
+async function sendEndSignal() {
+  if (!activeChat) return;
+
+  const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
+
+  const payload = JSON.stringify({
+    id: uuid(),
+    text: '',
+    ts: Date.now(),
+    from: myHashHex,
+    to: toHashHex,
+    end: true
+  });
+
+  const blob = await encryptMessage(payload, activeChat.sharedKey);
+
+  const signedData = JSON.stringify({
+    ciphertext: blob.ciphertext,
+    from: myHashHex,
+    to: toHashHex
+  });
+  const signature = await signBlob(signedData, myIdentity.ed25519.private);
+
+  let pow;
+  try {
+    pow = await computePow(blob.ciphertext);
+  } catch (e) {
+    console.error('[END] PoW failed:', e);
+    return;
+  }
+
+  try {
+    const inboxRef = collection(db, 'users', toHashHex, 'inbox');
+    await addDoc(inboxRef, {
+      from: myHashHex,
+      to: toHashHex,
+      iv: blob.iv,
+      ciphertext: blob.ciphertext,
+      signature: signature,
+      senderEd25519: myIdentity.ed25519.public,
+      pow: pow,
+      ttl: Date.now() + RELAY_TTL_MS
+    });
+    console.log('[END] Сигнал завершения отправлен');
+  } catch (e) {
+    console.error('[END] send failed:', e);
+  }
+}
+
+
+// ============================================
+// ЗАВЕРШЕНИЕ ЧАТА (локально + сигнал собеседнику)
+// ============================================
+async function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  purgeRelayForContact(fp);
+  // 1. Сначала сигнал собеседнику — пока есть activeChat и sharedKey
+  try {
+    await sendEndSignal();
+  } catch (e) {
+    console.warn('[END] signal failed:', e);
+  }
 
+  // 2. Локальная очистка: свой inbox от blob'ов собеседника
+  try {
+    await purgeRelayForContact(fp);
+  } catch (e) {
+    console.warn('[END] purge failed:', e);
+  }
+
+  // 3. Удаляем локальную историю чата
   delete chatHistory[fp];
-  saveChats();
+  await saveChats();
 
+  // 4. Сбрасываем UI
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -650,7 +720,6 @@ async function sendMessage() {
 
   const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
 
-  // payload содержит from/to — они часть шифротекста, подделать нельзя
   const payload = JSON.stringify({
     id: msgId,
     text,
@@ -661,7 +730,6 @@ async function sendMessage() {
 
   const blob = await encryptMessage(payload, activeChat.sharedKey);
 
-  // Подпись покрывает ciphertext + from + to
   const signedData = JSON.stringify({
     ciphertext: blob.ciphertext,
     from: myHashHex,
@@ -669,7 +737,6 @@ async function sendMessage() {
   });
   const signature = await signBlob(signedData, myIdentity.ed25519.private);
 
-  // PoW поверх ciphertext — защита от консольного спама
   let pow;
   try {
     pow = await computePow(blob.ciphertext);
@@ -727,7 +794,7 @@ async function listenIncoming() {
       const docId = change.doc.id;
       const docRef = doc(db, 'users', myHashHex, 'inbox', docId);
 
-      // 1. Структурная валидация — режем всё, что не похоже на наше сообщение
+      // 1. Структурная валидация
       if (
         typeof data.from !== 'string' ||
         typeof data.to !== 'string' ||
@@ -741,7 +808,7 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 2. to должен быть нами (защита от переиспользования блоба)
+      // 2. to должен быть нами
       if (data.to !== myHashHex) {
         await deleteDoc(docRef); continue;
       }
@@ -756,14 +823,13 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 5. Ищем контакт по from. Auto-add УБРАН — только существующие контакты.
+      // 5. Ищем контакт по from. Auto-add УБРАН.
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
       if (!peerFp) {
-        // Незнакомец — игнорируем. Контакты добавляются только через QR/JSON.
         await deleteDoc(docRef); continue;
       }
 
@@ -805,7 +871,35 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 10. Проверка на истёкший чат
+      // 10. Обработка сигнала завершения чата
+      if (payload.end === true) {
+        await deleteDoc(docRef);
+
+        const peerNickname = contacts[peerFp].nickname;
+
+        // Удаляем чат локально
+        if (chatHistory[peerFp]) {
+          delete chatHistory[peerFp];
+          await saveChats();
+        }
+
+        // Сбрасываем UI, если открыт этот чат
+        if (activeChat && activeChat.fingerprint === peerFp) {
+          if (timerInterval) clearInterval(timerInterval);
+          timerInterval = null;
+          activeChat = null;
+          renderChat();
+        }
+        renderContacts();
+
+        // Чистим свой inbox от blob'ов этого собеседника
+        purgeRelayForContact(peerFp).catch(e => console.warn('[END] purge:', e));
+
+        console.log(`[END] Собеседник "${peerNickname}" завершил чат`);
+        continue;
+      }
+
+      // 11. Проверка на истёкший чат
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
@@ -909,7 +1003,7 @@ function bindUI() {
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
   document.getElementById('btnEndChat').addEventListener('click', () => {
-    if (confirm('Завершить чат? История будет удалена безвозвратно.')) {
+    if (confirm('Завершить чат? История будет удалена безвозвратно у обоих участников.')) {
       endChat();
     }
   });
