@@ -42,6 +42,58 @@ let purgeCheckInterval = null;
 let CONTACTS_FILE = null;
 let CHATS_FILE = null;
 
+// ============================================
+// КАСТОМНЫЕ ДИАЛОГИ
+// ============================================
+function showConfirm(text, title = 'Подтверждение') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modalConfirm');
+    const titleEl = document.getElementById('confirmTitle');
+    const textEl = document.getElementById('confirmText');
+    const btnYes = document.getElementById('btnConfirmYes');
+    const btnNo = document.getElementById('btnConfirmNo');
+
+    titleEl.textContent = title;
+    textEl.textContent = text;
+
+    const close = (result) => {
+      modal.classList.remove('active');
+      btnYes.removeEventListener('click', onYes);
+      btnNo.removeEventListener('click', onNo);
+      resolve(result);
+    };
+
+    const onYes = () => close(true);
+    const onNo = () => close(false);
+
+    btnYes.addEventListener('click', onYes);
+    btnNo.addEventListener('click', onNo);
+
+    modal.classList.add('active');
+  });
+}
+
+function showAlert(text, title = 'Уведомление') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modalAlert');
+    const titleEl = document.getElementById('alertTitle');
+    const textEl = document.getElementById('alertText');
+    const btnOk = document.getElementById('btnAlertOk');
+
+    titleEl.textContent = title;
+    textEl.textContent = text;
+
+    const close = () => {
+      modal.classList.remove('active');
+      btnOk.removeEventListener('click', close);
+      resolve();
+    };
+
+    btnOk.addEventListener('click', close);
+    modal.classList.add('active');
+  });
+}
+
 
 // ============================================
 // OPFS
@@ -436,17 +488,14 @@ async function handleScannedQR(text) {
     const card = JSON.parse(text);
     await addContactFromCard(card);
 
-    // Даём пользователю увидеть зелёную галочку
     setTimeout(() => {
       stopScanner();
       closeAddContactModal();
-      setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
     }, 600);
   } catch (e) {
     console.error('[SCAN]', e);
     document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
     stopScanner();
-    // Если ошибка — перезапускаем сканер
     setTimeout(() => startScanner(), 500);
   }
 }
@@ -463,13 +512,14 @@ async function addContactFromCard(card) {
     throw new Error('Это ваша карточка');
   }
 
-  const existing = contacts[card.fingerprint];
+    const existing = contacts[card.fingerprint];
   if (existing) {
     const keysChanged = existing.x25519 !== card.x25519 || existing.ed25519 !== card.ed25519;
     if (keysChanged) {
-      const ok = confirm(
+      const ok = await showConfirm(
         `Ключи контакта "${card.nickname}" изменились.\n` +
-        `Обновить контакт? Старая переписка будет удалена.`
+        `Обновить контакт? Старая переписка будет удалена.`,
+        'Обновление контакта'
       );
       if (!ok) return;
       delete chatHistory[card.fingerprint];
@@ -1055,10 +1105,12 @@ function bindUI() {
 
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
-  document.getElementById('btnEndChat').addEventListener('click', () => {
-    if (confirm('Завершить чат? История будет удалена безвозвратно у обоих участников.')) {
-      endChat();
-    }
+    document.getElementById('btnEndChat').addEventListener('click', async () => {
+    const ok = await showConfirm(
+      'Завершить чат? История будет удалена безвозвратно у обоих участников.',
+      'Завершение чата'
+    );
+    if (ok) endChat();
   });
 }
 
@@ -1080,8 +1132,10 @@ function closeDevicesModal() {
 
 async function generateExport() {
   const pw = document.getElementById('exportPassword').value;
-  if (pw.length < 6) { alert('Пароль минимум 6 символов'); return; }
-
+  if (pw.length < 6) {
+    await showAlert('Пароль минимум 6 символов', 'Ошибка');
+    return;
+  }
   try {
     const exportObj = await exportIdentity(myIdentity, pw);
     const json = JSON.stringify(exportObj);
@@ -1120,7 +1174,7 @@ async function generateExport() {
     document.getElementById('exportResult').style.display = 'block';
   } catch (e) {
     console.error(e);
-    alert('Ошибка: ' + e.message);
+    await showAlert('Ошибка: ' + e.message, 'Ошибка');
   }
 }
 
@@ -1181,11 +1235,15 @@ async function renderAccountsModal() {
     `;
   }).join('');
 
-  list.querySelectorAll('.acct-switch').forEach(btn => {
+    list.querySelectorAll('.acct-switch').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const fp = btn.dataset.switch;
-      if (!confirm('Переключиться на другой аккаунт? Вас попросят ввести пароль.')) return;
+      const ok = await showConfirm(
+        'Переключиться на другой аккаунт? Вас попросят ввести пароль.',
+        'Переключение аккаунта'
+      );
+      if (!ok) return;
       sessionStorage.removeItem('_pw');
       sessionStorage.removeItem('_fp');
       await setLastActive(fp);
@@ -1195,7 +1253,11 @@ async function renderAccountsModal() {
 }
 
 async function handleLogout() {
-  if (!confirm('Выйти из аккаунта? Данные останутся на устройстве — сможете вернуться с паролем.')) return;
+  const ok = await showConfirm(
+    'Выйти из аккаунта? Данные останутся на устройстве — сможете вернуться с паролем.',
+    'Выход из аккаунта'
+  );
+  if (!ok) return;
   sessionStorage.removeItem('_pw');
   sessionStorage.removeItem('_fp');
   window.location.href = 'index.html';

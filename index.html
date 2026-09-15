@@ -50,7 +50,6 @@
       box-sizing: border-box;
     }
 
-    /* На низких экранах — прижимаем к верху, чтобы не обрезало */
     @media (max-height: 700px) {
       .page {
         justify-content: flex-start;
@@ -65,7 +64,6 @@
       margin: 0 auto 24px;
     }
 
-    /* ============ ЛОГОТИП EMPTY ============ */
     .logo {
       font-family: 'Arial Black', 'Impact', 'Helvetica Neue', Arial, sans-serif;
       font-weight: 900;
@@ -97,7 +95,6 @@
       opacity: 0.65;
     }
 
-    /* ============ КАРТОЧКА ============ */
     .card {
       background: rgba(10, 10, 10, 0.92);
       border: 1px solid #2a2a2a;
@@ -311,16 +308,25 @@
       border: none;
       color: #555;
       cursor: pointer;
-      font-size: 14px;
       padding: 4px 8px;
       margin: 0;
       font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
     }
 
     .account-delete:hover {
       color: #f66;
       background: transparent;
       border: none;
+    }
+
+    .account-delete svg {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
 
     /* ============ КНОПКИ В РЯД ============ */
@@ -341,6 +347,91 @@
 
     #importScannerSuccess {
       transition: opacity 0.15s ease;
+    }
+
+    /* ============ МОДАЛКИ ============ */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: rgba(10, 10, 10, 0.95);
+      border: 1px solid #2a2a2a;
+      padding: 16px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      backdrop-filter: blur(6px);
+    }
+
+    .modal-card h2 {
+      color: #6f6;
+      margin: 0 0 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .modal-card h2::before {
+      content: '[ ';
+    }
+
+    .modal-card h2::after {
+      content: ' ]';
+    }
+
+    .modal-card .hint {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 15px;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    .modal-card button {
+      width: 100%;
+      padding: 8px;
+      background: transparent;
+      color: #6f6;
+      border: 1px solid #2a4a2a;
+      cursor: pointer;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+    }
+
+    .modal-card button:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
+
+    .modal-card button.secondary {
+      background: transparent;
+      color: #888;
+      border-color: #2a2a2a;
+    }
+
+    .modal-card button.secondary:hover {
+      background: #111;
+      color: #fff;
+      border-color: #555;
     }
 
     @media (max-width: 480px) {
@@ -463,6 +554,25 @@
 
   </div>
 
+  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
+  <div class="modal" id="modalConfirm">
+    <div class="modal-card">
+      <h2 id="confirmTitle">Подтверждение</h2>
+      <p class="hint" id="confirmText">—</p>
+      <button id="btnConfirmYes">Да</button>
+      <button class="secondary" id="btnConfirmNo">Отмена</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
+  <div class="modal" id="modalAlert">
+    <div class="modal-card">
+      <h2 id="alertTitle">Уведомление</h2>
+      <p class="hint" id="alertText">—</p>
+      <button id="btnAlertOk">ОК</button>
+    </div>
+  </div>
+
   <script type="module" src="index.js"></script>
 
   <!-- ASCII-ФОН -->
@@ -513,7 +623,6 @@
 
       function tick() {
         ctx.clearRect(0, 0, W, H);
-
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
         ctx.fillRect(0, 0, W, H);
 

@@ -18,6 +18,58 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
 }
 
+// ============================================
+// КАСТОМНЫЕ ДИАЛОГИ
+// ============================================
+function showConfirm(text, title = 'Подтверждение') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modalConfirm');
+    const titleEl = document.getElementById('confirmTitle');
+    const textEl = document.getElementById('confirmText');
+    const btnYes = document.getElementById('btnConfirmYes');
+    const btnNo = document.getElementById('btnConfirmNo');
+
+    titleEl.textContent = title;
+    textEl.textContent = text;
+
+    const close = (result) => {
+      modal.classList.remove('active');
+      btnYes.removeEventListener('click', onYes);
+      btnNo.removeEventListener('click', onNo);
+      resolve(result);
+    };
+
+    const onYes = () => close(true);
+    const onNo = () => close(false);
+
+    btnYes.addEventListener('click', onYes);
+    btnNo.addEventListener('click', onNo);
+
+    modal.classList.add('active');
+  });
+}
+
+function showAlert(text, title = 'Уведомление') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modalAlert');
+    const titleEl = document.getElementById('alertTitle');
+    const textEl = document.getElementById('alertText');
+    const btnOk = document.getElementById('btnAlertOk');
+
+    titleEl.textContent = title;
+    textEl.textContent = text;
+
+    const close = () => {
+      modal.classList.remove('active');
+      btnOk.removeEventListener('click', close);
+      resolve();
+    };
+
+    btnOk.addEventListener('click', close);
+    modal.classList.add('active');
+  });
+}
+
 // ---------- Валидация ника ----------
 function sanitizeNickname(raw) {
   let s = (raw || '').normalize('NFC').trim();
@@ -37,7 +89,6 @@ async function renderAccountsList() {
     return;
   }
 
-  // Сортируем: сначала lastActive, потом по дате создания (новые выше)
   const sorted = [...data.accounts].sort((a, b) => {
     if (a.fingerprint === data.lastActive) return -1;
     if (b.fingerprint === data.lastActive) return 1;
@@ -81,12 +132,15 @@ async function renderAccountsList() {
       const fp = btn.dataset.delete;
       const acc = data.accounts.find(a => a.fingerprint === fp);
       if (!acc) return;
-      const ok = confirm(
+
+      const ok = await showConfirm(
         `Удалить аккаунт "${acc.nickname}"?\n\n` +
         `Все контакты, чаты и ключи будут удалены безвозвратно.\n` +
-        `Это действие нельзя отменить.`
+        `Это действие нельзя отменить.`,
+        'Удаление аккаунта'
       );
       if (!ok) return;
+
       await deleteAccountFile(fp);
       await removeAccountFromIndex(fp);
       await renderAccountsList();
@@ -109,7 +163,6 @@ function openUnlockScreen(account) {
   document.getElementById('unlockPassword').value = '';
   document.getElementById('unlockError').textContent = '';
 
-  // На всякий случай возвращаем кнопку "назад" (если до этого была скрыта)
   const backBtn = document.getElementById('linkBackFromUnlock');
   if (backBtn) backBtn.style.display = '';
 
@@ -167,7 +220,6 @@ async function handleUnlock() {
 
   errEl.textContent = '';
 
-  // Скрываем кнопку "назад" и блокируем поле пароля
   btn.disabled = true;
   btn.textContent = 'Расшифровка...';
   backBtn.style.display = 'none';
@@ -185,12 +237,9 @@ async function handleUnlock() {
     sessionStorage.setItem('_fp', identity.fingerprint);
 
     window.location.href = 'messenger.html';
-    // Кнопку назад не возвращаем — пользователь уходит на другую страницу
   } catch (e) {
     console.error(e);
     errEl.textContent = 'Неверный пароль';
-
-    // Возвращаем кнопку "назад" при ошибке
     btn.disabled = false;
     btn.textContent = 'Войти';
     backBtn.style.display = '';
@@ -202,7 +251,6 @@ async function handleImport() {
   const errEl = document.getElementById('importError');
   const btn = document.getElementById('importBtn');
 
-  // JSON берём из скрытой переменной, а не из textarea
   const json = scannedImportJson;
   const exportPassword = document.getElementById('importPassword').value;
   const newPassword = document.getElementById('importNewPassword').value;
@@ -221,12 +269,12 @@ async function handleImport() {
     const exportObj = JSON.parse(json);
     const identity = await importIdentity(exportObj, exportPassword);
 
-    // Проверим, нет ли уже такого аккаунта
     const data = await listAccounts();
     const exists = data.accounts.find(a => a.fingerprint === identity.fingerprint);
     if (exists) {
-      const overwrite = confirm(
-        `Аккаунт "${identity.nickname}" уже есть на этом устройстве.\nПерезаписать его?`
+      const overwrite = await showConfirm(
+        `Аккаунт "${identity.nickname}" уже есть на этом устройстве.\nПерезаписать его?`,
+        'Перезапись аккаунта'
       );
       if (!overwrite) {
         btn.disabled = false;
@@ -257,7 +305,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('unlockBtn').addEventListener('click', handleUnlock);
   document.getElementById('importBtn').addEventListener('click', handleImport);
 
-  // Навигация
   document.getElementById('btnAddAccount').addEventListener('click', () => {
     document.getElementById('nickname').value = '';
     document.getElementById('password').value = '';
@@ -265,34 +312,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('createError').textContent = '';
     showScreen('screen-create');
   });
+
   document.getElementById('btnImportAccount').addEventListener('click', () => {
-  showScreen('screen-import');
-  // Автоматически запускаем сканер
-  setTimeout(() => startImportScanner(), 100);
-});
+    showScreen('screen-import');
+    setTimeout(() => startImportScanner(), 100);
+  });
+
   document.getElementById('linkBackFromCreate').addEventListener('click', async () => {
     await renderAccountsList();
     showScreen('screen-accounts');
   });
+
   document.getElementById('linkBackFromUnlock').addEventListener('click', async () => {
     selectedFingerprint = null;
     await renderAccountsList();
     showScreen('screen-accounts');
   });
-    document.getElementById('linkBackFromImport').addEventListener('click', async () => {
-  stopImportScanner();
-  await renderAccountsList();
-  showScreen('screen-accounts');
-});
 
-  // Enter на поле пароля в экране разблокировки
-document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter') return;
-  const btn = document.getElementById('unlockBtn');
-  if (btn.disabled) return;   // ← уже идёт расшифровка
-  handleUnlock();
-});
-  // Стартовый экран
+  document.getElementById('linkBackFromImport').addEventListener('click', async () => {
+    stopImportScanner();
+    await renderAccountsList();
+    showScreen('screen-accounts');
+  });
+
+  document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const btn = document.getElementById('unlockBtn');
+    if (btn.disabled) return;
+    handleUnlock();
+  });
+
   const data = await listAccounts();
   if (data.accounts.length === 0) {
     showScreen('screen-create');
@@ -341,18 +390,14 @@ async function startImportScanner() {
           });
           if (code && code.data) {
             scannedImportJson = code.data;
-
-            // Показываем зелёную галочку поверх видео
             successEl.style.display = 'flex';
 
-            // Останавливаем видео, но не убираем wrap
             if (importScannerStream) {
               importScannerStream.getTracks().forEach(t => t.stop());
               importScannerStream = null;
             }
             video.srcObject = null;
 
-            // Активируем кнопку «Импортировать»
             document.getElementById('importBtn').disabled = false;
             return;
           }
