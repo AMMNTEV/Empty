@@ -10,7 +10,7 @@ import {
   identityFilePath, deleteAccountFile
 } from './crypto.js';
 
-let selectedFingerprint = null;  
+let selectedFingerprint = null;
 let scannedImportJson = null;
 
 function showScreen(id) {
@@ -108,6 +108,11 @@ function openUnlockScreen(account) {
   document.getElementById('unlockSubtitle').textContent = `Введите пароль для "${account.nickname}"`;
   document.getElementById('unlockPassword').value = '';
   document.getElementById('unlockError').textContent = '';
+
+  // На всякий случай возвращаем кнопку "назад" (если до этого была скрыта)
+  const backBtn = document.getElementById('linkBackFromUnlock');
+  if (backBtn) backBtn.style.display = '';
+
   showScreen('screen-unlock');
   setTimeout(() => document.getElementById('unlockPassword').focus(), 100);
 }
@@ -153,6 +158,7 @@ async function handleUnlock() {
   const password = document.getElementById('unlockPassword').value;
   const errEl = document.getElementById('unlockError');
   const btn = document.getElementById('unlockBtn');
+  const backBtn = document.getElementById('linkBackFromUnlock');
 
   if (!selectedFingerprint) {
     errEl.textContent = 'Аккаунт не выбран';
@@ -160,8 +166,11 @@ async function handleUnlock() {
   }
 
   errEl.textContent = '';
+
+  // Скрываем кнопку "назад" и блокируем поле пароля
   btn.disabled = true;
   btn.textContent = 'Расшифровка...';
+  backBtn.style.display = 'none';
 
   try {
     const path = identityFilePath(selectedFingerprint);
@@ -176,11 +185,15 @@ async function handleUnlock() {
     sessionStorage.setItem('_fp', identity.fingerprint);
 
     window.location.href = 'messenger.html';
+    // Кнопку назад не возвращаем — пользователь уходит на другую страницу
   } catch (e) {
     console.error(e);
     errEl.textContent = 'Неверный пароль';
+
+    // Возвращаем кнопку "назад" при ошибке
     btn.disabled = false;
     btn.textContent = 'Войти';
+    backBtn.style.display = '';
   }
 }
 
@@ -273,10 +286,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
   // Enter на поле пароля в экране разблокировки
-  document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleUnlock();
-  });
-
+document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const btn = document.getElementById('unlockBtn');
+  if (btn.disabled) return;   // ← уже идёт расшифровка
+  handleUnlock();
+});
   // Стартовый экран
   const data = await listAccounts();
   if (data.accounts.length === 0) {
