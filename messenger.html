@@ -299,7 +299,7 @@
       border-color: #f66;
     }
 
-        .mobile-back {
+    .mobile-back {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -488,10 +488,11 @@
     }
 
     .modal-card .hint {
-      color: #555;
-      font-size: 11px;
-      margin-bottom: 10px;
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 15px;
       line-height: 1.4;
+      white-space: pre-line;
     }
 
     .modal-card label {
@@ -685,7 +686,6 @@
       .chat-area {
         position: absolute;
         inset: 0;
-        /* ← было rgba(5, 5, 5, 0.7) — теперь почти непрозрачный */
         background: #050505;
         transform: translateX(100%);
         transition: transform 0.2s ease;
@@ -863,24 +863,24 @@
     </div>
   </div>
 
-    <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
-    <div class="modal" id="modalConfirm">
-      <div class="modal-card">
-        <h2 id="confirmTitle">Подтверждение</h2>
-        <p class="hint" id="confirmText">—</p>
-        <button id="btnConfirmYes">Да</button>
-        <button class="secondary" id="btnConfirmNo">Отмена</button>
-      </div>
+  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
+  <div class="modal" id="modalConfirm">
+    <div class="modal-card">
+      <h2 id="confirmTitle">Подтверждение</h2>
+      <p class="hint" id="confirmText">—</p>
+      <button id="btnConfirmYes">Да</button>
+      <button class="secondary" id="btnConfirmNo">Отмена</button>
     </div>
+  </div>
 
-    <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
-    <div class="modal" id="modalAlert">
-      <div class="modal-card">
-        <h2 id="alertTitle">Уведомление</h2>
-        <p class="hint" id="alertText">—</p>
-        <button id="btnAlertOk">ОК</button>
-      </div>
+  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
+  <div class="modal" id="modalAlert">
+    <div class="modal-card">
+      <h2 id="alertTitle">Уведомление</h2>
+      <p class="hint" id="alertText">—</p>
+      <button id="btnAlertOk">ОК</button>
     </div>
+  </div>
 
   <script type="module" src="messenger.js"></script>
 
@@ -915,8 +915,8 @@
           vy: 0.15 + Math.random() * 0.35,
           vx: (Math.random() - 0.5) * 0.1,
           char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          size: 9 + Math.floor(Math.random() * 6),          // было 10 + 8
-          alpha: 0.05 + Math.random() * 0.12,                // было 0.2 + 0.3
+          size: 9 + Math.floor(Math.random() * 6),
+          alpha: 0.05 + Math.random() * 0.12,
           flicker: Math.random() * Math.PI * 2,
           flickerSpeed: 0.01 + Math.random() * 0.02
         };
@@ -932,7 +932,7 @@
 
       function tick() {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';                 // было 0.2
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
         ctx.fillRect(0, 0, W, H);
 
         for (const p of particles) {
@@ -940,7 +940,7 @@
           p.x += p.vx;
           p.flicker += p.flickerSpeed;
 
-          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));   // было 0.7 + 0.3
+          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
 
           ctx.font = `${p.size}px 'Courier New', monospace`;
           ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
@@ -950,8 +950,8 @@
             p.y = -20;
             p.x = Math.random() * W;
             p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            p.alpha = 0.05 + Math.random() * 0.12;              // было 0.2 + 0.3
-            p.size = 9 + Math.floor(Math.random() * 6);         // было 10 + 8
+            p.alpha = 0.05 + Math.random() * 0.12;
+            p.size = 9 + Math.floor(Math.random() * 6);
           }
           if (p.x < -20) p.x = W + 20;
           if (p.x > W + 20) p.x = -20;

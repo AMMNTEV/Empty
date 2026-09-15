@@ -19,6 +19,20 @@ import {
   listAccounts, setLastActive, identityFilePath
 } from './crypto.js';
 
+// ============================================
+// UTF-8 для QR (qrcode-generator по умолчанию не умеет)
+// ============================================
+if (typeof qrcode === 'function') {
+  qrcode.stringToBytes = function (s) {
+    const utf8 = unescape(encodeURIComponent(s));
+    const bytes = new Array(utf8.length);
+    for (let i = 0; i < utf8.length; i++) {
+      bytes[i] = utf8.charCodeAt(i);
+    }
+    return bytes;
+  };
+}
+
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -41,6 +55,7 @@ let purgeCheckInterval = null;
 
 let CONTACTS_FILE = null;
 let CHATS_FILE = null;
+
 
 // ============================================
 // КАСТОМНЫЕ ДИАЛОГИ
@@ -445,18 +460,24 @@ async function startScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            // Показываем зелёную галочку
+            // Декодируем бинарные данные в UTF-8 (jsQR может отдавать Latin-1)
+            let text;
+            if (code.binaryData && code.binaryData.length) {
+              const bytes = new Uint8Array(code.binaryData);
+              text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+            } else {
+              text = code.data;
+            }
+
             successEl.style.display = 'flex';
 
-            // Останавливаем поток
             if (scannerStream) {
               scannerStream.getTracks().forEach(t => t.stop());
               scannerStream = null;
             }
             video.srcObject = null;
 
-            // Обрабатываем QR
-            handleScannedQR(code.data);
+            handleScannedQR(text);
             return;
           }
         }
@@ -512,7 +533,7 @@ async function addContactFromCard(card) {
     throw new Error('Это ваша карточка');
   }
 
-    const existing = contacts[card.fingerprint];
+  const existing = contacts[card.fingerprint];
   if (existing) {
     const keysChanged = existing.x25519 !== card.x25519 || existing.ed25519 !== card.ed25519;
     if (keysChanged) {
@@ -536,7 +557,6 @@ async function addContactFromCard(card) {
     renderChat();
   }
 }
-
 
 
 // ============================================
@@ -1086,9 +1106,6 @@ function bindUI() {
 
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
 
-
-
-
   document.getElementById('btnSend').addEventListener('click', sendMessage);
 
   const msgInput = document.getElementById('msgInput');
@@ -1105,7 +1122,7 @@ function bindUI() {
 
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
 
-    document.getElementById('btnEndChat').addEventListener('click', async () => {
+  document.getElementById('btnEndChat').addEventListener('click', async () => {
     const ok = await showConfirm(
       'Завершить чат? История будет удалена безвозвратно у обоих участников.',
       'Завершение чата'
@@ -1235,7 +1252,7 @@ async function renderAccountsModal() {
     `;
   }).join('');
 
-    list.querySelectorAll('.acct-switch').forEach(btn => {
+  list.querySelectorAll('.acct-switch').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const fp = btn.dataset.switch;

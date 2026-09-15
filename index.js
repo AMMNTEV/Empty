@@ -10,6 +10,20 @@ import {
   identityFilePath, deleteAccountFile
 } from './crypto.js';
 
+// ============================================
+// UTF-8 для QR (qrcode-generator по умолчанию не умеет)
+// ============================================
+if (typeof qrcode === 'function') {
+  qrcode.stringToBytes = function (s) {
+    const utf8 = unescape(encodeURIComponent(s));
+    const bytes = new Array(utf8.length);
+    for (let i = 0; i < utf8.length; i++) {
+      bytes[i] = utf8.charCodeAt(i);
+    }
+    return bytes;
+  };
+}
+
 let selectedFingerprint = null;
 let scannedImportJson = null;
 
@@ -342,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleUnlock();
   });
 
-    // О приложении
+  // О приложении
   document.getElementById('btnAbout').addEventListener('click', () => {
     document.getElementById('modalAbout').classList.add('active');
   });
@@ -398,7 +412,16 @@ async function startImportScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            scannedImportJson = code.data;
+            // Декодируем бинарные данные в UTF-8 (jsQR может отдавать Latin-1)
+            let text;
+            if (code.binaryData && code.binaryData.length) {
+              const bytes = new Uint8Array(code.binaryData);
+              text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+            } else {
+              text = code.data;
+            }
+
+            scannedImportJson = text;
             successEl.style.display = 'flex';
 
             if (importScannerStream) {
