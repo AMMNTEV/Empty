@@ -342,6 +342,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleUnlock();
   });
 
+    // О приложении
+  document.getElementById('btnAbout').addEventListener('click', () => {
+    document.getElementById('modalAbout').classList.add('active');
+  });
+
+  document.getElementById('btnCloseAbout').addEventListener('click', () => {
+    document.getElementById('modalAbout').classList.remove('active');
+  });
+
   const data = await listAccounts();
   if (data.accounts.length === 0) {
     showScreen('screen-create');
