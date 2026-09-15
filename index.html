@@ -1,41 +1,254 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Empty — Вход</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
-    body { font-family: Tahoma, Arial, sans-serif; background: #3b5998; margin: 0; padding: 20px; }
-    .card { background: #fff; border: 1px solid #29487d; border-radius: 4px; padding: 20px; max-width: 400px; margin: 0 auto; }
-    h1 { color: #3b5998; font-size: 20px; margin: 0 0 15px; }
-    .subtitle { color: #666; font-size: 13px; margin-bottom: 15px; }
-    label { display: block; color: #333; font-size: 13px; margin: 10px 0 4px; font-weight: bold; }
-    input, textarea { width: 100%; padding: 6px 8px; border: 1px solid #bdc7d8; border-radius: 2px; font-size: 14px; box-sizing: border-box; }
-    input:focus, textarea:focus { outline: none; border-color: #3b5998; }
-    textarea { min-height: 100px; font-family: monospace; font-size: 12px; }
-    button { margin-top: 10px; padding: 6px 16px; background: #5b74a8; border: 1px solid #29487d; color: #fff; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 2px; }
-    button:hover { background: #3b5998; }
-    button.secondary { background: #eee; color: #333; border-color: #bdc7d8; width: auto; font-weight: normal; }
-    button.secondary:hover { background: #ddd; }
-    .error { color: #a00; font-size: 12px; margin-top: 8px; min-height: 16px; }
-    .hint { color: #999; font-size: 11px; }
-    .warning { background: #fff9e3; border: 1px solid #f7d674; padding: 8px; font-size: 12px; color: #735005; margin: 10px 0; }
-    .screen { display: none; }
-    .screen.active { display: block; }
-    .account-list { margin: 10px 0; }
-    .account-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ddd; margin-bottom: 6px; cursor: pointer; background: #f5f6f7; }
-    .account-item:hover { background: #e9ebee; }
-    .account-item.current { border-color: #3b5998; background: #edf2fa; }
-    .account-avatar { width: 36px; height: 36px; background: #3b5998; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-    .account-info { flex: 1; }
-    .account-name { font-weight: bold; font-size: 14px; }
-    .account-fp { font-size: 11px; color: #999; font-family: monospace; }
-    .account-delete { background: transparent; border: none; color: #999; cursor: pointer; font-size: 16px; }
-    .account-delete:hover { color: #a00; }
-    #importScannerSuccess { transition: opacity 0.15s ease; }
+    body {
+      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+      background: #0a0a0a;
+      color: #d0d0d0;
+      margin: 0;
+      padding: 20px;
+      letter-spacing: 0.3px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+      padding: 20px;
+      max-width: 400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #6f6;
+      font-size: 16px;
+      margin: 0 0 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    h1::before {
+      content: '[ ';
+      color: #444;
+    }
+
+    h1::after {
+      content: ' ]';
+      color: #444;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 11px;
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      color: #888;
+      font-size: 11px;
+      margin: 10px 0 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      background: #050505;
+      color: #d0d0d0;
+      border-radius: 0;
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+      outline: none;
+      letter-spacing: 0.3px;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: #6f6;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #333;
+    }
+
+    textarea {
+      min-height: 100px;
+      font-size: 11px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+      border-radius: 0;
+    }
+
+    button:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
+
+    button:disabled {
+      color: #333;
+      border-color: #1a1a1a;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: #888;
+      border-color: #2a2a2a;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: 0.3px;
+    }
+
+    button.secondary:hover {
+      background: #111;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .error {
+      color: #f66;
+      font-size: 11px;
+      margin-top: 8px;
+      min-height: 16px;
+    }
+
+    .hint {
+      color: #444;
+      font-size: 10px;
+    }
+
+    .warning {
+      background: #1a0a0a;
+      border: 1px solid #4a2a2a;
+      padding: 8px;
+      font-size: 11px;
+      color: #c88;
+      margin: 10px 0;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .account-list {
+      margin: 10px 0;
+    }
+
+    .account-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      margin-bottom: 6px;
+      cursor: pointer;
+      background: #0a0a0a;
+      transition: all 0.1s;
+    }
+
+    .account-item:hover {
+      background: #111;
+      border-color: #555;
+    }
+
+    .account-item.current {
+      border-color: #2a4a2a;
+      background: #0a1a0a;
+    }
+
+    .account-avatar {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .account-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-weight: bold;
+      font-size: 13px;
+      color: #d0d0d0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-fp {
+      font-size: 10px;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-delete {
+      background: transparent;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px 8px;
+      margin: 0;
+      font-family: inherit;
+    }
+
+    .account-delete:hover {
+      color: #f66;
+      background: transparent;
+      border: none;
+    }
+
+    #importScannerSuccess {
+      transition: opacity 0.15s ease;
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Мои аккаунты -->
@@ -90,14 +303,14 @@
     </div>
 
     <div id="importScannerWrap" style="margin-top:10px;">
-      <div id="importScannerBox" style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden;">
+      <div id="importScannerBox"
+        style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
         <video id="importScannerVideo" playsinline
-               style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-        <div id="importScannerSuccess"
-             style="display:none; position:absolute; inset:0; background:#4caf50;
-                    align-items:center; justify-content:center;">
-          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#fff"
-               stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+        <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                    align-items:center; justify-content:center; border:1px solid #6f6;">
+          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
@@ -121,4 +334,5 @@
 
   <script type="module" src="index.js"></script>
 </body>
+
 </html>

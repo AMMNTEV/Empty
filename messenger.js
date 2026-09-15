@@ -315,7 +315,6 @@ function escapeHtml(s) {
 async function showMyCard() {
   const card = buildMyCard();
   const json = JSON.stringify(card);
-  document.getElementById('myCardJson').value = json;
 
   const qrBox = document.getElementById('qrBox');
   qrBox.innerHTML = '';
@@ -353,12 +352,11 @@ async function showMyCard() {
     qrBox.appendChild(canvas);
   } catch (e) {
     console.error('[QR]', e);
-    qrBox.innerHTML = '<div style="color:#333;font-size:12px;padding:10px;">QR недоступен — используйте JSON</div>';
+    qrBox.innerHTML = '<div style="color:#666;font-size:11px;padding:10px;">QR недоступен</div>';
   }
 
   document.getElementById('modalMyCard').classList.add('active');
 }
-
 
 // ============================================
 // QR-СКАНЕР
@@ -1035,19 +1033,7 @@ function bindUI() {
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
 
 
-  document.getElementById('btnCopyCard').addEventListener('click', async () => {
-    const ta = document.getElementById('myCardJson');
-    ta.select();
-    try {
-      await navigator.clipboard.writeText(ta.value);
-    } catch {
-      document.execCommand('copy');
-    }
-    const btn = document.getElementById('btnCopyCard');
-    const prev = btn.textContent;
-    btn.textContent = 'Скопировано ✓';
-    setTimeout(() => { btn.textContent = prev; }, 1200);
-  });
+
 
   document.getElementById('btnSend').addEventListener('click', sendMessage);
 

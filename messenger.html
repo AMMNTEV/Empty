@@ -1,57 +1,99 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <title>Empty — Мессенджер</title>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       height: 100dvh;
       margin: 0;
       overflow: hidden;
+      background: #000;
     }
 
     body {
-      font-family: Tahoma, Arial, sans-serif;
-      background: #e9ebee;
+      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+      background: #0a0a0a;
+      color: #d0d0d0;
       font-size: 13px;
       display: flex;
       flex-direction: column;
+      letter-spacing: 0.3px;
     }
 
     /* ============ ШАПКА ============ */
     .topbar {
-      background: #3b5998;
-      color: #fff;
+      background: #000;
+      color: #d0d0d0;
       padding: 8px 12px;
       padding-top: calc(8px + env(safe-area-inset-top));
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
+      border-bottom: 1px solid #2a2a2a;
     }
-    .me-name { font-weight: bold; font-size: 14px; }
-    .topbar-actions { display: flex; gap: 4px; flex-shrink: 0; }
-    .topbar-actions button {
-      background: #5b74a8;
-      border: 1px solid #29487d;
+
+    .me-name {
+      font-weight: bold;
+      font-size: 14px;
       color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .me-name::before {
+      content: '> ';
+      color: #6f6;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .topbar-actions button {
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #aaa;
       padding: 4px 10px;
       cursor: pointer;
-      font-size: 12px;
-      border-radius: 2px;
-      white-space: nowrap;
+      font-size: 11px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
     }
-    .topbar-actions button:hover { background: #4a6494; }
-    .topbar-actions button.primary { background: #4caf50; border-color: #388e3c; }
-    .topbar-actions button.primary:hover { background: #388e3c; }
+
+    .topbar-actions button:hover {
+      background: #111;
+      color: #fff;
+      border-color: #6f6;
+    }
+
+    .topbar-actions button.primary {
+      color: #6f6;
+      border-color: #2a4a2a;
+    }
+
+    .topbar-actions button.primary:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
 
     /* ============ ОСНОВНОЙ БЛОК ============ */
     .main {
@@ -65,52 +107,107 @@
     /* ============ SIDEBAR ============ */
     .sidebar {
       width: 280px;
-      background: #fff;
-      border-right: 1px solid #bdc7d8;
+      background: #0a0a0a;
+      border-right: 1px solid #2a2a2a;
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
       min-height: 0;
       overflow: hidden;
     }
+
     .sidebar-header {
       padding: 8px 12px;
-      background: #f5f6f7;
-      border-bottom: 1px solid #ddd;
+      background: #0a0a0a;
+      border-bottom: 1px solid #2a2a2a;
       font-weight: bold;
-      color: #333;
+      color: #6f6;
       flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 11px;
     }
+
+    .sidebar-header::before {
+      content: '[ ';
+    }
+
+    .sidebar-header::after {
+      content: ' ]';
+    }
+
     .contacts-list {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
     }
+
     .contact {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 8px 12px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid #1a1a1a;
       cursor: pointer;
+      transition: background 0.1s;
     }
-    .contact:hover { background: #f5f6f7; }
-    .contact.active { background: #edf2fa; }
+
+    .contact:hover {
+      background: #111;
+    }
+
+    .contact.active {
+      background: #0a1a0a;
+      border-left: 2px solid #6f6;
+      padding-left: 10px;
+    }
+
     .avatar {
-      width: 36px;
-      height: 36px;
-      background: #3b5998;
-      color: #fff;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #6f6;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
       flex-shrink: 0;
+      font-size: 14px;
     }
-    .contact-info { flex: 1; min-width: 0; }
-    .contact-name { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .contact-fp { font-size: 11px; color: #999; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .empty-sidebar { padding: 20px 12px; color: #999; text-align: center; }
+
+    .contact.active .avatar {
+      border-color: #6f6;
+      color: #6f6;
+    }
+
+    .contact-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .contact-name {
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #d0d0d0;
+    }
+
+    .contact-fp {
+      font-size: 10px;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty-sidebar {
+      padding: 20px 12px;
+      color: #444;
+      text-align: center;
+      font-size: 11px;
+    }
 
     /* ============ ОБЛАСТЬ ЧАТА ============ */
     .chat-area {
@@ -127,40 +224,70 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #999;
+      color: #444;
       padding: 20px;
       text-align: center;
+      font-size: 12px;
     }
 
     .chat-header {
-      background: #fff;
-      border-bottom: 1px solid #bdc7d8;
+      background: #0a0a0a;
+      border-bottom: 1px solid #2a2a2a;
       padding: 8px 12px;
       display: none;
       align-items: center;
       gap: 10px;
       flex-shrink: 0;
     }
-    .chat-header.active { display: flex; }
-    .chat-header-info { flex: 1; min-width: 0; }
-    .chat-title { font-weight: bold; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chat-timer { font-size: 11px; color: #999; }
-    .btn-end-chat {
-      background: #d9534f;
+
+    .chat-header.active {
+      display: flex;
+    }
+
+    .chat-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .chat-title {
+      font-weight: bold;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       color: #fff;
-      border: 1px solid #b52b27;
+    }
+
+    .chat-timer {
+      font-size: 10px;
+      color: #555;
+    }
+
+    .btn-end-chat {
+      background: transparent;
+      color: #f66;
+      border: 1px solid #4a2a2a;
       padding: 4px 10px;
       cursor: pointer;
-      border-radius: 2px;
       white-space: nowrap;
       flex-shrink: 0;
+      font-family: inherit;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
     }
-    .btn-end-chat:hover { background: #b52b27; }
+
+    .btn-end-chat:hover {
+      background: #1a0a0a;
+      border-color: #f66;
+    }
+
     .mobile-back {
       display: none;
       background: none;
       border: none;
-      color: #3b5998;
+      color: #6f6;
       font-size: 18px;
       cursor: pointer;
       padding: 0 4px;
@@ -173,11 +300,14 @@
       overflow-y: auto;
       overflow-x: hidden;
       padding: 12px;
-      background: #e9ebee;
-      display: none;                /* ← ключ: по умолчанию скрыт */
+      background: #050505;
+      display: none;
       min-height: 0;
     }
-    .messages.active { display: block; }
+
+    .messages.active {
+      display: block;
+    }
 
     .msg {
       display: block;
@@ -185,28 +315,42 @@
       max-width: 70%;
       padding: 6px 10px;
       margin-bottom: 6px;
-      border: 1px solid #ccc;
-      background: #fff;
-      border-radius: 3px;
+      border: 1px solid #2a2a2a;
+      background: #0a0a0a;
+      color: #d0d0d0;
       word-wrap: break-word;
       overflow-wrap: anywhere;
       white-space: pre-wrap;
+      font-size: 13px;
     }
+
     .msg.me {
       margin-left: auto;
       margin-right: 0;
-      background: #dce6f8;
-      border-color: #b7c7e0;
+      background: #0a1a0a;
+      border-color: #2a4a2a;
+      color: #b0d0b0;
     }
+
+    .msg.me::before {
+      content: '> ';
+      color: #6f6;
+    }
+
     .msg.other {
       margin-left: 0;
       margin-right: auto;
     }
 
+    .msg.other::before {
+      content: '< ';
+      color: #666;
+    }
+
     /* ============ ПОЛЕ ВВОДА ============ */
     .input-area {
-      background: #f5f6f7;
-      border-top: 1px solid #bdc7d8;
+      background: #0a0a0a;
+      border-top: 1px solid #2a2a2a;
       padding: 8px;
       padding-bottom: calc(8px + env(safe-area-inset-bottom));
       display: none;
@@ -214,12 +358,17 @@
       align-items: flex-end;
       flex-shrink: 0;
     }
-    .input-area.active { display: flex; }
+
+    .input-area.active {
+      display: flex;
+    }
+
     .input-area textarea {
       flex: 1;
       padding: 6px 8px;
-      border: 1px solid #bdc7d8;
-      border-radius: 2px;
+      border: 1px solid #2a2a2a;
+      background: #050505;
+      color: #d0d0d0;
       resize: none;
       font-family: inherit;
       font-size: 13px;
@@ -227,28 +376,45 @@
       min-height: 32px;
       max-height: 100px;
       outline: none;
+      letter-spacing: 0.3px;
     }
-    .input-area textarea:focus { border-color: #3b5998; }
+
+    .input-area textarea:focus {
+      border-color: #6f6;
+    }
+
+    .input-area textarea::placeholder {
+      color: #333;
+    }
+
     .btn-send {
-      background: #3b5998;
-      color: #fff;
-      border: 1px solid #29487d;
+      background: transparent;
+      color: #6f6;
+      border: 1px solid #2a4a2a;
       padding: 6px 14px;
       cursor: pointer;
-      border-radius: 2px;
       height: 32px;
       flex-shrink: 0;
       align-self: flex-end;
       white-space: nowrap;
+      font-family: inherit;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
     }
-    .btn-send:hover { background: #2d4373; }
+
+    .btn-send:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
 
     /* ============ МОДАЛКИ ============ */
     .modal {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.85);
       align-items: center;
       justify-content: center;
       padding: 16px;
@@ -256,80 +422,137 @@
       padding-bottom: calc(16px + env(safe-area-inset-bottom));
       z-index: 1000;
     }
-    .modal.active { display: flex; }
+
+    .modal.active {
+      display: flex;
+    }
+
     .modal-card {
-      background: #fff;
-      border: 1px solid #29487d;
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
       padding: 16px;
       max-width: 420px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
     }
-    .modal-card h2 { color: #3b5998; margin: 0 0 10px; font-size: 16px; }
-    .modal-card .hint { color: #666; font-size: 12px; margin-bottom: 10px; line-height: 1.4; }
-    .modal-card label { display: block; font-size: 12px; font-weight: bold; margin: 8px 0 4px; }
-    .modal-card input,
-    .modal-card textarea {
-      width: 100%;
-      padding: 6px 8px;
-      border: 1px solid #bdc7d8;
-      border-radius: 2px;
-      font-size: 13px;
-      font-family: inherit;
-      outline: none;
-      box-sizing: border-box;
+
+    .modal-card h2 {
+      color: #6f6;
+      margin: 0 0 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-    .modal-card input:focus,
-    .modal-card textarea:focus { border-color: #3b5998; }
-    .modal-card textarea { min-height: 100px; font-family: monospace; font-size: 11px; resize: vertical; }
-    .modal-card button {
-      width: 100%;
-      padding: 8px;
-      background: #5b74a8;
-      color: #fff;
-      border: 1px solid #29487d;
-      cursor: pointer;
-      margin-top: 8px;
-      border-radius: 2px;
-      font-size: 13px;
+
+    .modal-card h2::before {
+      content: '[ ';
     }
-    .modal-card button:hover { background: #3b5998; }
-    .modal-card button.secondary { background: #eee; color: #333; border-color: #bdc7d8; }
-    .modal-card button.secondary:hover { background: #ddd; }
-    .warning {
-      background: #fff9e3;
-      border: 1px solid #f7d674;
-      padding: 8px;
-      font-size: 12px;
-      color: #735005;
+
+    .modal-card h2::after {
+      content: ' ]';
+    }
+
+    .modal-card .hint {
+      color: #555;
+      font-size: 11px;
       margin-bottom: 10px;
       line-height: 1.4;
     }
 
-    /* Вкладки */
-    .tabs { display: flex; margin-bottom: 10px; }
-    .tab {
-      flex: 1;
-      padding: 6px;
-      background: #eee;
-      border: 1px solid #bdc7d8;
-      cursor: pointer;
-      font-size: 13px;
-      text-align: center;
+    .modal-card label {
+      display: block;
+      font-size: 11px;
+      font-weight: bold;
+      margin: 8px 0 4px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
-    .tab.active { background: #3b5998; color: #fff; border-color: #29487d; }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+
+    .modal-card input,
+    .modal-card textarea {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #2a2a2a;
+      background: #050505;
+      color: #d0d0d0;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      box-sizing: border-box;
+      letter-spacing: 0.3px;
+    }
+
+    .modal-card input:focus,
+    .modal-card textarea:focus {
+      border-color: #6f6;
+    }
+
+    .modal-card textarea {
+      min-height: 100px;
+      font-size: 11px;
+      resize: vertical;
+    }
+
+    .modal-card button {
+      width: 100%;
+      padding: 8px;
+      background: transparent;
+      color: #6f6;
+      border: 1px solid #2a4a2a;
+      cursor: pointer;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+    }
+
+    .modal-card button:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
+
+    .modal-card button.secondary {
+      background: transparent;
+      color: #888;
+      border-color: #2a2a2a;
+    }
+
+    .modal-card button.secondary:hover {
+      background: #111;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .warning {
+      background: #1a0a0a;
+      border: 1px solid #4a2a2a;
+      padding: 8px;
+      font-size: 11px;
+      color: #c88;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
 
     .qr-box {
       background: #fff;
       padding: 10px;
-      border: 1px solid #ddd;
+      border: 1px solid #2a2a2a;
       text-align: center;
       margin: 10px 0;
     }
-    .qr-box svg, .qr-box canvas, .qr-box img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+
+    .qr-box svg,
+    .qr-box canvas,
+    .qr-box img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+    }
 
     #scannerVideo {
       width: 100%;
@@ -339,61 +562,83 @@
       object-fit: cover;
     }
 
-    .error-text { color: #a00; font-size: 12px; margin-top: 6px; min-height: 16px; }
+    .error-text {
+      color: #f66;
+      font-size: 11px;
+      margin-top: 6px;
+      min-height: 16px;
+    }
 
-.acct-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  margin-bottom: 6px;
-  background: #f5f6f7;
-  width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;   /* ← ключ: не даёт кнопке вылезти */
-}
+    .acct-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      margin-bottom: 6px;
+      background: #0a0a0a;
+      width: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
 
-.acct-avatar {
-  width: 34px;
-  height: 34px;
-  background: #3b5998;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  flex-shrink: 0;
-}
+    .acct-item.current {
+      border-color: #2a4a2a;
+      background: #0a1a0a;
+    }
 
-.acct-info {
-  flex: 1;
-  min-width: 0;         /* ключ: не даёт блоку сжаться */
-  overflow: hidden;     /* ключ: обрезает длинный текст */
-}
+    .acct-avatar {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
 
-.acct-name,
-.acct-fp {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .acct-info {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
 
-.acct-switch {
-  background: #5b74a8 !important;
-  color: #fff !important;
-  border: 1px solid #29487d !important;
-  padding: 4px 10px !important;
-  cursor: pointer !important;
-  font-size: 12px !important;
-  border-radius: 2px !important;
-  flex-shrink: 0 !important;
-  white-space: nowrap !important;
-  width: auto !important;
-  max-width: 100px !important;
-  margin: 0 0 0 auto !important;
-  display: inline-block !important;
-}
+    .acct-name,
+    .acct-fp {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .acct-name {
+      color: #d0d0d0;
+    }
+
+    .acct-fp {
+      font-size: 10px;
+      color: #555;
+    }
+
+    .acct-switch {
+      background: transparent !important;
+      color: #6f6 !important;
+      border: 1px solid #2a4a2a !important;
+      padding: 4px 10px !important;
+      cursor: pointer !important;
+      font-size: 11px !important;
+      font-family: inherit !important;
+      text-transform: uppercase !important;
+      letter-spacing: 1px !important;
+      flex-shrink: 0 !important;
+      white-space: nowrap !important;
+      width: auto !important;
+      max-width: 100px !important;
+      margin: 0 0 0 auto !important;
+      display: inline-block !important;
+    }
 
     /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
     @media (max-width: 768px) {
@@ -402,36 +647,61 @@
         border-right: none;
       }
 
-      /* Область чата — поверх sidebar, выезжает справа */
       .chat-area {
         position: absolute;
         inset: 0;
-        background: #e9ebee;
+        background: #050505;
         transform: translateX(100%);
         transition: transform 0.2s ease;
         z-index: 10;
       }
+
       .chat-area.active {
         transform: translateX(0);
       }
 
-      .mobile-back { display: block; }
+      .mobile-back {
+        display: block;
+      }
 
-      .msg { max-width: 85%; }
+      .msg {
+        max-width: 85%;
+      }
 
-      /* Компактная шапка */
-      .topbar { padding: 6px 8px; padding-top: calc(6px + env(safe-area-inset-top)); }
-      .topbar-actions { gap: 3px; }
-      .topbar-actions button { padding: 4px 8px; font-size: 11px; }
+      .topbar {
+        padding: 6px 8px;
+        padding-top: calc(6px + env(safe-area-inset-top));
+      }
+
+      .topbar-actions {
+        gap: 3px;
+      }
+
+      .topbar-actions button {
+        padding: 4px 8px;
+        font-size: 10px;
+      }
     }
 
     @media (max-width: 380px) {
-      .topbar-actions button { padding: 3px 6px; font-size: 10px; }
-      .avatar { width: 32px; height: 32px; font-size: 12px; }
-      .contact { padding: 6px 8px; }
+      .topbar-actions button {
+        padding: 3px 6px;
+        font-size: 9px;
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+      }
+
+      .contact {
+        padding: 6px 8px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
@@ -440,17 +710,17 @@
       <div class="me-name" id="meName">...</div>
     </div>
     <div class="topbar-actions">
-      <button id="btnMyCard">Моя карточка</button>
-      <button id="btnDevices">Устройства</button>
-      <button id="btnAccounts">Аккаунты</button>
-      <button id="btnAddContact" class="primary">+ Добавить</button>
+      <button id="btnMyCard">card</button>
+      <button id="btnDevices">dev</button>
+      <button id="btnAccounts">acc</button>
+      <button id="btnAddContact" class="primary">+ add</button>
     </div>
   </div>
 
   <!-- ОСНОВНОЙ БЛОК -->
   <div class="main">
     <div class="sidebar">
-      <div class="sidebar-header">Контакты</div>
+      <div class="sidebar-header">contacts</div>
       <div class="contacts-list" id="contactsList"></div>
     </div>
 
@@ -463,14 +733,14 @@
           <div class="chat-title" id="chatTitle">—</div>
           <div class="chat-timer" id="chatTimer"></div>
         </div>
-        <button class="btn-end-chat" id="btnEndChat">Завершить</button>
+        <button class="btn-end-chat" id="btnEndChat">end</button>
       </div>
 
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
         <textarea id="msgInput" rows="1" placeholder="Сообщение..."></textarea>
-        <button class="btn-send" id="btnSend">Отправить</button>
+        <button class="btn-send" id="btnSend">send</button>
       </div>
     </div>
   </div>
@@ -481,26 +751,23 @@
       <h2>Моя карточка</h2>
       <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
       <div class="qr-box" id="qrBox"></div>
-      <textarea id="myCardJson" readonly></textarea>
-      <button id="btnCopyCard" class="secondary">Скопировать JSON</button>
       <button id="btnCloseMyCard" class="secondary">Закрыть</button>
     </div>
   </div>
 
-   <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
+  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
       <p class="hint">Наведите камеру на QR-код собеседника.</p>
 
-      <div id="scannerBox" style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px;">
-        <video id="scannerVideo" playsinline
-               style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-        <div id="scannerSuccess"
-             style="display:none; position:absolute; inset:0; background:#4caf50;
-                    align-items:center; justify-content:center;">
-          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#fff"
-               stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <div id="scannerBox"
+        style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px; border:1px solid #2a2a2a;">
+        <video id="scannerVideo" playsinline style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+        <div id="scannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                    align-items:center; justify-content:center; border:1px solid #6f6;">
+          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
@@ -521,7 +788,8 @@
       <div id="accountsList" style="margin-bottom: 10px;"></div>
 
       <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
-      <button id="btnLogout" class="secondary" style="color:#a00;">Выйти из текущего аккаунта</button>
+      <button id="btnLogout" class="secondary" style="color:#f66; border-color:#4a2a2a;">Выйти из текущего
+        аккаунта</button>
       <button id="btnCloseAccounts" class="secondary">Закрыть</button>
     </div>
   </div>
@@ -553,4 +821,5 @@
 
   <script type="module" src="messenger.js"></script>
 </body>
+
 </html>
