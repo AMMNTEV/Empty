@@ -299,15 +299,32 @@
       border-color: #f66;
     }
 
-    .mobile-back {
-      display: none;
+        .mobile-back {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: none;
       color: #6f6;
-      font-size: 18px;
       cursor: pointer;
-      padding: 0 4px;
+      padding: 4px 6px;
       flex-shrink: 0;
+      transition: color 0.15s;
+    }
+
+    .mobile-back:hover {
+      color: #9f9;
+    }
+
+    .mobile-back svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     /* ============ СООБЩЕНИЯ ============ */
@@ -659,7 +676,7 @@
 
     /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
     @media (max-width: 768px) {
-      sidebar {
+      .sidebar {
         width: 100%;
         border-right: none;
         background: rgba(10, 10, 10, 0.55);
@@ -749,7 +766,12 @@
       <div class="chat-empty" id="chatEmpty">Выберите контакт слева</div>
 
       <div class="chat-header" id="chatHeader">
-        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">←</button>
+        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">
+          <svg viewBox="0 0 24 24">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
         <div class="chat-header-info">
           <div class="chat-title" id="chatTitle">—</div>
           <div class="chat-timer" id="chatTimer"></div>
