@@ -26,6 +26,59 @@
       overflow-y: auto;
     }
 
+        .about-text {
+      color: #b0b0b0;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .about-text p {
+      margin: 0 0 8px;
+    }
+
+    .about-text strong {
+      color: #6f6;
+      font-weight: bold;
+    }
+
+    .about-text ul {
+      margin: 4px 0 8px;
+      padding-left: 16px;
+      list-style: none;
+    }
+
+    .about-text li {
+      position: relative;
+      margin: 2px 0;
+    }
+
+    .about-text li::before {
+      content: '> ';
+      color: #6f6;
+      position: absolute;
+      left: -14px;
+    }
+
+        .about-link {
+      width: 100%;
+      max-width: 400px;
+      margin: 4px auto 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    .about-link button {
+      margin-top: 0;
+      font-size: 10px;
+      padding: 6px 14px;
+      opacity: 0.7;
+    }
+
+    .about-link button:hover {
+      opacity: 1;
+    }
+
     /* ============ ФОН ============ */
     #asciiBg {
       position: fixed;
@@ -480,6 +533,11 @@
       </div>
     </div>
 
+        <!-- Кнопка "О приложении" -->
+        <div class="about-link">
+          <button class="secondary" id="btnAbout">О приложении</button>
+        </div>
+
     <!-- Создание -->
     <div class="card screen" id="screen-create">
       <h1>Новый аккаунт</h1>
@@ -574,6 +632,45 @@
   </div>
 
   <script type="module" src="index.js"></script>
+
+    <!-- МОДАЛКА: О ПРИЛОЖЕНИИ -->
+    <div class="modal" id="modalAbout">
+      <div class="modal-card">
+        <h2>О приложении</h2>
+
+        <div class="about-text">
+          <p><strong>Empty</strong> — временный веб-мессенджер без регистрации. Никаких email, телефонов и паролей на
+            сервере.</p>
+
+          <p><strong>Личность.</strong> При первом запуске генерируется криптографическая пара (X25519 + Ed25519). Она
+            хранится только на твоём устройстве, зашифрованная паролем.</p>
+
+          <p><strong>Как связаться.</strong> Обмен карточками через QR-код. Сканируешь — появляется контакт. Никакого поиска
+            по нику.</p>
+
+          <p><strong>Сообщения.</strong> Шифруются AES-GCM через общий ключ X25519. Сервер (Firebase) видит только
+            шифротекст и метаданные.</p>
+
+          <p><strong>Чаты живут 24 часа.</strong> Каждое новое сообщение сбрасывает таймер. Не пишешь сутки — чат удаляется
+            у обоих. Можно завершить вручную.</p>
+
+          <p><strong>Файлы.</strong> Вся история хранится локально в OPFS браузера, зашифрованная. Очистил данные браузера —
+            потерял всё (можно сделать экспорт).</p>
+
+          <p><strong>Что умеет:</strong></p>
+          <ul>
+            <li>Мультиаккаунт на одном устройстве</li>
+            <li>Импорт с другого устройства (QR + временный пароль)</li>
+            <li>QR-сканер карточек</li>
+          </ul>
+
+          <p><strong>Криптостойкость.</strong> Пространство ключей — 2²⁵⁶. Перебор при 10⁹ ключей/сек займёт ~10⁶⁰ лет. Даже
+            с квантовым компьютером (√N = 2¹²⁸) — астрономически долго.</p>
+        </div>
+
+        <button id="btnCloseAbout" class="secondary">Закрыть</button>
+      </div>
+    </div>
 
   <!-- ASCII-ФОН -->
   <script>
