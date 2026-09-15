@@ -7,26 +7,88 @@
   <title>Empty — Вход</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
-    body {
-      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
-      background: #0a0a0a;
-      color: #d0d0d0;
-      margin: 0;
-      padding: 20px;
-      letter-spacing: 0.3px;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    * {
+      box-sizing: border-box;
     }
 
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+      color: #d0d0d0;
+      letter-spacing: 0.3px;
+    }
+
+    /* ============ ФОН ============ */
+    #asciiBg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ============ КОНТЕНТ ============ */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    /* ============ ЛОГОТИП EMPTY ============ */
+    .logo {
+      font-family: 'Arial Black', 'Impact', 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 900;
+      font-size: clamp(80px, 22vw, 240px);
+      line-height: 0.85;
+      color: #f5ead0;
+      text-align: center;
+      letter-spacing: -0.04em;
+      margin: 0 0 40px 0;
+      user-select: none;
+      text-transform: uppercase;
+      transform: scaleY(1.15);
+      transform-origin: center;
+      /* лёгкое свечение */
+      text-shadow:
+        0 0 2px rgba(245, 234, 208, 0.15),
+        0 0 30px rgba(245, 234, 208, 0.05);
+    }
+
+    .logo-sub {
+      color: #c9a96a;
+      font-family: 'Arial', sans-serif;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: -30px;
+      margin-bottom: 40px;
+      opacity: 0.7;
+    }
+
+    /* ============ КАРТОЧКА ============ */
     .card {
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.92);
       border: 1px solid #2a2a2a;
       padding: 20px;
       max-width: 400px;
       width: 100%;
       margin: 0 auto;
+      backdrop-filter: blur(4px);
     }
 
     h1 {
@@ -246,93 +308,212 @@
     #importScannerSuccess {
       transition: opacity 0.15s ease;
     }
+
+    @media (max-width: 480px) {
+      .logo {
+        font-size: clamp(60px, 30vw, 140px);
+        margin-bottom: 20px;
+      }
+
+      .logo-sub {
+        font-size: 8px;
+        letter-spacing: 3px;
+        margin-top: -15px;
+        margin-bottom: 20px;
+      }
+    }
   </style>
 </head>
 
 <body>
 
-  <!-- Мои аккаунты -->
-  <div class="card screen" id="screen-accounts">
-    <h1>Мои аккаунты</h1>
-    <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
-    <div class="account-list" id="accountList"></div>
-    <button id="btnAddAccount">+ Добавить аккаунт</button>
-    <button class="secondary" id="btnImportAccount">Импорт с другого устройства</button>
-  </div>
+  <!-- ASCII-ФОН -->
+  <canvas id="asciiBg"></canvas>
 
-  <!-- Создание -->
-  <div class="card screen" id="screen-create">
-    <h1>Новый аккаунт</h1>
-    <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
+  <div class="page">
 
-    <label>Никнейм</label>
-    <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
-    <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
+    <!-- ЛОГОТИП -->
+    <div class="logo">EMPTY</div>
+    <div class="logo-sub">Encrypted · Local</div>
 
-    <label>Пароль (для шифрования ключей)</label>
-    <input type="password" id="password" placeholder="Минимум 6 символов">
-
-    <label>Повторите пароль</label>
-    <input type="password" id="password2" placeholder="Ещё раз">
-
-    <button id="createBtn">Создать</button>
-    <button class="secondary" id="linkBackFromCreate">← Назад</button>
-    <div class="error" id="createError"></div>
-  </div>
-
-  <!-- Вход -->
-  <div class="card screen" id="screen-unlock">
-    <h1>Вход в аккаунт</h1>
-    <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
-
-    <label>Пароль</label>
-    <input type="password" id="unlockPassword" placeholder="Ваш пароль">
-
-    <button id="unlockBtn">Войти</button>
-    <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
-    <div class="error" id="unlockError"></div>
-  </div>
-
-  <!-- Импорт -->
-  <div class="card screen" id="screen-import">
-    <h1>Импорт аккаунта</h1>
-    <p class="subtitle">Отсканируйте QR со старого устройства.</p>
-
-    <div class="warning">
-      ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
+    <!-- Мои аккаунты -->
+    <div class="card screen" id="screen-accounts">
+      <h1>Мои аккаунты</h1>
+      <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
+      <div class="account-list" id="accountList"></div>
+      <button id="btnAddAccount">+ Добавить аккаунт</button>
+      <button class="secondary" id="btnImportAccount">Импорт с другого устройства</button>
     </div>
 
-    <div id="importScannerWrap" style="margin-top:10px;">
-      <div id="importScannerBox"
-        style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
-        <video id="importScannerVideo" playsinline
-          style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-        <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
-                    align-items:center; justify-content:center; border:1px solid #6f6;">
-          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
+    <!-- Создание -->
+    <div class="card screen" id="screen-create">
+      <h1>Новый аккаунт</h1>
+      <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
+
+      <label>Никнейм</label>
+      <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
+      <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
+
+      <label>Пароль (для шифрования ключей)</label>
+      <input type="password" id="password" placeholder="Минимум 6 символов">
+
+      <label>Повторите пароль</label>
+      <input type="password" id="password2" placeholder="Ещё раз">
+
+      <button id="createBtn">Создать</button>
+      <button class="secondary" id="linkBackFromCreate">← Назад</button>
+      <div class="error" id="createError"></div>
+    </div>
+
+    <!-- Вход -->
+    <div class="card screen" id="screen-unlock">
+      <h1>Вход в аккаунт</h1>
+      <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
+
+      <label>Пароль</label>
+      <input type="password" id="unlockPassword" placeholder="Ваш пароль">
+
+      <button id="unlockBtn">Войти</button>
+      <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
+      <div class="error" id="unlockError"></div>
+    </div>
+
+    <!-- Импорт -->
+    <div class="card screen" id="screen-import">
+      <h1>Импорт аккаунта</h1>
+      <p class="subtitle">Отсканируйте QR со старого устройства.</p>
+
+      <div class="warning">
+        ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
       </div>
-      <div class="error" id="importScanError"></div>
+
+      <div id="importScannerWrap" style="margin-top:10px;">
+        <div id="importScannerBox"
+          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
+          <video id="importScannerVideo" playsinline
+            style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                      align-items:center; justify-content:center; border:1px solid #6f6;">
+            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="error" id="importScanError"></div>
+      </div>
+
+      <label>Пароль экспорта</label>
+      <input type="password" id="importPassword" placeholder="Временный пароль">
+
+      <label>Новый пароль для этого устройства</label>
+      <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
+
+      <label>Повторите новый пароль</label>
+      <input type="password" id="importNewPassword2" placeholder="Ещё раз">
+
+      <button id="importBtn" disabled>Импортировать</button>
+      <button class="secondary" id="linkBackFromImport">← Назад</button>
+      <div class="error" id="importError"></div>
     </div>
 
-    <label>Пароль экспорта</label>
-    <input type="password" id="importPassword" placeholder="Временный пароль">
-
-    <label>Новый пароль для этого устройства</label>
-    <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
-
-    <label>Повторите новый пароль</label>
-    <input type="password" id="importNewPassword2" placeholder="Ещё раз">
-
-    <button id="importBtn" disabled>Импортировать</button>
-    <button class="secondary" id="linkBackFromImport">← Назад</button>
-    <div class="error" id="importError"></div>
   </div>
 
   <script type="module" src="index.js"></script>
+
+  <!-- ASCII-ФОН: отдельный скрипт, не конфликтует с index.js -->
+  <script>
+    (function initAsciiBg() {
+      const canvas = document.getElementById('asciiBg');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
+      const PARTICLE_COUNT = 60;
+      const particles = [];
+
+      let W = 0, H = 0, DPR = 1;
+
+      function resize() {
+        DPR = window.devicePixelRatio || 1;
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * DPR;
+        canvas.height = H * DPR;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+
+      function makeParticle() {
+        return {
+          x: Math.random() * W,
+          y: Math.random() * H,
+          vy: 0.15 + Math.random() * 0.35,       // медленно вниз
+          vx: (Math.random() - 0.5) * 0.1,       // лёгкий дрейф
+          char: CHARS[Math.floor(Math.random() * CHARS.length)],
+          size: 9 + Math.floor(Math.random() * 6),
+          alpha: 0.05 + Math.random() * 0.12,
+          flicker: Math.random() * Math.PI * 2,
+          flickerSpeed: 0.01 + Math.random() * 0.02
+        };
+      }
+
+      function init() {
+        resize();
+        particles.length = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push(makeParticle());
+        }
+      }
+
+      function tick() {
+        ctx.clearRect(0, 0, W, H);
+
+        // лёгкий "шлейф" для эффекта пыли
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, 0, W, H);
+
+        for (const p of particles) {
+          p.y += p.vy;
+          p.x += p.vx;
+          p.flicker += p.flickerSpeed;
+
+          // мерцание
+          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
+
+          ctx.font = `${p.size}px 'Courier New', monospace`;
+          ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
+          ctx.fillText(p.char, p.x, p.y);
+
+          // Сброс, когда улетел за нижний край
+          if (p.y > H + 20) {
+            p.y = -20;
+            p.x = Math.random() * W;
+            p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
+            p.alpha = 0.05 + Math.random() * 0.12;
+            p.size = 9 + Math.floor(Math.random() * 6);
+          }
+          if (p.x < -20) p.x = W + 20;
+          if (p.x > W + 20) p.x = -20;
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        // Пересоздаём частицы, чтобы не улетали за пределы
+        for (const p of particles) {
+          if (p.x > W) p.x = Math.random() * W;
+          if (p.y > H) p.y = Math.random() * H;
+        }
+      });
+
+      init();
+      tick();
+    })();
+  </script>
 </body>
 
 </html>
