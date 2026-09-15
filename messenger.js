@@ -22,6 +22,11 @@ import {
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Proof-of-work: сколько ведущих нулевых hex-символов требуем в SHA-256.
+// 4 → в среднем ~65536 попыток, ~0.1–0.5 сек на телефоне.
+// 5 → ~1M попыток, ~2–5 сек. 6 → ~16M, ~30–60 сек (слишком долго).
+const POW_DIFFICULTY = 4;
+
 let myIdentity = null;
 let myPassword = null;
 let myHashHex = null;
@@ -91,6 +96,40 @@ async function loadChats() {
 // ============================================
 function myInboxRef() {
   return collection(db, 'users', myHashHex, 'inbox');
+}
+
+
+// ============================================
+// PROOF-OF-WORK
+// ============================================
+// Ищем nonce, чтобы SHA-256(ciphertext + ':' + nonce) начинался
+// с POW_DIFFICULTY нулевых hex-символов.
+async function computePow(ciphertextB64) {
+  let nonce = 0;
+  while (true) {
+    const buf = new TextEncoder().encode(ciphertextB64 + ':' + nonce);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    const hex = Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    if (hex.startsWith('0'.repeat(POW_DIFFICULTY))) {
+      return nonce;
+    }
+    nonce++;
+    if (nonce > 10_000_000) {
+      throw new Error('PoW не сошёлся за разумное время');
+    }
+  }
+}
+
+async function verifyPow(ciphertextB64, pow) {
+  if (typeof pow !== 'number' || !Number.isInteger(pow) || pow < 0) return false;
+  const buf = new TextEncoder().encode(ciphertextB64 + ':' + pow);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const hex = Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return hex.startsWith('0'.repeat(POW_DIFFICULTY));
 }
 
 
@@ -512,7 +551,7 @@ function renderChat() {
     header.classList.remove('active');
     messages.classList.remove('active');
     inputArea.classList.remove('active');
-    messages.innerHTML = '';   // очистка
+    messages.innerHTML = '';
     return;
   }
 
@@ -609,23 +648,47 @@ async function sendMessage() {
   const msgId = uuid();
   const ts = Date.now();
 
-  const payload = JSON.stringify({ id: msgId, text, ts });
-  const blob = await encryptMessage(payload, activeChat.sharedKey);
-  const signature = await signBlob(blob.ciphertext, myIdentity.ed25519.private);
+  const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
 
-  const senderCardB64 = btoa(unescape(encodeURIComponent(JSON.stringify(buildMyCard()))));
+  // payload содержит from/to — они часть шифротекста, подделать нельзя
+  const payload = JSON.stringify({
+    id: msgId,
+    text,
+    ts,
+    from: myHashHex,
+    to: toHashHex
+  });
+
+  const blob = await encryptMessage(payload, activeChat.sharedKey);
+
+  // Подпись покрывает ciphertext + from + to
+  const signedData = JSON.stringify({
+    ciphertext: blob.ciphertext,
+    from: myHashHex,
+    to: toHashHex
+  });
+  const signature = await signBlob(signedData, myIdentity.ed25519.private);
+
+  // PoW поверх ciphertext — защита от консольного спама
+  let pow;
+  try {
+    pow = await computePow(blob.ciphertext);
+  } catch (e) {
+    console.error('[SEND] PoW failed:', e);
+    return;
+  }
 
   try {
-    const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
     const inboxRef = collection(db, 'users', toHashHex, 'inbox');
 
     await addDoc(inboxRef, {
       from: myHashHex,
+      to: toHashHex,
       iv: blob.iv,
       ciphertext: blob.ciphertext,
       signature: signature,
       senderEd25519: myIdentity.ed25519.public,
-      senderCardB64: senderCardB64,
+      pow: pow,
       ttl: Date.now() + RELAY_TTL_MS
     });
   } catch (e) {
@@ -662,72 +725,65 @@ async function listenIncoming() {
 
       const data = change.doc.data();
       const docId = change.doc.id;
+      const docRef = doc(db, 'users', myHashHex, 'inbox', docId);
 
-      let senderCard = null;
-      if (typeof data.senderCardB64 === 'string') {
-        try {
-          const json = decodeURIComponent(escape(atob(data.senderCardB64)));
-          senderCard = JSON.parse(json);
-        } catch (e) { /* ignore */ }
+      // 1. Структурная валидация — режем всё, что не похоже на наше сообщение
+      if (
+        typeof data.from !== 'string' ||
+        typeof data.to !== 'string' ||
+        typeof data.iv !== 'string' ||
+        typeof data.ciphertext !== 'string' ||
+        typeof data.signature !== 'string' ||
+        typeof data.senderEd25519 !== 'string' ||
+        typeof data.pow !== 'number' ||
+        typeof data.ttl !== 'number'
+      ) {
+        await deleteDoc(docRef); continue;
       }
 
+      // 2. to должен быть нами (защита от переиспользования блоба)
+      if (data.to !== myHashHex) {
+        await deleteDoc(docRef); continue;
+      }
+
+      // 3. TTL
+      if (data.ttl < Date.now()) {
+        await deleteDoc(docRef); continue;
+      }
+
+      // 4. PoW
+      if (!await verifyPow(data.ciphertext, data.pow)) {
+        await deleteDoc(docRef); continue;
+      }
+
+      // 5. Ищем контакт по from. Auto-add УБРАН — только существующие контакты.
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
-
-      if (!peerFp && senderCard) {
-        try {
-          const card = senderCard;
-          if (!card.x25519 || !card.fingerprint || !card.ed25519) {
-            await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-            continue;
-          }
-          const cardHash = await hashPubkeyHex(card.x25519);
-          if (cardHash !== data.from) {
-            await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-            continue;
-          }
-          if (data.senderEd25519 !== card.ed25519) {
-            await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-            continue;
-          }
-          contacts[card.fingerprint] = card;
-          await saveContacts();
-          peerFp = card.fingerprint;
-          renderContacts();
-        } catch (e) {
-          await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-          continue;
-        }
-      }
-
       if (!peerFp) {
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
+        // Незнакомец — игнорируем. Контакты добавляются только через QR/JSON.
+        await deleteDoc(docRef); continue;
       }
 
-      if (data.ttl && data.ttl < Date.now()) {
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
+      // 6. senderEd25519 должен совпадать с контактом
+      if (data.senderEd25519 !== contacts[peerFp].ed25519) {
+        await deleteDoc(docRef); continue;
       }
 
-      if (data.signature && data.senderEd25519) {
-        const valid = await verifyBlob(data.ciphertext, data.signature, data.senderEd25519);
-        if (!valid) {
-          await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-          continue;
-        }
-        if (data.senderEd25519 !== contacts[peerFp].ed25519) {
-          await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-          continue;
-        }
-      } else {
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
+      // 7. Подпись над {ciphertext, from, to}
+      const signedData = JSON.stringify({
+        ciphertext: data.ciphertext,
+        from: data.from,
+        to: data.to
+      });
+      const valid = await verifyBlob(signedData, data.signature, data.senderEd25519);
+      if (!valid) {
+        await deleteDoc(docRef); continue;
       }
 
+      // 8. Расшифровка
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -741,20 +797,24 @@ async function listenIncoming() {
         );
         payload = JSON.parse(plain);
       } catch (e) {
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
+        await deleteDoc(docRef); continue;
       }
 
+      // 9. payload.from / payload.to тоже должны совпадать
+      if (payload.from !== data.from || payload.to !== myHashHex) {
+        await deleteDoc(docRef); continue;
+      }
+
+      // 10. Проверка на истёкший чат
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
 
       if (chatExpired && !isActiveWithPeer) {
-        await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId));
-        continue;
+        await deleteDoc(docRef); continue;
       }
 
-      try { await deleteDoc(doc(db, 'users', myHashHex, 'inbox', docId)); } catch (e) {}
+      try { await deleteDoc(docRef); } catch (e) {}
 
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
