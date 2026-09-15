@@ -34,9 +34,20 @@
       letter-spacing: 0.3px;
     }
 
+    /* ============ ФОН ============ */
+    #asciiBg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
     /* ============ ШАПКА ============ */
     .topbar {
-      background: #000;
+      background: rgba(0, 0, 0, 0.85);
       color: #d0d0d0;
       padding: 8px 12px;
       padding-top: calc(8px + env(safe-area-inset-top));
@@ -45,6 +56,9 @@
       justify-content: space-between;
       flex-shrink: 0;
       border-bottom: 1px solid #2a2a2a;
+      position: relative;
+      z-index: 2;
+      backdrop-filter: blur(4px);
     }
 
     .me-name {
@@ -102,12 +116,15 @@
       min-height: 0;
       overflow: hidden;
       position: relative;
+      z-index: 1;
+      background: rgba(10, 10, 10, 0.85);
+      backdrop-filter: blur(3px);
     }
 
     /* ============ SIDEBAR ============ */
     .sidebar {
       width: 280px;
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.9);
       border-right: 1px solid #2a2a2a;
       display: flex;
       flex-direction: column;
@@ -118,7 +135,7 @@
 
     .sidebar-header {
       padding: 8px 12px;
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.9);
       border-bottom: 1px solid #2a2a2a;
       font-weight: bold;
       color: #6f6;
@@ -153,11 +170,11 @@
     }
 
     .contact:hover {
-      background: #111;
+      background: rgba(17, 17, 17, 0.85);
     }
 
     .contact.active {
-      background: #0a1a0a;
+      background: rgba(10, 26, 10, 0.9);
       border-left: 2px solid #6f6;
       padding-left: 10px;
     }
@@ -217,6 +234,7 @@
       min-width: 0;
       min-height: 0;
       overflow: hidden;
+      background: rgba(5, 5, 5, 0.9);
     }
 
     .chat-empty {
@@ -231,7 +249,7 @@
     }
 
     .chat-header {
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.9);
       border-bottom: 1px solid #2a2a2a;
       padding: 8px 12px;
       display: none;
@@ -300,7 +318,7 @@
       overflow-y: auto;
       overflow-x: hidden;
       padding: 12px;
-      background: #050505;
+      background: rgba(5, 5, 5, 0.85);
       display: none;
       min-height: 0;
     }
@@ -316,7 +334,7 @@
       padding: 6px 10px;
       margin-bottom: 6px;
       border: 1px solid #2a2a2a;
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.95);
       color: #d0d0d0;
       word-wrap: break-word;
       overflow-wrap: anywhere;
@@ -327,7 +345,7 @@
     .msg.me {
       margin-left: auto;
       margin-right: 0;
-      background: #0a1a0a;
+      background: rgba(10, 26, 10, 0.95);
       border-color: #2a4a2a;
       color: #b0d0b0;
     }
@@ -349,7 +367,7 @@
 
     /* ============ ПОЛЕ ВВОДА ============ */
     .input-area {
-      background: #0a0a0a;
+      background: rgba(10, 10, 10, 0.9);
       border-top: 1px solid #2a2a2a;
       padding: 8px;
       padding-bottom: calc(8px + env(safe-area-inset-bottom));
@@ -367,7 +385,7 @@
       flex: 1;
       padding: 6px 8px;
       border: 1px solid #2a2a2a;
-      background: #050505;
+      background: rgba(5, 5, 5, 0.95);
       color: #d0d0d0;
       resize: none;
       font-family: inherit;
@@ -650,7 +668,7 @@
       .chat-area {
         position: absolute;
         inset: 0;
-        background: #050505;
+        background: rgba(5, 5, 5, 0.95);
         transform: translateX(100%);
         transition: transform 0.2s ease;
         z-index: 10;
@@ -703,6 +721,9 @@
 </head>
 
 <body>
+
+  <!-- ASCII-ФОН -->
+  <canvas id="asciiBg"></canvas>
 
   <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
   <div class="topbar">
@@ -794,32 +815,122 @@
     </div>
   </div>
 
-    <!-- МОДАЛКА: УСТРОЙСТВА -->
-    <div class="modal" id="modalDevices">
-      <div class="modal-card">
-        <h2>Перенос на другое устройство</h2>
-        <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
+  <!-- МОДАЛКА: УСТРОЙСТВА -->
+  <div class="modal" id="modalDevices">
+    <div class="modal-card">
+      <h2>Перенос на другое устройство</h2>
+      <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
 
-        <div class="warning">
-          ⚠️ QR-код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
-        </div>
-
-        <label>Временный пароль для передачи</label>
-        <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
-
-        <button id="btnGenerateExport">Сгенерировать QR</button>
-
-        <div id="exportResult" style="display:none; margin-top: 10px;">
-          <div class="qr-box" id="exportQrBox"></div>
-          <textarea id="exportJson" readonly></textarea>
-          <button id="btnCopyExport" class="secondary">Скопировать код</button>
-        </div>
-
-        <button id="btnCloseDevices" class="secondary">Закрыть</button>
+      <div class="warning">
+        ⚠️ QR-код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
       </div>
+
+      <label>Временный пароль для передачи</label>
+      <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
+
+      <button id="btnGenerateExport">Сгенерировать QR</button>
+
+      <div id="exportResult" style="display:none; margin-top: 10px;">
+        <div class="qr-box" id="exportQrBox"></div>
+        <textarea id="exportJson" readonly></textarea>
+        <button id="btnCopyExport" class="secondary">Скопировать код</button>
+      </div>
+
+      <button id="btnCloseDevices" class="secondary">Закрыть</button>
     </div>
+  </div>
 
   <script type="module" src="messenger.js"></script>
+
+  <!-- ASCII-ФОН -->
+  <script>
+    (function initAsciiBg() {
+      const canvas = document.getElementById('asciiBg');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
+      const PARTICLE_COUNT = 60;
+      const particles = [];
+
+      let W = 0, H = 0, DPR = 1;
+
+      function resize() {
+        DPR = window.devicePixelRatio || 1;
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = W * DPR;
+        canvas.height = H * DPR;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      }
+
+      function makeParticle() {
+        return {
+          x: Math.random() * W,
+          y: Math.random() * H,
+          vy: 0.15 + Math.random() * 0.35,
+          vx: (Math.random() - 0.5) * 0.1,
+          char: CHARS[Math.floor(Math.random() * CHARS.length)],
+          size: 9 + Math.floor(Math.random() * 6),
+          alpha: 0.05 + Math.random() * 0.12,
+          flicker: Math.random() * Math.PI * 2,
+          flickerSpeed: 0.01 + Math.random() * 0.02
+        };
+      }
+
+      function init() {
+        resize();
+        particles.length = 0;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          particles.push(makeParticle());
+        }
+      }
+
+      function tick() {
+        ctx.clearRect(0, 0, W, H);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, 0, W, H);
+
+        for (const p of particles) {
+          p.y += p.vy;
+          p.x += p.vx;
+          p.flicker += p.flickerSpeed;
+
+          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
+
+          ctx.font = `${p.size}px 'Courier New', monospace`;
+          ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
+          ctx.fillText(p.char, p.x, p.y);
+
+          if (p.y > H + 20) {
+            p.y = -20;
+            p.x = Math.random() * W;
+            p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
+            p.alpha = 0.05 + Math.random() * 0.12;
+            p.size = 9 + Math.floor(Math.random() * 6);
+          }
+          if (p.x < -20) p.x = W + 20;
+          if (p.x > W + 20) p.x = -20;
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        for (const p of particles) {
+          if (p.x > W) p.x = Math.random() * W;
+          if (p.y > H) p.y = Math.random() * H;
+        }
+      });
+
+      init();
+      tick();
+    })();
+  </script>
 </body>
 
 </html>

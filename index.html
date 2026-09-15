@@ -13,16 +13,17 @@
 
     html,
     body {
-      height: 100%;
+      min-height: 100%;
       margin: 0;
       background: #000;
-      overflow: hidden;
     }
 
     body {
       font-family: 'Courier New', Courier, 'Lucida Console', monospace;
       color: #d0d0d0;
       letter-spacing: 0.3px;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     /* ============ ФОН ============ */
@@ -33,6 +34,7 @@
       height: 100%;
       z-index: 0;
       pointer-events: none;
+      overflow: hidden;
     }
 
     /* ============ КОНТЕНТ ============ */
@@ -45,6 +47,16 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      box-sizing: border-box;
+    }
+
+    /* На низких экранах — прижимаем к верху, чтобы не обрезало */
+    @media (max-height: 700px) {
+      .page {
+        justify-content: flex-start;
+        padding-top: 30px;
+        padding-bottom: 30px;
+      }
     }
 
     .brand {
@@ -94,6 +106,7 @@
       width: 100%;
       margin: 0 auto;
       backdrop-filter: blur(4px);
+      scroll-margin-top: 20px;
     }
 
     h1 {
@@ -553,7 +566,6 @@
         const targetWidth = brand.clientWidth;
         if (!targetWidth) return;
 
-        // базовый размер
         logo.style.fontSize = '64px';
 
         const textWidth = logo.scrollWidth;
