@@ -659,7 +659,7 @@
 
     /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
     @media (max-width: 768px) {
-      .sidebar {
+      sidebar {
         width: 100%;
         border-right: none;
         background: rgba(10, 10, 10, 0.55);
@@ -668,7 +668,8 @@
       .chat-area {
         position: absolute;
         inset: 0;
-        background: rgba(5, 5, 5, 0.7);
+        /* ← было rgba(5, 5, 5, 0.7) — теперь почти непрозрачный */
+        background: #050505;
         transform: translateX(100%);
         transition: transform 0.2s ease;
         z-index: 10;
