@@ -889,7 +889,7 @@
       }
 
       function tick() {
-        // шлейф (без clearRect)
+        ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = 'rgba(0,0,0,0.15)';                 // было 0.2
         ctx.fillRect(0, 0, W, H);
 
