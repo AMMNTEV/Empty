@@ -138,8 +138,12 @@ async function purgeExpiredChats() {
   let changed = false;
 
   for (const fp in chatHistory) {
-    if (chatHistory[fp].expiresAt && chatHistory[fp].expiresAt < now) {
-      console.log(`[PURGE] Чат с "${chatHistory[fp].peerNickname}" истёк`);
+    const h = chatHistory[fp];
+    // Чат без сообщений (нет expiresAt) не чистим — он и так пустой
+    if (!h || !h.expiresAt) continue;
+
+    if (h.expiresAt < now) {
+      console.log(`[PURGE] Чат с "${h.peerNickname}" истёк`);
 
       purgeRelayForContact(fp).catch(e => console.warn('[PURGE]', e));
 
@@ -516,15 +520,9 @@ async function openChat(fingerprint) {
 
   activeChat = { fingerprint, peerCard: card, sharedKey };
 
-  if (!chatHistory[fingerprint]) {
-    chatHistory[fingerprint] = {
-      peerNickname: card.nickname,
-      messages: [],
-      lastActivity: Date.now(),
-      expiresAt: Date.now() + CHAT_TTL_MS
-    };
-    saveChats();
-  }
+  // ВАЖНО: НЕ создаём chatHistory при открытии.
+  // Чат создаётся только при первом отправленном или полученном сообщении.
+  // Так expiresAt всегда = ts последнего сообщения у обоих участников.
 
   renderContacts();
   renderChat();
@@ -549,6 +547,7 @@ function renderChat() {
     messages.classList.remove('active');
     inputArea.classList.remove('active');
     messages.innerHTML = '';
+    document.getElementById('chatTimer').textContent = '';
     return;
   }
 
@@ -561,7 +560,15 @@ function renderChat() {
   document.getElementById('chatTitle').textContent = activeChat.peerCard.nickname;
 
   const history = chatHistory[activeChat.fingerprint];
-  const msgs = history ? history.messages : [];
+
+  // Нет истории — пустой чат, нет сообщений, нет таймера
+  if (!history) {
+    messages.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">Нет сообщений. Напишите первым.</div>';
+    document.getElementById('chatTimer').textContent = '';
+    return;
+  }
+
+  const msgs = history.messages || [];
 
   messages.innerHTML = msgs.map(m => {
     const cls = m.from === 'me' ? 'me' : 'other';
@@ -575,38 +582,41 @@ function renderChat() {
 
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (!activeChat) return;
+
+  const updateTimer = () => {
+    if (!activeChat) {
+      document.getElementById('chatTimer').textContent = '';
+      return;
+    }
     const history = chatHistory[activeChat.fingerprint];
-    if (!history) return;
+
+    // Нет истории или нет expiresAt — нет таймера
+    if (!history || !history.expiresAt) {
+      document.getElementById('chatTimer').textContent = '';
+      return;
+    }
+
     const left = history.expiresAt - Date.now();
-    if (left <= 0) { endChat(); return; }
+    if (left <= 0) {
+      endChat();
+      return;
+    }
+
     const h = Math.floor(left / 3600000);
     const min = Math.floor((left % 3600000) / 60000);
     const sec = Math.floor((left % 60000) / 1000);
     document.getElementById('chatTimer').textContent =
       `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-  }, 1000);
+  };
 
-  const history = chatHistory[activeChat?.fingerprint];
-  if (history) {
-    const left = history.expiresAt - Date.now();
-    if (left > 0) {
-      const h = Math.floor(left / 3600000);
-      const min = Math.floor((left % 3600000) / 60000);
-      const sec = Math.floor((left % 60000) / 1000);
-      document.getElementById('chatTimer').textContent =
-        `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-    }
-  }
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
 }
 
 
 // ============================================
 // СИГНАЛ ЗАВЕРШЕНИЯ ЧАТА
 // ============================================
-// Шлёт собеседнику шифрованный payload { end: true }.
-// Тот, получив, удаляет чат у себя + чистит свой inbox.
 async function sendEndSignal() {
   if (!activeChat) return;
 
@@ -658,32 +668,32 @@ async function sendEndSignal() {
 
 
 // ============================================
-// ЗАВЕРШЕНИЕ ЧАТА (локально + сигнал собеседнику)
+// ЗАВЕРШЕНИЕ ЧАТА
 // ============================================
 async function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. Сначала сигнал собеседнику — пока есть activeChat и sharedKey
+  // 1. Сигнал собеседнику (пока есть activeChat)
   try {
     await sendEndSignal();
   } catch (e) {
     console.warn('[END] signal failed:', e);
   }
 
-  // 2. Локальная очистка: свой inbox от blob'ов собеседника
+  // 2. Чистим свой inbox от blob'ов собеседника
   try {
     await purgeRelayForContact(fp);
   } catch (e) {
     console.warn('[END] purge failed:', e);
   }
 
-  // 3. Удаляем локальную историю чата
+  // 3. Удаляем локальную историю
   delete chatHistory[fp];
   await saveChats();
 
-  // 4. Сбрасываем UI
+  // 4. Сброс UI
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -762,6 +772,7 @@ async function sendMessage() {
     console.error('[SEND]', e);
   }
 
+  // Создаём историю только здесь — при первом отправленном сообщении
   if (!chatHistory[fp]) {
     chatHistory[fp] = {
       peerNickname: activeChat.peerCard.nickname,
@@ -866,24 +877,22 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 9. payload.from / payload.to тоже должны совпадать
+      // 9. payload.from / payload.to должны совпадать
       if (payload.from !== data.from || payload.to !== myHashHex) {
         await deleteDoc(docRef); continue;
       }
 
-      // 10. Обработка сигнала завершения чата
+      // 10. Сигнал завершения чата
       if (payload.end === true) {
         await deleteDoc(docRef);
 
         const peerNickname = contacts[peerFp].nickname;
 
-        // Удаляем чат локально
         if (chatHistory[peerFp]) {
           delete chatHistory[peerFp];
           await saveChats();
         }
 
-        // Сбрасываем UI, если открыт этот чат
         if (activeChat && activeChat.fingerprint === peerFp) {
           if (timerInterval) clearInterval(timerInterval);
           timerInterval = null;
@@ -892,7 +901,6 @@ async function listenIncoming() {
         }
         renderContacts();
 
-        // Чистим свой inbox от blob'ов этого собеседника
         purgeRelayForContact(peerFp).catch(e => console.warn('[END] purge:', e));
 
         console.log(`[END] Собеседник "${peerNickname}" завершил чат`);
@@ -910,6 +918,7 @@ async function listenIncoming() {
 
       try { await deleteDoc(docRef); } catch (e) {}
 
+      // Создаём чат при первом полученном сообщении
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
           peerNickname: contacts[peerFp].nickname,
