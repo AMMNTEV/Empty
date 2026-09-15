@@ -47,37 +47,42 @@
       padding: 20px;
     }
 
+    .brand {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto 24px;
+    }
+
     /* ============ ЛОГОТИП EMPTY ============ */
     .logo {
       font-family: 'Arial Black', 'Impact', 'Helvetica Neue', Arial, sans-serif;
       font-weight: 900;
-      font-size: clamp(80px, 22vw, 240px);
+      font-size: 64px;
       line-height: 0.85;
-      color: #f5ead0;
+      color: #e8e8e8;
       text-align: center;
-      letter-spacing: -0.04em;
-      margin: 0 0 40px 0;
+      letter-spacing: -0.03em;
       user-select: none;
       text-transform: uppercase;
-      transform: scaleY(1.15);
+      transform: scaleY(1.12);
       transform-origin: center;
-      /* лёгкое свечение */
+      width: 100%;
+      white-space: nowrap;
       text-shadow:
-        0 0 2px rgba(245, 234, 208, 0.15),
-        0 0 30px rgba(245, 234, 208, 0.05);
+        0 0 1px rgba(232, 232, 232, 0.2),
+        0 0 24px rgba(200, 200, 200, 0.04);
     }
 
     .logo-sub {
-      color: #c9a96a;
-      font-family: 'Arial', sans-serif;
-      font-size: 10px;
+      color: #6f6;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
       font-weight: bold;
       letter-spacing: 4px;
       text-transform: uppercase;
       text-align: center;
-      margin-top: -30px;
-      margin-bottom: 40px;
-      opacity: 0.7;
+      margin-top: 6px;
+      opacity: 0.65;
     }
 
     /* ============ КАРТОЧКА ============ */
@@ -305,21 +310,43 @@
       border: none;
     }
 
+    /* ============ КНОПКИ В РЯД ============ */
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .actions button {
+      flex: 1;
+      margin-top: 0;
+      padding: 8px 6px;
+      font-size: 10px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
     #importScannerSuccess {
       transition: opacity 0.15s ease;
     }
 
     @media (max-width: 480px) {
+      .brand {
+        margin-bottom: 16px;
+      }
+
       .logo {
-        font-size: clamp(60px, 30vw, 140px);
-        margin-bottom: 20px;
+        letter-spacing: -0.02em;
       }
 
       .logo-sub {
         font-size: 8px;
         letter-spacing: 3px;
-        margin-top: -15px;
-        margin-bottom: 20px;
+      }
+
+      .actions button {
+        font-size: 9px;
+        padding: 7px 4px;
       }
     }
   </style>
@@ -333,16 +360,20 @@
   <div class="page">
 
     <!-- ЛОГОТИП -->
-    <div class="logo">EMPTY</div>
-    <div class="logo-sub">Encrypted · Local</div>
+    <div class="brand">
+      <div class="logo" id="logoText">EMPTY</div>
+      <div class="logo-sub">Encrypted · Local</div>
+    </div>
 
     <!-- Мои аккаунты -->
     <div class="card screen" id="screen-accounts">
       <h1>Мои аккаунты</h1>
       <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
       <div class="account-list" id="accountList"></div>
-      <button id="btnAddAccount">+ Добавить аккаунт</button>
-      <button class="secondary" id="btnImportAccount">Импорт с другого устройства</button>
+      <div class="actions">
+        <button id="btnAddAccount">+ Добавить</button>
+        <button class="secondary" id="btnImportAccount">Импорт</button>
+      </div>
     </div>
 
     <!-- Создание -->
@@ -421,7 +452,7 @@
 
   <script type="module" src="index.js"></script>
 
-  <!-- ASCII-ФОН: отдельный скрипт, не конфликтует с index.js -->
+  <!-- ASCII-ФОН -->
   <script>
     (function initAsciiBg() {
       const canvas = document.getElementById('asciiBg');
@@ -449,8 +480,8 @@
         return {
           x: Math.random() * W,
           y: Math.random() * H,
-          vy: 0.15 + Math.random() * 0.35,       // медленно вниз
-          vx: (Math.random() - 0.5) * 0.1,       // лёгкий дрейф
+          vy: 0.15 + Math.random() * 0.35,
+          vx: (Math.random() - 0.5) * 0.1,
           char: CHARS[Math.floor(Math.random() * CHARS.length)],
           size: 9 + Math.floor(Math.random() * 6),
           alpha: 0.05 + Math.random() * 0.12,
@@ -470,7 +501,6 @@
       function tick() {
         ctx.clearRect(0, 0, W, H);
 
-        // лёгкий "шлейф" для эффекта пыли
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
         ctx.fillRect(0, 0, W, H);
 
@@ -479,14 +509,12 @@
           p.x += p.vx;
           p.flicker += p.flickerSpeed;
 
-          // мерцание
           const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
 
           ctx.font = `${p.size}px 'Courier New', monospace`;
           ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
           ctx.fillText(p.char, p.x, p.y);
 
-          // Сброс, когда улетел за нижний край
           if (p.y > H + 20) {
             p.y = -20;
             p.x = Math.random() * W;
@@ -503,7 +531,6 @@
 
       window.addEventListener('resize', () => {
         resize();
-        // Пересоздаём частицы, чтобы не улетали за пределы
         for (const p of particles) {
           if (p.x > W) p.x = Math.random() * W;
           if (p.y > H) p.y = Math.random() * H;
@@ -512,6 +539,38 @@
 
       init();
       tick();
+    })();
+  </script>
+
+  <!-- Подгонка размера EMPTY под ширину карточки -->
+  <script>
+    (function fitLogo() {
+      const logo = document.getElementById('logoText');
+      if (!logo) return;
+
+      function fit() {
+        const brand = logo.parentElement;
+        const targetWidth = brand.clientWidth;
+        if (!targetWidth) return;
+
+        // базовый размер
+        logo.style.fontSize = '64px';
+
+        const textWidth = logo.scrollWidth;
+        if (!textWidth) return;
+
+        const scale = targetWidth / textWidth;
+        const newSize = Math.floor(64 * scale);
+        const clamped = Math.max(32, Math.min(newSize, 120));
+
+        logo.style.fontSize = clamped + 'px';
+      }
+
+      fit();
+      window.addEventListener('resize', fit);
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(fit);
+      }
     })();
   </script>
 </body>
