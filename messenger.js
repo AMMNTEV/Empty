@@ -64,6 +64,7 @@ async function loadContacts() {
   }
 }
 
+// Debounced сохранение чатов (для частых обновлений)
 async function saveChats() {
   if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) clearTimeout(saveChatsTimer);
@@ -75,6 +76,18 @@ async function saveChats() {
       console.error('[OPFS] чаты:', e);
     }
   }, 500);
+}
+
+// Немедленное сохранение (для endChat — если пользователь закроет вкладку)
+async function saveChatsNow() {
+  if (!myPassword || !CHATS_FILE) return;
+  if (saveChatsTimer) { clearTimeout(saveChatsTimer); saveChatsTimer = null; }
+  try {
+    const encrypted = await encryptIdentity(chatHistory, myPassword);
+    await opfsWrite(CHATS_FILE, encrypted);
+  } catch (e) {
+    console.error('[OPFS] чаты:', e);
+  }
 }
 
 async function loadChats() {
@@ -139,7 +152,6 @@ async function purgeExpiredChats() {
 
   for (const fp in chatHistory) {
     const h = chatHistory[fp];
-    // Чат без сообщений (нет expiresAt) не чистим — он и так пустой
     if (!h || !h.expiresAt) continue;
 
     if (h.expiresAt < now) {
@@ -440,7 +452,7 @@ async function addContactFromCard(card) {
       );
       if (!ok) return;
       delete chatHistory[card.fingerprint];
-      await saveChats();
+      await saveChatsNow();
     }
   }
 
@@ -522,7 +534,6 @@ async function openChat(fingerprint) {
 
   // ВАЖНО: НЕ создаём chatHistory при открытии.
   // Чат создаётся только при первом отправленном или полученном сообщении.
-  // Так expiresAt всегда = ts последнего сообщения у обоих участников.
 
   renderContacts();
   renderChat();
@@ -561,7 +572,6 @@ function renderChat() {
 
   const history = chatHistory[activeChat.fingerprint];
 
-  // Нет истории — пустой чат, нет сообщений, нет таймера
   if (!history) {
     messages.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">Нет сообщений. Напишите первым.</div>';
     document.getElementById('chatTimer').textContent = '';
@@ -580,19 +590,46 @@ function renderChat() {
   });
 }
 
+// Мгновенное добавление одного сообщения в конец (без полной перерисовки)
+function appendMessage(msg) {
+  const messages = document.getElementById('messages');
+  if (!messages) return;
+
+  // Убираем заглушку "Нет сообщений"
+  const placeholder = messages.querySelector('div[style*="text-align:center"]');
+  if (placeholder && placeholder.textContent.includes('Нет сообщений')) {
+    placeholder.remove();
+  }
+
+  const cls = msg.from === 'me' ? 'me' : 'other';
+  const html = `<div class="msg ${cls}">${escapeHtml(msg.text)}</div>`;
+  messages.insertAdjacentHTML('beforeend', html);
+
+  requestAnimationFrame(() => {
+    messages.scrollTop = messages.scrollHeight;
+  });
+}
+
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
 
+  let lastTimerText = '';
+
   const updateTimer = () => {
     if (!activeChat) {
-      document.getElementById('chatTimer').textContent = '';
+      if (lastTimerText !== '') {
+        document.getElementById('chatTimer').textContent = '';
+        lastTimerText = '';
+      }
       return;
     }
     const history = chatHistory[activeChat.fingerprint];
 
-    // Нет истории или нет expiresAt — нет таймера
     if (!history || !history.expiresAt) {
-      document.getElementById('chatTimer').textContent = '';
+      if (lastTimerText !== '') {
+        document.getElementById('chatTimer').textContent = '';
+        lastTimerText = '';
+      }
       return;
     }
 
@@ -605,8 +642,12 @@ function startTimer() {
     const h = Math.floor(left / 3600000);
     const min = Math.floor((left % 3600000) / 60000);
     const sec = Math.floor((left % 60000) / 1000);
-    document.getElementById('chatTimer').textContent =
-      `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    const newText = `⏱ ${h}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+
+    if (newText !== lastTimerText) {
+      document.getElementById('chatTimer').textContent = newText;
+      lastTimerText = newText;
+    }
   };
 
   updateTimer();
@@ -617,10 +658,17 @@ function startTimer() {
 // ============================================
 // СИГНАЛ ЗАВЕРШЕНИЯ ЧАТА
 // ============================================
-async function sendEndSignal() {
-  if (!activeChat) return;
+// Отправляет сигнал { end: true } по конкретному fp.
+// Использует contacts[fp] напрямую — не зависит от activeChat.
+async function sendEndSignalForFp(fp) {
+  const peerCard = contacts[fp];
+  if (!peerCard) return;
 
-  const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
+  const toHashHex = await hashPubkeyHex(peerCard.x25519);
+  const sharedKey = await deriveSharedKey(
+    myIdentity.x25519.private,
+    peerCard.x25519
+  );
 
   const payload = JSON.stringify({
     id: uuid(),
@@ -631,7 +679,7 @@ async function sendEndSignal() {
     end: true
   });
 
-  const blob = await encryptMessage(payload, activeChat.sharedKey);
+  const blob = await encryptMessage(payload, sharedKey);
 
   const signedData = JSON.stringify({
     ciphertext: blob.ciphertext,
@@ -640,60 +688,36 @@ async function sendEndSignal() {
   });
   const signature = await signBlob(signedData, myIdentity.ed25519.private);
 
-  let pow;
-  try {
-    pow = await computePow(blob.ciphertext);
-  } catch (e) {
-    console.error('[END] PoW failed:', e);
-    return;
-  }
+  const pow = await computePow(blob.ciphertext);
 
-  try {
-    const inboxRef = collection(db, 'users', toHashHex, 'inbox');
-    await addDoc(inboxRef, {
-      from: myHashHex,
-      to: toHashHex,
-      iv: blob.iv,
-      ciphertext: blob.ciphertext,
-      signature: signature,
-      senderEd25519: myIdentity.ed25519.public,
-      pow: pow,
-      ttl: Date.now() + RELAY_TTL_MS
-    });
-    console.log('[END] Сигнал завершения отправлен');
-  } catch (e) {
-    console.error('[END] send failed:', e);
-  }
+  const inboxRef = collection(db, 'users', toHashHex, 'inbox');
+  await addDoc(inboxRef, {
+    from: myHashHex,
+    to: toHashHex,
+    iv: blob.iv,
+    ciphertext: blob.ciphertext,
+    signature: signature,
+    senderEd25519: myIdentity.ed25519.public,
+    pow: pow,
+    ttl: Date.now() + RELAY_TTL_MS
+  });
+
+  console.log('[END] Сигнал завершения отправлен');
 }
 
 
 // ============================================
-// ЗАВЕРШЕНИЕ ЧАТА
+// ЗАВЕРШЕНИЕ ЧАТА (UI мгновенно, сеть в фоне)
 // ============================================
-async function endChat() {
+function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. Сигнал собеседнику (пока есть activeChat)
-  try {
-    await sendEndSignal();
-  } catch (e) {
-    console.warn('[END] signal failed:', e);
-  }
-
-  // 2. Чистим свой inbox от blob'ов собеседника
-  try {
-    await purgeRelayForContact(fp);
-  } catch (e) {
-    console.warn('[END] purge failed:', e);
-  }
-
-  // 3. Удаляем локальную историю
+  // 1. МГНОВЕННО удаляем локальную историю
   delete chatHistory[fp];
-  await saveChats();
 
-  // 4. Сброс UI
+  // 2. МГНОВЕННО закрываем чат в UI
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -701,7 +725,35 @@ async function endChat() {
   renderContacts();
   renderChat();
 
-  console.log(`[END] Чат с "${peerNickname}" завершён`);
+  // 3. Фоновая отправка сигнала + очистка + сохранение
+  endChatBackground(fp, peerNickname);
+
+  console.log(`[END] Чат с "${peerNickname}" завершён (UI)`);
+}
+
+async function endChatBackground(fp, peerNickname) {
+  try {
+    // Сигнал собеседнику
+    try {
+      await sendEndSignalForFp(fp);
+    } catch (e) {
+      console.warn('[END] signal failed:', e);
+    }
+
+    // Чистим свой inbox от blob'ов собеседника
+    try {
+      await purgeRelayForContact(fp);
+    } catch (e) {
+      console.warn('[END] purge failed:', e);
+    }
+
+    // Сохраняем немедленно — если пользователь закроет вкладку, чат уже удалён
+    await saveChatsNow();
+
+    console.log(`[END] Фоновая очистка "${peerNickname}" завершена`);
+  } catch (e) {
+    console.warn('[END] background failed:', e);
+  }
 }
 
 function exitChat() {
@@ -714,13 +766,14 @@ function exitChat() {
 
 
 // ============================================
-// ОТПРАВКА СООБЩЕНИЯ
+// ОТПРАВКА СООБЩЕНИЯ (UI мгновенно, сеть в фоне)
 // ============================================
-async function sendMessage() {
+function sendMessage() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text || !activeChat) return;
 
+  // 1. МГНОВЕННО очищаем поле ввода
   input.value = '';
   input.style.height = 'auto';
 
@@ -728,36 +781,60 @@ async function sendMessage() {
   const msgId = uuid();
   const ts = Date.now();
 
-  const toHashHex = await hashPubkeyHex(activeChat.peerCard.x25519);
-
-  const payload = JSON.stringify({
-    id: msgId,
-    text,
-    ts,
-    from: myHashHex,
-    to: toHashHex
-  });
-
-  const blob = await encryptMessage(payload, activeChat.sharedKey);
-
-  const signedData = JSON.stringify({
-    ciphertext: blob.ciphertext,
-    from: myHashHex,
-    to: toHashHex
-  });
-  const signature = await signBlob(signedData, myIdentity.ed25519.private);
-
-  let pow;
-  try {
-    pow = await computePow(blob.ciphertext);
-  } catch (e) {
-    console.error('[SEND] PoW failed:', e);
-    return;
+  // 2. МГНОВЕННО создаём историю, если её нет
+  if (!chatHistory[fp]) {
+    chatHistory[fp] = {
+      peerNickname: activeChat.peerCard.nickname,
+      messages: [],
+      lastActivity: ts,
+      expiresAt: ts + CHAT_TTL_MS
+    };
   }
 
-  try {
-    const inboxRef = collection(db, 'users', toHashHex, 'inbox');
+  // 3. МГНОВЕННО добавляем сообщение в историю
+  chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
+  chatHistory[fp].lastActivity = ts;
+  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
+  // 4. МГНОВЕННО рендерим сообщение (append, без полной перерисовки)
+  appendMessage({ from: 'me', text, ts });
+  startTimer();
+
+  // 5. Фоновая отправка
+  sendMessageBackground({ fp, msgId, text, ts });
+}
+
+async function sendMessageBackground({ fp, msgId, text, ts }) {
+  try {
+    const peerCard = contacts[fp];
+    if (!peerCard) return;
+
+    const toHashHex = await hashPubkeyHex(peerCard.x25519);
+    const sharedKey = await deriveSharedKey(
+      myIdentity.x25519.private,
+      peerCard.x25519
+    );
+
+    const payload = JSON.stringify({
+      id: msgId,
+      text,
+      ts,
+      from: myHashHex,
+      to: toHashHex
+    });
+
+    const blob = await encryptMessage(payload, sharedKey);
+
+    const signedData = JSON.stringify({
+      ciphertext: blob.ciphertext,
+      from: myHashHex,
+      to: toHashHex
+    });
+    const signature = await signBlob(signedData, myIdentity.ed25519.private);
+
+    const pow = await computePow(blob.ciphertext);
+
+    const inboxRef = collection(db, 'users', toHashHex, 'inbox');
     await addDoc(inboxRef, {
       from: myHashHex,
       to: toHashHex,
@@ -768,26 +845,12 @@ async function sendMessage() {
       pow: pow,
       ttl: Date.now() + RELAY_TTL_MS
     });
+
+    // Сохраняем в OPFS в фоне
+    saveChats();
   } catch (e) {
     console.error('[SEND]', e);
   }
-
-  // Создаём историю только здесь — при первом отправленном сообщении
-  if (!chatHistory[fp]) {
-    chatHistory[fp] = {
-      peerNickname: activeChat.peerCard.nickname,
-      messages: [],
-      lastActivity: ts,
-      expiresAt: ts + CHAT_TTL_MS
-    };
-  }
-  chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
-  chatHistory[fp].lastActivity = ts;
-  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
-
-  saveChats();
-  renderChat();
-  startTimer();
 }
 
 
@@ -834,7 +897,7 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 5. Ищем контакт по from. Auto-add УБРАН.
+      // 5. Ищем контакт по from
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
@@ -890,7 +953,7 @@ async function listenIncoming() {
 
         if (chatHistory[peerFp]) {
           delete chatHistory[peerFp];
-          await saveChats();
+          saveChatsNow();
         }
 
         if (activeChat && activeChat.fingerprint === peerFp) {
@@ -918,7 +981,9 @@ async function listenIncoming() {
 
       try { await deleteDoc(docRef); } catch (e) {}
 
-      // Создаём чат при первом полученном сообщении
+      // 12. Мгновенный рендер входящего
+      const isFirstMessage = !chatHistory[peerFp];
+
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = {
           peerNickname: contacts[peerFp].nickname,
@@ -939,7 +1004,11 @@ async function listenIncoming() {
       saveChats();
 
       if (activeChat && activeChat.fingerprint === peerFp) {
-        renderChat();
+        if (isFirstMessage) {
+          renderChat();
+        } else {
+          appendMessage({ from: 'peer', text: payload.text, ts: payload.ts });
+        }
         startTimer();
       } else {
         renderContacts();
