@@ -850,7 +850,7 @@
       const ctx = canvas.getContext('2d');
 
       const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
-      const PARTICLE_COUNT = 70;
+      const PARTICLE_COUNT = 60;
       const particles = [];
 
       let W = 0, H = 0, DPR = 1;
@@ -873,8 +873,8 @@
           vy: 0.15 + Math.random() * 0.35,
           vx: (Math.random() - 0.5) * 0.1,
           char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          size: 10 + Math.floor(Math.random() * 8),
-          alpha: 0.2 + Math.random() * 0.3,
+          size: 9 + Math.floor(Math.random() * 6),          // было 10 + 8
+          alpha: 0.05 + Math.random() * 0.12,                // было 0.2 + 0.3
           flicker: Math.random() * Math.PI * 2,
           flickerSpeed: 0.01 + Math.random() * 0.02
         };
@@ -890,7 +890,7 @@
 
       function tick() {
         // шлейф (без clearRect)
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';                 // было 0.2
         ctx.fillRect(0, 0, W, H);
 
         for (const p of particles) {
@@ -898,7 +898,7 @@
           p.x += p.vx;
           p.flicker += p.flickerSpeed;
 
-          const a = p.alpha * (0.7 + 0.3 * Math.sin(p.flicker));
+          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));   // было 0.7 + 0.3
 
           ctx.font = `${p.size}px 'Courier New', monospace`;
           ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
@@ -908,8 +908,8 @@
             p.y = -20;
             p.x = Math.random() * W;
             p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            p.alpha = 0.2 + Math.random() * 0.3;
-            p.size = 10 + Math.floor(Math.random() * 8);
+            p.alpha = 0.05 + Math.random() * 0.12;              // было 0.2 + 0.3
+            p.size = 9 + Math.floor(Math.random() * 6);         // было 10 + 8
           }
           if (p.x < -20) p.x = W + 20;
           if (p.x > W + 20) p.x = -20;
