@@ -710,10 +710,9 @@
       <div class="me-name" id="meName">...</div>
     </div>
     <div class="topbar-actions">
-      <button id="btnMyCard">card</button>
-      <button id="btnDevices">dev</button>
-      <button id="btnAccounts">acc</button>
-      <button id="btnAddContact" class="primary">+ add</button>
+      <button id="btnMyCard">Мой QR</button>
+      <button id="btnAccounts">Мои аккаунты</button>
+      <button id="btnAddContact" class="primary">Добавить контакт</button>
     </div>
   </div>
 
@@ -782,42 +781,43 @@
   <!-- МОДАЛКА: АККАУНТЫ -->
   <div class="modal" id="modalAccounts">
     <div class="modal-card">
-      <h2>Аккаунты</h2>
+      <h2>Мои аккаунты</h2>
       <p class="hint">Переключение между вашими локальными аккаунтами.</p>
 
       <div id="accountsList" style="margin-bottom: 10px;"></div>
 
       <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
+      <button id="btnOpenDevices" class="secondary">Перенести аккаунт на другое устройство</button>
       <button id="btnLogout" class="secondary" style="color:#f66; border-color:#4a2a2a;">Выйти из текущего
         аккаунта</button>
       <button id="btnCloseAccounts" class="secondary">Закрыть</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: УСТРОЙСТВА -->
-  <div class="modal" id="modalDevices">
-    <div class="modal-card">
-      <h2>Устройства</h2>
-      <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
+    <!-- МОДАЛКА: УСТРОЙСТВА -->
+    <div class="modal" id="modalDevices">
+      <div class="modal-card">
+        <h2>Перенос на другое устройство</h2>
+        <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
 
-      <div class="warning">
-        ⚠️ QR/код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
+        <div class="warning">
+          ⚠️ QR-код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
+        </div>
+
+        <label>Временный пароль для передачи</label>
+        <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
+
+        <button id="btnGenerateExport">Сгенерировать QR</button>
+
+        <div id="exportResult" style="display:none; margin-top: 10px;">
+          <div class="qr-box" id="exportQrBox"></div>
+          <textarea id="exportJson" readonly></textarea>
+          <button id="btnCopyExport" class="secondary">Скопировать код</button>
+        </div>
+
+        <button id="btnCloseDevices" class="secondary">Закрыть</button>
       </div>
-
-      <label>Временный пароль для передачи</label>
-      <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
-
-      <button id="btnGenerateExport">Сгенерировать код</button>
-
-      <div id="exportResult" style="display:none; margin-top: 10px;">
-        <div class="qr-box" id="exportQrBox"></div>
-        <textarea id="exportJson" readonly></textarea>
-        <button id="btnCopyExport" class="secondary">Скопировать код</button>
-      </div>
-
-      <button id="btnCloseDevices" class="secondary">Закрыть</button>
     </div>
-  </div>
 
   <script type="module" src="messenger.js"></script>
 </body>

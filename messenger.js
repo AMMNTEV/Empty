@@ -1025,7 +1025,11 @@ function bindUI() {
   document.getElementById('btnLogout').addEventListener('click', handleLogout);
   document.getElementById('btnAddAnotherAccount').addEventListener('click', handleAddAnotherAccount);
 
-  document.getElementById('btnDevices').addEventListener('click', openDevicesModal);
+  document.getElementById('btnOpenDevices').addEventListener('click', () => {
+    closeAccountsModal();
+    openDevicesModal();
+  });
+
   document.getElementById('btnCloseDevices').addEventListener('click', closeDevicesModal);
   document.getElementById('btnGenerateExport').addEventListener('click', generateExport);
   document.getElementById('btnCopyExport').addEventListener('click', copyExport);
