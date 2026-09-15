@@ -33,6 +33,7 @@
     .account-fp { font-size: 11px; color: #999; font-family: monospace; }
     .account-delete { background: transparent; border: none; color: #999; cursor: pointer; font-size: 16px; }
     .account-delete:hover { color: #a00; }
+    #importScannerSuccess { transition: opacity 0.15s ease; }
   </style>
 </head>
 <body>
@@ -80,25 +81,29 @@
   </div>
 
   <!-- Импорт -->
-    <!-- Импорт -->
   <div class="card screen" id="screen-import">
     <h1>Импорт аккаунта</h1>
-    <p class="subtitle">Отсканируйте QR со старого устройства или вставьте данные вручную.</p>
+    <p class="subtitle">Отсканируйте QR со старого устройства.</p>
 
     <div class="warning">
       ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
     </div>
 
-    <button id="btnScanImport" style="width:100%;">📷 Сканировать QR</button>
-
-    <div id="importScannerWrap" style="display:none; margin-top:10px;">
-      <video id="importScannerVideo" playsinline style="width:100%; background:#000; aspect-ratio:1/1; object-fit:cover;"></video>
-      <button class="secondary" id="btnStopImportScan">Остановить сканер</button>
+    <div id="importScannerWrap" style="margin-top:10px;">
+      <div id="importScannerBox" style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden;">
+        <video id="importScannerVideo" playsinline
+               style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+        <div id="importScannerSuccess"
+             style="display:none; position:absolute; inset:0; background:#4caf50;
+                    align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#fff"
+               stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+      </div>
       <div class="error" id="importScanError"></div>
     </div>
-
-    <label>Данные экспорта (JSON)</label>
-    <textarea id="importJson" placeholder='{"version":1,"type":"identity-export",...}'></textarea>
 
     <label>Пароль экспорта</label>
     <input type="password" id="importPassword" placeholder="Временный пароль">
@@ -109,7 +114,7 @@
     <label>Повторите новый пароль</label>
     <input type="password" id="importNewPassword2" placeholder="Ещё раз">
 
-    <button id="importBtn">Импортировать</button>
+    <button id="importBtn" disabled>Импортировать</button>
     <button class="secondary" id="linkBackFromImport">← Назад</button>
     <div class="error" id="importError"></div>
   </div>

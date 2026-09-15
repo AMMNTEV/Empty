@@ -366,7 +366,9 @@ async function showMyCard() {
 async function startScanner() {
   const video = document.getElementById('scannerVideo');
   const errEl = document.getElementById('scanError');
+  const successEl = document.getElementById('scannerSuccess');
   errEl.textContent = '';
+  successEl.style.display = 'none';
 
   if (scannerStream) return;
 
@@ -393,6 +395,17 @@ async function startScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
+            // Показываем зелёную галочку
+            successEl.style.display = 'flex';
+
+            // Останавливаем поток
+            if (scannerStream) {
+              scannerStream.getTracks().forEach(t => t.stop());
+              scannerStream = null;
+            }
+            video.srcObject = null;
+
+            // Обрабатываем QR
             handleScannedQR(code.data);
             return;
           }
@@ -415,18 +428,28 @@ function stopScanner() {
   }
   const video = document.getElementById('scannerVideo');
   if (video) video.srcObject = null;
+
+  const successEl = document.getElementById('scannerSuccess');
+  if (successEl) successEl.style.display = 'none';
 }
 
 async function handleScannedQR(text) {
-  stopScanner();
   try {
     const card = JSON.parse(text);
     await addContactFromCard(card);
-    closeAddContactModal();
-    setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
+
+    // Даём пользователю увидеть зелёную галочку
+    setTimeout(() => {
+      stopScanner();
+      closeAddContactModal();
+      setTimeout(() => alert(`Контакт "${card.nickname}" добавлен`), 100);
+    }, 600);
   } catch (e) {
     console.error('[SCAN]', e);
     document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
+    stopScanner();
+    // Если ошибка — перезапускаем сканер
+    setTimeout(() => startScanner(), 500);
   }
 }
 
@@ -466,34 +489,15 @@ async function addContactFromCard(card) {
   }
 }
 
-async function addContactFromJson(json) {
-  const errEl = document.getElementById('addError');
-  errEl.textContent = '';
-  let card;
-  try {
-    card = JSON.parse(json.trim());
-  } catch {
-    errEl.textContent = 'Некорректный JSON';
-    return;
-  }
-  try {
-    await addContactFromCard(card);
-    closeAddContactModal();
-    document.getElementById('addCardJson').value = '';
-  } catch (e) {
-    errEl.textContent = e.message;
-  }
-}
 
 
 // ============================================
 // МОДАЛКА ДОБАВЛЕНИЯ
 // ============================================
 function openAddContactModal() {
-  document.getElementById('addError').textContent = '';
   document.getElementById('scanError').textContent = '';
   document.getElementById('modalAddContact').classList.add('active');
-  switchTab('scan');
+  startScanner();
 }
 
 function closeAddContactModal() {
@@ -502,19 +506,7 @@ function closeAddContactModal() {
 }
 
 function switchTab(tabName) {
-  document.querySelectorAll('#modalAddContact .tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tabName);
-  });
-  document.querySelectorAll('#modalAddContact .tab-panel').forEach(p => {
-    p.classList.remove('active');
-  });
-  if (tabName === 'scan') {
-    document.getElementById('tabScan').classList.add('active');
-    startScanner();
-  } else {
-    document.getElementById('tabManual').classList.add('active');
-    stopScanner();
-  }
+
 }
 
 
@@ -1041,14 +1033,7 @@ function bindUI() {
   document.getElementById('btnCopyExport').addEventListener('click', copyExport);
 
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
-  document.getElementById('btnStopScan').addEventListener('click', stopScanner);
-  document.getElementById('btnSaveContact').addEventListener('click', () => {
-    addContactFromJson(document.getElementById('addCardJson').value);
-  });
 
-  document.querySelectorAll('#modalAddContact .tab').forEach(t => {
-    t.addEventListener('click', () => switchTab(t.dataset.tab));
-  });
 
   document.getElementById('btnCopyCard').addEventListener('click', async () => {
     const ta = document.getElementById('myCardJson');

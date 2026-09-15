@@ -487,28 +487,26 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
+   <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <h2>Добавить контакт</h2>
+      <p class="hint">Наведите камеру на QR-код собеседника.</p>
 
-      <div class="tabs">
-        <div class="tab active" data-tab="scan">Сканировать</div>
-        <div class="tab" data-tab="manual">Вручную</div>
+      <div id="scannerBox" style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px;">
+        <video id="scannerVideo" playsinline
+               style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+        <div id="scannerSuccess"
+             style="display:none; position:absolute; inset:0; background:#4caf50;
+                    align-items:center; justify-content:center;">
+          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#fff"
+               stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
       </div>
 
-      <div class="tab-panel active" id="tabScan">
-        <video id="scannerVideo" playsinline></video>
-        <button id="btnStopScan" class="secondary">Остановить</button>
-        <div class="error-text" id="scanError"></div>
-      </div>
-
-      <div class="tab-panel" id="tabManual">
-        <p class="hint">Вставьте JSON-карточку, которую вам прислали.</p>
-        <textarea id="addCardJson" placeholder='{"version":1,"x25519":"...","nickname":"..."}'></textarea>
-        <button id="btnSaveContact">Добавить</button>
-        <div class="error-text" id="addError"></div>
-      </div>
+      <div class="error-text" id="scanError"></div>
 
       <button id="btnCloseAddContact" class="secondary">Закрыть</button>
     </div>

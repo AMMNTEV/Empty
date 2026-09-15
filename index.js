@@ -10,7 +10,8 @@ import {
   identityFilePath, deleteAccountFile
 } from './crypto.js';
 
-let selectedFingerprint = null;   // для экрана разблокировки
+let selectedFingerprint = null;  
+let scannedImportJson = null;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -185,15 +186,17 @@ async function handleUnlock() {
 
 // ---------- Импорт ----------
 async function handleImport() {
-  const json = document.getElementById('importJson').value.trim();
-  const exportPassword = document.getElementById('importPassword').value;
-  const newPassword = document.getElementById('importNewPassword').value;
-  const newPassword2 = document.getElementById('importNewPassword2').value;
   const errEl = document.getElementById('importError');
   const btn = document.getElementById('importBtn');
 
+  // JSON берём из скрытой переменной, а не из textarea
+  const json = scannedImportJson;
+  const exportPassword = document.getElementById('importPassword').value;
+  const newPassword = document.getElementById('importNewPassword').value;
+  const newPassword2 = document.getElementById('importNewPassword2').value;
+
   errEl.textContent = '';
-  if (!json) { errEl.textContent = 'Вставьте данные экспорта'; return; }
+  if (!json) { errEl.textContent = 'Сначала отсканируйте QR'; return; }
   if (!exportPassword) { errEl.textContent = 'Введите пароль экспорта'; return; }
   if (newPassword.length < 6) { errEl.textContent = 'Новый пароль минимум 6 символов'; return; }
   if (newPassword !== newPassword2) { errEl.textContent = 'Новые пароли не совпадают'; return; }
@@ -250,8 +253,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     showScreen('screen-create');
   });
   document.getElementById('btnImportAccount').addEventListener('click', () => {
-    showScreen('screen-import');
-  });
+  showScreen('screen-import');
+  // Автоматически запускаем сканер
+  setTimeout(() => startImportScanner(), 100);
+});
   document.getElementById('linkBackFromCreate').addEventListener('click', async () => {
     await renderAccountsList();
     showScreen('screen-accounts');
@@ -262,17 +267,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     showScreen('screen-accounts');
   });
     document.getElementById('linkBackFromImport').addEventListener('click', async () => {
-    stopImportScanner();
-    await renderAccountsList();
-    showScreen('screen-accounts');
-  });
+  stopImportScanner();
+  await renderAccountsList();
+  showScreen('screen-accounts');
+});
 
   // Enter на поле пароля в экране разблокировки
   document.getElementById('unlockPassword').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleUnlock();
   });
-    document.getElementById('btnScanImport').addEventListener('click', startImportScanner);
-  document.getElementById('btnStopImportScan').addEventListener('click', stopImportScanner);
 
   // Стартовый экран
   const data = await listAccounts();
@@ -291,11 +294,11 @@ let importScannerStream = null;
 let importScannerRAF = null;
 
 async function startImportScanner() {
-  const wrap = document.getElementById('importScannerWrap');
   const video = document.getElementById('importScannerVideo');
   const errEl = document.getElementById('importScanError');
+  const successEl = document.getElementById('importScannerSuccess');
   errEl.textContent = '';
-  wrap.style.display = 'block';
+  successEl.style.display = 'none';
 
   if (importScannerStream) return;
 
@@ -322,8 +325,20 @@ async function startImportScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            document.getElementById('importJson').value = code.data;
-            stopImportScanner();
+            scannedImportJson = code.data;
+
+            // Показываем зелёную галочку поверх видео
+            successEl.style.display = 'flex';
+
+            // Останавливаем видео, но не убираем wrap
+            if (importScannerStream) {
+              importScannerStream.getTracks().forEach(t => t.stop());
+              importScannerStream = null;
+            }
+            video.srcObject = null;
+
+            // Активируем кнопку «Импортировать»
+            document.getElementById('importBtn').disabled = false;
             return;
           }
         }
@@ -345,6 +360,11 @@ function stopImportScanner() {
   }
   const video = document.getElementById('importScannerVideo');
   if (video) video.srcObject = null;
-  const wrap = document.getElementById('importScannerWrap');
-  if (wrap) wrap.style.display = 'none';
+
+  const successEl = document.getElementById('importScannerSuccess');
+  if (successEl) successEl.style.display = 'none';
+
+  scannedImportJson = null;
+  const btn = document.getElementById('importBtn');
+  if (btn) btn.disabled = true;
 }
