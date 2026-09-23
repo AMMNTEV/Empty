@@ -1,0 +1,46 @@
+{
+    "name": "Empty — E2EE Messenger",
+    "short_name": "Empty",
+    "description": "Временный веб-мессенджер без регистрации. E2EE, QR-контакты, автоудаление чатов через 24 часа.",
+    "lang": "ru",
+    "dir": "ltr",
+    "start_url": "./index.html",
+    "scope": "./",
+    "id": "./",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "categories": [
+        "social",
+        "communication",
+        "security"
+    ],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "icons/icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
