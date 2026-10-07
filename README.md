@@ -1,108 +1,108 @@
 # Empty
 
-**Временный веб-мессенджер без регистрации.**
+**Temporary web messenger with no registration.**
 
-Никаких email, телефонов и паролей на сервере. Только ты, собеседник и шифротекст.
+No emails, phone numbers, or passwords on the server. Just you, the person you're talking to, and ciphertext.
 
-**Попробовать →** [Empty](https://ammntev.github.io/Empty)
+**Try it →** [Empty](https://ammntev.github.io/Empty)
 
-<img width="1919" height="922" alt="изображение" src="https://github.com/user-attachments/assets/e3b54034-7ca5-44f7-a3a1-f7ab0d3e8459" />
+<img width="1919" height="922" alt="image" src="https://github.com/user-attachments/assets/e3b54034-7ca5-44f7-a3a1-f7ab0d3e8459" />
 
 
 ---
 
-## Что это
+## What It Is
 
-Empty — децентрализованный E2EE-мессенджер, который работает прямо в браузере. Все ключи генерируются локально, вся история хранится на устройстве. Сервер используется только как «почтовый ящик» для передачи зашифрованных сообщений — он не видит ни текста, ни того, кто с кем переписывается.
+Empty is a decentralized E2EE messenger that runs right in your browser. All keys are generated locally, all history is stored on the device. The server is used only as a "mailbox" for delivering encrypted messages — it sees neither the text nor who is talking to whom.
 
-## Возможности
+## Features
 
--  **E2EE** — AES-GCM через общий ключ X25519, подписи Ed25519
--  **QR-контакты** — обмен карточками через QR-код, без поиска по нику
--  **Автоудаление** — чат живёт 24 часа с последнего сообщения
--  **Мультиаккаунт** — несколько личностей на одном устройстве
--  **Импорт/экспорт** — перенос аккаунта на другое устройство через QR + временный пароль
--  **Локальное хранение** — OPFS, зашифровано паролем
+-  **E2EE** — AES-GCM via a shared X25519 key, Ed25519 signatures
+-  **QR contacts** — exchange cards via QR code, no searching by nickname
+-  **Auto-delete** — a chat lives for 24 hours from the last message
+-  **Multi-account** — several identities on one device
+-  **Import/export** — transfer an account to another device via QR + temporary password
+-  **Local storage** — OPFS, encrypted with a password
 
-## Безопасность
+## Security
 
-### Алгоритмы
+### Algorithms
 
-| Компонент | Алгоритм |
+| Component | Algorithm |
 |---|---|
-| Обмен ключами | X25519 |
-| Подписи | Ed25519 |
-| Шифрование сообщений | AES-GCM 256 |
-| Шифрование identity-файла | AES-GCM 256 + PBKDF2 (100 000 итераций) |
-| Деривация общего ключа | X25519 + HKDF-SHA-256 |
+| Key exchange | X25519 |
+| Signatures | Ed25519 |
+| Message encryption | AES-GCM 256 |
+| Identity file encryption | AES-GCM 256 + PBKDF2 (100,000 iterations) |
+| Shared key derivation | X25519 + HKDF-SHA-256 |
 
-### Что гарантируется
+### What Is Guaranteed
 
-- **Сообщения шифруются на клиенте** до отправки. Сервер видит только шифротекст.
-- **Подделать сообщение от имени контакта невозможно** — Ed25519-подпись проверяется на клиенте получателя.
-- **Прочитать чужую переписку невозможно** — нужен приватный X25519-ключ получателя.
-- **Подобрать ключ невозможно** — пространство 2²⁵⁶. Перебор при 10⁹ ключей/сек займёт ~10⁶⁰ лет. Даже с квантовым компьютером (√N = 2¹²⁸) — астрономически долго.
+- **Messages are encrypted on the client** before being sent. The server sees only ciphertext.
+- **Forging a message on behalf of a contact is impossible** — the Ed25519 signature is verified on the recipient's client.
+- **Reading someone else's conversation is impossible** — the recipient's private X25519 key is required.
+- **Brute-forcing the key is impossible** — the key space is 2²⁵⁶. Brute-forcing at 10⁹ keys/sec would take ~10⁶⁰ years. Even with a quantum computer (√N = 2¹²⁸) — astronomically long.
 
-## Стек
+## Stack
 
-- **Vanilla JS** + ES-модули, без сборки
+- **Vanilla JS** + ES modules, no build step
 - **@noble/curves** — X25519 + Ed25519
 - **WebCrypto** — AES-GCM, PBKDF2, HKDF, SHA-256
-- **Firebase Firestore** — relay для сообщений (только шифротекст)
-- **OPFS** — локальное хранение данных
-- **qrcode-generator** + **jsQR** — генерация и чтение QR
+- **Firebase Firestore** — relay for messages (ciphertext only)
+- **OPFS** — local data storage
+- **qrcode-generator** + **jsQR** — QR generation and reading
 
-## Как пользоваться
+## How to Use
 
-### Создание аккаунта
+### Creating an Account
 
-1. Открой [Empty](https://ammntev.github.io/Empty).
-2. Введи ник и пароль (минимум 6 символов).
-3. Пароль используется только для шифрования локального файла identity. На сервер он не отправляется.
-4. Сразу попадёшь в мессенджер.
+1. Open [Empty](https://ammntev.github.io/Empty).
+2. Enter a nickname and password (at least 6 characters).
+3. The password is used only to encrypt the local identity file. It is never sent to the server.
+4. You land in the messenger right away.
 
-### Добавление контакта
+### Adding a Contact
 
-1. Один участник открывает **«Мой QR»**.
-2. Другой — **«Добавить контакт»** и наводит камеру.
-3. Контакт появляется в списке слева.
+1. One participant opens **"My QR"**.
+2. The other opens **"Add Contact"** and points the camera.
+3. The contact appears in the list on the left.
 
-### Общение
+### Chatting
 
-1. Кликни по контакту — откроется чат.
-2. Напиши сообщение → **«send»** или Enter (на десктопе).
-3. Чат живёт 24 часа с последнего сообщения.
-4. **«Завершить»** — удаляет чат у обоих сразу.
+1. Click on a contact — the chat opens.
+2. Type a message → **"send"** or Enter (on desktop).
+3. The chat lives for 24 hours from the last message.
+4. **"End Chat"** — deletes the chat for both sides at once.
 
-### Перенос на другое устройство
+### Transferring to Another Device
 
-1. Старое устройство: **«Мои аккаунты» → «Перенести аккаунт»**.
-2. Придумай временный пароль → **«Сгенерировать QR»**.
-3. Новое устройство: **«Импорт» → отсканируй QR** → введи временный пароль и новый постоянный.
-4. Аккаунт перенесён.
+1. Old device: **"My Accounts" → "Transfer Account"**.
+2. Create a temporary password → **"Generate QR"**.
+3. New device: **"Import" → scan the QR** → enter the temporary password and a new permanent one.
+4. The account is transferred.
 
-## Модель угроз
+## Threat Model
 
-**Empty защищает от:**
+**Empty protects against:**
 
-- ✅ Перехвата трафика (E2EE)
-- ✅ Чтения сообщений сервером
-- ✅ Подделки сообщений
-- ✅ Компрометации пароля при утечке identity-файла (PBKDF2 + AES-GCM)
-- ✅ Массового спама (PoW + TTL)
+- ✅ Traffic interception (E2EE)
+- ✅ The server reading messages
+- ✅ Message forgery
+- ✅ Password compromise in case of an identity-file leak (PBKDF2 + AES-GCM)
+- ✅ Mass spam (PoW + TTL)
 
-**Empty не защищает от:**
+**Empty does not protect against:**
 
-- ❌ Компрометации устройства (малварь, физический доступ)
-- ❌ Слабого пароля (PBKDF2 даёт лишь временную защиту)
-- ❌ Метаданных
-- ❌ Отсутствия forward secrecy (компрометация ключа раскрывает всю переписку)
-- ❌ Потери данных при очистке браузера
+- ❌ Device compromise (malware, physical access)
+- ❌ Weak passwords (PBKDF2 only gives temporary protection)
+- ❌ Metadata
+- ❌ Lack of forward secrecy (key compromise reveals the entire conversation)
+- ❌ Data loss when clearing the browser
 
-## Лицензия
+## License
 
 MIT
 
-## Дисклеймер
+## Disclaimer
 
-Это учебный/экспериментальный проект. Не используйте его для передачи действительно важных данных без предварительного аудита кода. Криптография реализована на стандартных примитивах, но не проходила профессиональный security-аудит.
+This is a learning/experimental project. Do not use it to transmit truly important data without a prior code audit. The cryptography is built on standard primitives but has not undergone a professional security audit.
