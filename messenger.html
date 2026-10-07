@@ -677,6 +677,87 @@
       display: inline-block !important;
     }
 
+    /* ============ FAB ============ */
+    .fab {
+      position: fixed;
+      right: 16px;
+      bottom: calc(16px + env(safe-area-inset-bottom));
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(10, 26, 10, 0.95);
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 500;
+      padding: 0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      transition: transform 0.15s, background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+
+    .fab:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+      transform: scale(1.05);
+    }
+
+    .fab:active {
+      transform: scale(0.96);
+    }
+
+    .fab svg {
+      width: 26px;
+      height: 26px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: block;
+    }
+
+    .fab.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.8);
+    }
+
+    /* ============ СЕГМЕНТИРОВАННЫЙ ПЕРЕКЛЮЧАТЕЛЬ ============ */
+    .segmented {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border: 1px solid #2a2a2a;
+      background: #050505;
+    }
+
+    .seg-btn {
+      flex: 1;
+      padding: 8px;
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .seg-btn:hover {
+      color: #fff;
+    }
+
+    .seg-btn.active {
+      background: #0a1a0a;
+      color: #6f6;
+    }
+
     /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
     @media (max-width: 768px) {
       .sidebar {
@@ -719,6 +800,13 @@
         padding: 4px 8px;
         font-size: 10px;
       }
+
+      .fab {
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        width: 52px;
+        height: 52px;
+      }
     }
 
     @media (max-width: 380px) {
@@ -751,9 +839,7 @@
       <div class="me-name" id="meName">...</div>
     </div>
     <div class="topbar-actions">
-      <button id="btnMyCard">Мой QR</button>
       <button id="btnAccounts">Мои аккаунты</button>
-      <button id="btnAddContact" class="primary">Добавить контакт</button>
     </div>
   </div>
 
@@ -790,35 +876,46 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА: МОЯ КАРТОЧКА -->
-  <div class="modal" id="modalMyCard">
-    <div class="modal-card">
-      <h2>Моя карточка</h2>
-      <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
-      <div class="qr-box" id="qrBox"></div>
-      <button id="btnCloseMyCard" class="secondary">Закрыть</button>
-    </div>
-  </div>
+  <!-- FAB: ДОБАВИТЬ / МОЙ QR -->
+  <button class="fab" id="fabAdd" aria-label="Добавить контакт или показать QR">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
 
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
+  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ / МОЙ QR -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
-      <h2>Добавить контакт</h2>
-      <p class="hint">Наведите камеру на QR-код собеседника.</p>
-
-      <div id="scannerBox"
-        style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px; border:1px solid #2a2a2a;">
-        <video id="scannerVideo" playsinline style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-        <div id="scannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
-                    align-items:center; justify-content:center; border:1px solid #6f6;">
-          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
+      <div class="segmented">
+        <button id="tabScan" class="seg-btn active" type="button">Сканер</button>
+        <button id="tabMyQr" class="seg-btn" type="button">Мой QR</button>
       </div>
 
-      <div class="error-text" id="scanError"></div>
+      <!-- Панель: Сканер -->
+      <div id="paneScan">
+        <p class="hint">Наведите камеру на QR-код собеседника.</p>
+
+        <div id="scannerBox"
+          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px; border:1px solid #2a2a2a;">
+          <video id="scannerVideo" playsinline style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+          <div id="scannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                      align-items:center; justify-content:center; border:1px solid #6f6;">
+            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="error-text" id="scanError"></div>
+      </div>
+
+      <!-- Панель: Мой QR -->
+      <div id="paneMyQr" style="display:none;">
+        <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
+        <div class="qr-box" id="qrBox"></div>
+      </div>
 
       <button id="btnCloseAddContact" class="secondary">Закрыть</button>
     </div>

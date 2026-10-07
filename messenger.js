@@ -343,7 +343,7 @@ function renderContacts() {
   const keys = Object.keys(contacts);
 
   if (keys.length === 0) {
-    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «Добавить».</div>';
+    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «+» внизу справа.</div>';
     return;
   }
 
@@ -377,7 +377,7 @@ function escapeHtml(s) {
 
 
 // ============================================
-// QR: МОЯ КАРТОЧКА
+// QR: МОЯ КАРТОЧКА (только рендер, без открытия модалки)
 // ============================================
 async function showMyCard() {
   const card = buildMyCard();
@@ -421,8 +421,6 @@ async function showMyCard() {
     console.error('[QR]', e);
     qrBox.innerHTML = '<div style="color:#666;font-size:11px;padding:10px;">QR недоступен</div>';
   }
-
-  document.getElementById('modalMyCard').classList.add('active');
 }
 
 // ============================================
@@ -560,12 +558,29 @@ async function addContactFromCard(card) {
 
 
 // ============================================
-// МОДАЛКА ДОБАВЛЕНИЯ
+// МОДАЛКА ДОБАВЛЕНИЯ / МОЙ QR
 // ============================================
+function setAddContactTab(tab) {
+  const isScan = tab === 'scan';
+
+  document.getElementById('tabScan').classList.toggle('active', isScan);
+  document.getElementById('tabMyQr').classList.toggle('active', !isScan);
+
+  document.getElementById('paneScan').style.display = isScan ? 'block' : 'none';
+  document.getElementById('paneMyQr').style.display = isScan ? 'none' : 'block';
+
+  if (isScan) {
+    document.getElementById('scanError').textContent = '';
+    startScanner();
+  } else {
+    stopScanner();
+    showMyCard();
+  }
+}
+
 function openAddContactModal() {
-  document.getElementById('scanError').textContent = '';
   document.getElementById('modalAddContact').classList.add('active');
-  startScanner();
+  setAddContactTab('scan');
 }
 
 function closeAddContactModal() {
@@ -573,8 +588,15 @@ function closeAddContactModal() {
   document.getElementById('modalAddContact').classList.remove('active');
 }
 
-function switchTab(tabName) {
+// ============================================
+// ВИДИМОСТЬ FAB
+// ============================================
+function updateFabVisibility() {
+  const fab = document.getElementById('fabAdd');
+  if (!fab) return;
 
+  const chatOpen = !!activeChat;
+  fab.classList.toggle('hidden', chatOpen);
 }
 
 
@@ -619,6 +641,7 @@ function renderChat() {
     inputArea.classList.remove('active');
     messages.innerHTML = '';
     document.getElementById('chatTimer').textContent = '';
+    updateFabVisibility();
     return;
   }
 
@@ -635,6 +658,7 @@ function renderChat() {
   if (!history) {
     messages.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">Нет сообщений. Напишите первым.</div>';
     document.getElementById('chatTimer').textContent = '';
+    updateFabVisibility();
     return;
   }
 
@@ -648,6 +672,8 @@ function renderChat() {
   requestAnimationFrame(() => {
     messages.scrollTop = messages.scrollHeight;
   });
+
+  updateFabVisibility();
 }
 
 // Мгновенное добавление одного сообщения в конец (без полной перерисовки)
@@ -1084,12 +1110,10 @@ async function listenIncoming() {
 // UI
 // ============================================
 function bindUI() {
-  document.getElementById('btnMyCard').addEventListener('click', showMyCard);
-  document.getElementById('btnAddContact').addEventListener('click', openAddContactModal);
+  document.getElementById('fabAdd').addEventListener('click', openAddContactModal);
+  document.getElementById('tabScan').addEventListener('click', () => setAddContactTab('scan'));
+  document.getElementById('tabMyQr').addEventListener('click', () => setAddContactTab('myqr'));
 
-  document.getElementById('btnCloseMyCard').addEventListener('click', () => {
-    document.getElementById('modalMyCard').classList.remove('active');
-  });
   document.getElementById('btnAccounts').addEventListener('click', openAccountsModal);
   document.getElementById('btnCloseAccounts').addEventListener('click', closeAccountsModal);
   document.getElementById('btnLogout').addEventListener('click', handleLogout);
@@ -1129,6 +1153,10 @@ function bindUI() {
     );
     if (ok) endChat();
   });
+
+  window.addEventListener('resize', updateFabVisibility);
+
+  updateFabVisibility();
 }
 
 
