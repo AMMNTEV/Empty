@@ -6,7 +6,8 @@ No emails, phone numbers, or passwords on the server. Just you, the person you'r
 
 **Try it →** [Empty](https://ammntev.github.io/Empty)
 
-<img width="1919" height="991" alt="image" src="https://github.com/user-attachments/assets/8e6129f2-e0ac-41da-8478-6b41b86de130" />
+<img width="1919" height="991" alt="image" src="https://github.com/user-attachments/assets/9973f5c7-ed47-4302-98ac-f894c99c9731" />
+
 
 ---
 
