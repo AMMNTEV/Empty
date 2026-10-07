@@ -382,6 +382,34 @@
     }
 
 
+        /* ============ ССЫЛКИ И ВРЕМЯ В СООБЩЕНИЯХ ============ */
+    .msg a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-all;
+    }
+
+    .msg a:hover {
+      text-decoration: underline;
+    }
+
+    .msg .msg-time {
+      display: inline-block;
+      float: right;
+      margin-left: 8px;
+      margin-top: 4px;
+      font-size: 10px;
+      line-height: 1;
+      color: #555;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .msg.me .msg-time {
+      color: #4a6a4a;
+    }
+
     /* ============ INPUT AREA ============ */
     .input-area {
       background: rgba(10, 10, 10, 0.7);

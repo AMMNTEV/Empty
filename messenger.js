@@ -375,6 +375,26 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+// Превращает URL в кликабельные ссылки, экранируя HTML
+function linkifyAndEscape(text) {
+  const escaped = escapeHtml(text);
+  // http(s)://..., www...., и просто домены типа example.com/path
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+\.?[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+  return escaped.replace(urlRegex, (match) => {
+    let href = match;
+    if (!/^https?:\/\//i.test(href)) href = 'http://' + href;
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+  });
+}
+
+// Форматирует timestamp в HH:MM
+function formatTime(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 
 // ============================================
 // QR: MY CARD (render only, no modal opening)
@@ -666,7 +686,7 @@ function renderChat() {
 
   messages.innerHTML = msgs.map(m => {
     const cls = m.from === 'me' ? 'me' : 'other';
-    return `<div class="msg ${cls}">${escapeHtml(m.text)}</div>`;
+    return `<div class="msg ${cls}">${linkifyAndEscape(m.text)}<span class="msg-time">${formatTime(m.ts)}</span></div>`;
   }).join('');
 
   requestAnimationFrame(() => {
@@ -688,7 +708,7 @@ function appendMessage(msg) {
   }
 
   const cls = msg.from === 'me' ? 'me' : 'other';
-  const html = `<div class="msg ${cls}">${escapeHtml(msg.text)}</div>`;
+  const html = `<div class="msg ${cls}">${linkifyAndEscape(msg.text)}<span class="msg-time">${formatTime(msg.ts)}</span></div>`;
   messages.insertAdjacentHTML('beforeend', html);
 
   requestAnimationFrame(() => {
