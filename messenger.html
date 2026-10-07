@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Empty — Messenger</title>
 
   <!-- PWA -->
@@ -28,10 +28,14 @@
     html,
     body {
       height: 100%;
-      height: 100dvh;
       margin: 0;
       overflow: hidden;
       background: #000;
+    }
+
+    /* Visual viewport height — updated in JS when the keyboard opens */
+    body {
+      height: var(--vh, 100vh);
     }
 
     body {
@@ -382,7 +386,7 @@
     }
 
 
-        /* ============ ССЫЛКИ И ВРЕМЯ В СООБЩЕНИЯХ ============ */
+        /* ============ LINKS AND TIME IN MESSAGES ============ */
     .msg a {
       color: inherit;
       text-decoration: underline;
@@ -1097,6 +1101,30 @@
 
       init();
       tick();
+    })();
+  </script>
+
+  <!-- Visual viewport height fix for PWA + on-screen keyboard -->
+  <script>
+    (function () {
+      function updateVh() {
+        const vv = window.visualViewport;
+        const h = vv ? vv.height : window.innerHeight;
+        document.body.style.setProperty('--vh', h + 'px');
+      }
+
+      updateVh();
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateVh);
+        window.visualViewport.addEventListener('scroll', updateVh);
+      }
+      window.addEventListener('resize', updateVh);
+      window.addEventListener('orientationchange', updateVh);
+
+      // Catch keyboard show/hide transitions on mobile
+      window.addEventListener('focusin', updateVh);
+      window.addEventListener('focusout', () => setTimeout(updateVh, 100));
     })();
   </script>
 </body>
