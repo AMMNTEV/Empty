@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Empty — Вход</title>
+  <title>Empty — Sign In</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#f5f5f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Empty">
   <link rel="apple-touch-icon" href="icons/icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon.png">
@@ -26,26 +26,26 @@
     body {
       min-height: 100%;
       margin: 0;
-      background: #000;
+      background: #f0f0f0;
     }
 
     body {
-      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
-      color: #d0d0d0;
-      letter-spacing: 0.3px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #1a1a1a;
+      letter-spacing: -0.01em;
       overflow-x: hidden;
       overflow-y: auto;
     }
 
-        .about-text sup {
+    .about-text sup {
       font-size: 0.75em;
       vertical-align: super;
       line-height: 0;
     }
 
-        .about-text {
-      color: #b0b0b0;
-      font-size: 11px;
+    .about-text {
+      color: #666;
+      font-size: 13px;
       line-height: 1.5;
       margin-bottom: 12px;
     }
@@ -55,8 +55,8 @@
     }
 
     .about-text strong {
-      color: #6f6;
-      font-weight: bold;
+      color: #1a1a1a;
+      font-weight: 600;
     }
 
     .about-text ul {
@@ -71,13 +71,13 @@
     }
 
     .about-text li::before {
-      content: '> ';
-      color: #6f6;
+      content: '•';
+      color: #1a1a1a;
       position: absolute;
       left: -14px;
     }
 
-        .about-link {
+    .about-link {
       width: 100%;
       max-width: 400px;
       margin: 4px auto 0;
@@ -87,16 +87,16 @@
 
     .about-link button {
       margin-top: 0;
-      font-size: 10px;
-      padding: 6px 14px;
-      opacity: 0.7;
+      font-size: 12px;
+      padding: 8px 16px;
+      opacity: 0.6;
     }
 
     .about-link button:hover {
       opacity: 1;
     }
 
-    /* ============ ФОН ============ */
+    /* ============ BACKGROUND ============ */
     #asciiBg {
       position: fixed;
       inset: 0;
@@ -105,9 +105,10 @@
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
+      opacity: 0.4;
     }
 
-    /* ============ КОНТЕНТ ============ */
+    /* ============ CONTENT ============ */
     .page {
       position: relative;
       z-index: 1;
@@ -135,173 +136,170 @@
     }
 
     .logo {
-      font-family: 'Arial Black', 'Impact', 'Helvetica Neue', Arial, sans-serif;
-      font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 800;
       font-size: 64px;
       line-height: 0.85;
-      color: #e8e8e8;
+      color: #1a1a1a;
       text-align: center;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
       user-select: none;
       text-transform: uppercase;
-      transform: scaleY(1.12);
+      transform: scaleY(1.05);
       transform-origin: center;
       width: 100%;
       white-space: nowrap;
-      text-shadow:
-        0 0 1px rgba(232, 232, 232, 0.2),
-        0 0 24px rgba(200, 200, 200, 0.04);
     }
 
     .logo-sub {
-      color: #6f6;
-      font-family: 'Courier New', monospace;
-      font-size: 9px;
-      font-weight: bold;
-      letter-spacing: 4px;
+      color: #999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 2px;
       text-transform: uppercase;
       text-align: center;
       margin-top: 6px;
-      opacity: 0.65;
+      opacity: 0.8;
     }
 
     .card {
-      background: rgba(10, 10, 10, 0.92);
-      border: 1px solid #2a2a2a;
-      padding: 20px;
+      background: #ffffff;
+      border: 1px solid #e5e5e5;
+      border-radius: 16px;
+      padding: 24px;
       max-width: 400px;
       width: 100%;
       margin: 0 auto;
-      backdrop-filter: blur(4px);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       scroll-margin-top: 20px;
     }
 
     h1 {
-      color: #6f6;
-      font-size: 16px;
-      margin: 0 0 15px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
+      color: #1a1a1a;
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
     }
 
-    h1::before {
-      content: '[ ';
-      color: #444;
-    }
-
+    h1::before,
     h1::after {
-      content: ' ]';
-      color: #444;
+      content: none;
     }
 
     .subtitle {
-      color: #666;
-      font-size: 11px;
-      margin-bottom: 15px;
+      color: #999;
+      font-size: 13px;
+      margin-bottom: 18px;
     }
 
     label {
       display: block;
-      color: #888;
-      font-size: 11px;
-      margin: 10px 0 4px;
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      color: #666;
+      font-size: 12px;
+      margin: 14px 0 6px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: none;
     }
 
     input,
     textarea {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #2a2a2a;
-      background: #050505;
-      color: #d0d0d0;
-      border-radius: 0;
-      font-size: 13px;
+      padding: 10px 14px;
+      border: 1px solid #e0e0e0;
+      background: #fafafa;
+      color: #1a1a1a;
+      border-radius: 10px;
+      font-size: 14px;
       font-family: inherit;
       box-sizing: border-box;
       outline: none;
-      letter-spacing: 0.3px;
+      letter-spacing: -0.01em;
+      transition: border-color 0.15s, background 0.15s;
     }
 
     input:focus,
     textarea:focus {
-      border-color: #6f6;
+      border-color: #1a1a1a;
+      background: #ffffff;
     }
 
     input::placeholder,
     textarea::placeholder {
-      color: #333;
+      color: #bbb;
     }
 
     textarea {
       min-height: 100px;
-      font-size: 11px;
+      font-size: 13px;
       resize: vertical;
     }
 
     button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      background: transparent;
-      border: 1px solid #2a4a2a;
-      color: #6f6;
-      font-size: 12px;
-      font-weight: bold;
+      margin-top: 12px;
+      padding: 12px 20px;
+      background: #1a1a1a;
+      border: 1px solid #1a1a1a;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
       font-family: inherit;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.15s;
-      border-radius: 0;
+      letter-spacing: -0.01em;
+      transition: opacity 0.15s, background 0.15s;
+      border-radius: 10px;
     }
 
     button:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
+      opacity: 0.85;
     }
 
     button:disabled {
-      color: #333;
-      border-color: #1a1a1a;
+      background: #e0e0e0;
+      border-color: #e0e0e0;
+      color: #aaa;
       cursor: not-allowed;
     }
 
     button.secondary {
       background: transparent;
-      color: #888;
-      border-color: #2a2a2a;
-      font-weight: normal;
+      color: #666;
+      border: 1px solid #e0e0e0;
+      font-weight: 500;
       text-transform: none;
-      letter-spacing: 0.3px;
+      letter-spacing: -0.01em;
     }
 
     button.secondary:hover {
-      background: #111;
-      color: #fff;
-      border-color: #555;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      border-color: #ccc;
+      opacity: 1;
     }
 
     .error {
-      color: #f66;
-      font-size: 11px;
+      color: #e53e3e;
+      font-size: 12px;
       margin-top: 8px;
       min-height: 16px;
     }
 
     .hint {
-      color: #444;
-      font-size: 10px;
+      color: #aaa;
+      font-size: 12px;
     }
 
     .warning {
-      background: #1a0a0a;
-      border: 1px solid #4a2a2a;
-      padding: 8px;
-      font-size: 11px;
-      color: #c88;
-      margin: 10px 0;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      padding: 12px;
+      font-size: 13px;
+      color: #c53030;
+      margin: 12px 0;
+      border-radius: 10px;
+      line-height: 1.4;
     }
 
     .screen {
@@ -319,35 +317,38 @@
     .account-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px;
-      border: 1px solid #2a2a2a;
-      margin-bottom: 6px;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      margin-bottom: 8px;
       cursor: pointer;
-      background: #0a0a0a;
-      transition: all 0.1s;
+      background: #fafafa;
+      transition: all 0.15s;
     }
 
     .account-item:hover {
-      background: #111;
-      border-color: #555;
+      background: #f0f0f0;
+      border-color: #ddd;
     }
 
     .account-item.current {
-      border-color: #2a4a2a;
-      background: #0a1a0a;
+      border-color: #1a1a1a;
+      background: #f5f5f5;
     }
 
     .account-avatar {
-      width: 34px;
-      height: 34px;
-      background: transparent;
-      border: 1px solid #2a2a2a;
-      color: #6f6;
+      width: 40px;
+      height: 40px;
+      background: #1a1a1a;
+      border: none;
+      border-radius: 50%;
+      color: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: bold;
+      font-weight: 600;
+      font-size: 16px;
       flex-shrink: 0;
     }
 
@@ -357,17 +358,17 @@
     }
 
     .account-name {
-      font-weight: bold;
-      font-size: 13px;
-      color: #d0d0d0;
+      font-weight: 600;
+      font-size: 14px;
+      color: #1a1a1a;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .account-fp {
-      font-size: 10px;
-      color: #555;
+      font-size: 12px;
+      color: #999;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -376,42 +377,44 @@
     .account-delete {
       background: transparent;
       border: none;
-      color: #555;
+      color: #ccc;
       cursor: pointer;
-      padding: 4px 8px;
+      padding: 6px;
       margin: 0;
       font-family: inherit;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: color 0.15s;
+      border-radius: 50%;
     }
 
     .account-delete:hover {
-      color: #f66;
-      background: transparent;
+      color: #e53e3e;
+      background: #fff5f5;
       border: none;
+      opacity: 1;
     }
 
     .account-delete svg {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       display: block;
     }
 
-    /* ============ КНОПКИ В РЯД ============ */
+    /* ============ BUTTON ROW ============ */
     .actions {
       display: flex;
       gap: 8px;
-      margin-top: 10px;
+      margin-top: 12px;
     }
 
     .actions button {
       flex: 1;
       margin-top: 0;
-      padding: 8px 6px;
-      font-size: 10px;
-      letter-spacing: 0.3px;
+      padding: 10px 8px;
+      font-size: 13px;
+      letter-spacing: -0.01em;
       white-space: nowrap;
     }
 
@@ -419,18 +422,19 @@
       transition: opacity 0.15s ease;
     }
 
-    /* ============ МОДАЛКИ ============ */
+    /* ============ MODALS ============ */
     .modal {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.4);
       align-items: center;
       justify-content: center;
       padding: 16px;
       padding-top: calc(16px + env(safe-area-inset-top));
       padding-bottom: calc(16px + env(safe-area-inset-bottom));
       z-index: 1000;
+      backdrop-filter: blur(8px);
     }
 
     .modal.active {
@@ -438,89 +442,93 @@
     }
 
     .modal-card {
-      background: rgba(10, 10, 10, 0.95);
-      border: 1px solid #2a2a2a;
-      padding: 16px;
+      background: #ffffff;
+      border: none;
+      border-radius: 20px;
+      padding: 24px;
       max-width: 400px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      backdrop-filter: blur(6px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
     }
 
     .modal-card h2 {
-      color: #6f6;
-      margin: 0 0 10px;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      color: #1a1a1a;
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
 
-    .modal-card h2::before {
-      content: '[ ';
-    }
-
+    .modal-card h2::before,
     .modal-card h2::after {
-      content: ' ]';
+      content: none;
     }
 
     .modal-card .hint {
       color: #888;
-      font-size: 12px;
-      margin-bottom: 15px;
-      line-height: 1.4;
+      font-size: 13px;
+      margin-bottom: 18px;
+      line-height: 1.5;
       white-space: pre-line;
     }
 
     .modal-card button {
       width: 100%;
-      padding: 8px;
-      background: transparent;
-      color: #6f6;
-      border: 1px solid #2a4a2a;
+      padding: 12px;
+      background: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #1a1a1a;
+      border-radius: 10px;
       cursor: pointer;
-      margin-top: 8px;
-      font-size: 12px;
+      margin-top: 10px;
+      font-size: 14px;
+      font-weight: 600;
       font-family: inherit;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.15s;
+      letter-spacing: -0.01em;
+      transition: opacity 0.15s;
     }
 
     .modal-card button:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
+      opacity: 0.85;
     }
 
     .modal-card button.secondary {
       background: transparent;
-      color: #888;
-      border-color: #2a2a2a;
+      color: #666;
+      border: 1px solid #e0e0e0;
     }
 
     .modal-card button.secondary:hover {
-      background: #111;
-      color: #fff;
-      border-color: #555;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      border-color: #ccc;
+      opacity: 1;
     }
 
     @media (max-width: 480px) {
       .brand {
-        margin-bottom: 16px;
+        margin-bottom: 20px;
       }
 
       .logo {
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
       }
 
       .logo-sub {
-        font-size: 8px;
-        letter-spacing: 3px;
+        font-size: 10px;
+        letter-spacing: 1.5px;
       }
 
       .actions button {
-        font-size: 9px;
-        padding: 7px 4px;
+        font-size: 12px;
+        padding: 9px 4px;
+      }
+
+      .card {
+        padding: 20px;
+        border-radius: 14px;
       }
     }
   </style>
@@ -528,83 +536,83 @@
 
 <body>
 
-  <!-- ASCII-ФОН -->
+  <!-- ASCII BACKGROUND -->
   <canvas id="asciiBg"></canvas>
 
   <div class="page">
 
-    <!-- ЛОГОТИП -->
+    <!-- LOGO -->
     <div class="brand">
       <div class="logo" id="logoText">EMPTY</div>
       <div class="logo-sub">Encrypted · Local</div>
     </div>
 
-    <!-- Мои аккаунты -->
+    <!-- My Accounts -->
     <div class="card screen" id="screen-accounts">
-      <h1>Мои аккаунты</h1>
-      <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
+      <h1>My Accounts</h1>
+      <p class="subtitle">Select an account or add a new one.</p>
       <div class="account-list" id="accountList"></div>
       <div class="actions">
-        <button id="btnAddAccount">+ Добавить</button>
-        <button class="secondary" id="btnImportAccount">Импорт</button>
+        <button id="btnAddAccount">+ Add</button>
+        <button class="secondary" id="btnImportAccount">Import</button>
       </div>
     </div>
 
-        <!-- Кнопка "О приложении" -->
-        <div class="about-link">
-          <button class="secondary" id="btnAbout">О приложении</button>
-        </div>
+    <!-- About Button -->
+    <div class="about-link">
+      <button class="secondary" id="btnAbout">About</button>
+    </div>
 
-    <!-- Создание -->
+    <!-- Create -->
     <div class="card screen" id="screen-create">
-      <h1>Новый аккаунт</h1>
-      <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
+      <h1>New Account</h1>
+      <p class="subtitle">Create a local identity. No registration required.</p>
 
-      <label>Никнейм</label>
-      <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
-      <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
+      <label>Nickname</label>
+      <input type="text" id="nickname" placeholder="Alice" maxlength="24" autocomplete="off">
+      <div class="hint">Letters, numbers, spaces and _ - . only</div>
 
-      <label>Пароль (для шифрования ключей)</label>
-      <input type="password" id="password" placeholder="Минимум 6 символов">
+      <label>Password (for key encryption)</label>
+      <input type="password" id="password" placeholder="At least 6 characters">
 
-      <label>Повторите пароль</label>
-      <input type="password" id="password2" placeholder="Ещё раз">
+      <label>Confirm Password</label>
+      <input type="password" id="password2" placeholder="Repeat password">
 
-      <button id="createBtn">Создать</button>
-      <button class="secondary" id="linkBackFromCreate">← Назад</button>
+      <button id="createBtn">Create</button>
+      <button class="secondary" id="linkBackFromCreate">← Back</button>
       <div class="error" id="createError"></div>
     </div>
 
-    <!-- Вход -->
+    <!-- Unlock -->
     <div class="card screen" id="screen-unlock">
-      <h1>Вход в аккаунт</h1>
-      <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
+      <h1>Sign In</h1>
+      <p class="subtitle" id="unlockSubtitle">Enter your password</p>
 
-      <label>Пароль</label>
-      <input type="password" id="unlockPassword" placeholder="Ваш пароль">
+      <label>Password</label>
+      <input type="password" id="unlockPassword" placeholder="Your password">
 
-      <button id="unlockBtn">Войти</button>
-      <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
+      <button id="unlockBtn">Sign In</button>
+      <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
       <div class="error" id="unlockError"></div>
     </div>
 
-    <!-- Импорт -->
+    <!-- Import -->
     <div class="card screen" id="screen-import">
-      <h1>Импорт аккаунта</h1>
-      <p class="subtitle">Отсканируйте QR со старого устройства.</p>
+      <h1>Import Account</h1>
+      <p class="subtitle">Scan the QR code from your old device.</p>
 
       <div class="warning">
-        ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
+        ⚠️ This data contains your private keys. Never show it to anyone.
       </div>
 
       <div id="importScannerWrap" style="margin-top:10px;">
         <div id="importScannerBox"
-          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
+          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border-radius:14px; border:1px solid #e0e0e0;">
           <video id="importScannerVideo" playsinline
             style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
-                      align-items:center; justify-content:center; border:1px solid #6f6;">
-            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#f0fdf4;
+                      align-items:center; justify-content:center; border-radius:14px;">
+            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#22c55e" stroke-width="3"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
@@ -613,83 +621,84 @@
         <div class="error" id="importScanError"></div>
       </div>
 
-      <label>Пароль экспорта</label>
-      <input type="password" id="importPassword" placeholder="Временный пароль">
+      <label>Export Password</label>
+      <input type="password" id="importPassword" placeholder="Temporary password">
 
-      <label>Новый пароль для этого устройства</label>
-      <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
+      <label>New Password for This Device</label>
+      <input type="password" id="importNewPassword" placeholder="At least 6 characters">
 
-      <label>Повторите новый пароль</label>
-      <input type="password" id="importNewPassword2" placeholder="Ещё раз">
+      <label>Confirm New Password</label>
+      <input type="password" id="importNewPassword2" placeholder="Repeat password">
 
-      <button id="importBtn" disabled>Импортировать</button>
-      <button class="secondary" id="linkBackFromImport">← Назад</button>
+      <button id="importBtn" disabled>Import</button>
+      <button class="secondary" id="linkBackFromImport">← Back</button>
       <div class="error" id="importError"></div>
     </div>
 
   </div>
 
-  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
+  <!-- MODAL: CONFIRM -->
   <div class="modal" id="modalConfirm">
     <div class="modal-card">
-      <h2 id="confirmTitle">Подтверждение</h2>
+      <h2 id="confirmTitle">Confirm</h2>
       <p class="hint" id="confirmText">—</p>
-      <button id="btnConfirmYes">Да</button>
-      <button class="secondary" id="btnConfirmNo">Отмена</button>
+      <button id="btnConfirmYes">Yes</button>
+      <button class="secondary" id="btnConfirmNo">Cancel</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
+  <!-- MODAL: ALERT -->
   <div class="modal" id="modalAlert">
     <div class="modal-card">
-      <h2 id="alertTitle">Уведомление</h2>
+      <h2 id="alertTitle">Notice</h2>
       <p class="hint" id="alertText">—</p>
-      <button id="btnAlertOk">ОК</button>
+      <button id="btnAlertOk">OK</button>
     </div>
   </div>
 
   <script type="module" src="index.js"></script>
 
-    <!-- МОДАЛКА: О ПРИЛОЖЕНИИ -->
-    <div class="modal" id="modalAbout">
-      <div class="modal-card">
-        <h2>О приложении</h2>
+  <!-- MODAL: ABOUT -->
+  <div class="modal" id="modalAbout">
+    <div class="modal-card">
+      <h2>About</h2>
 
-        <div class="about-text">
-          <p><strong>Empty</strong> — временный веб-мессенджер без регистрации. Никаких email, телефонов и паролей на
-            сервере.</p>
+      <div class="about-text">
+        <p><strong>Empty</strong> — a temporary web messenger without registration. No emails, phone numbers, or
+          passwords on the server.</p>
 
-          <p><strong>Личность.</strong> При первом запуске генерируется криптографическая пара (X25519 + Ed25519). Она
-            хранится только на твоём устройстве, зашифрованная паролем.</p>
+        <p><strong>Identity.</strong> On first launch, a cryptographic key pair (X25519 + Ed25519) is generated. It is
+          stored only on your device, encrypted with a password.</p>
 
-          <p><strong>Как связаться.</strong> Обмен карточками через QR-код. Сканируешь — появляется контакт. Никакого поиска
-            по нику.</p>
+        <p><strong>How to connect.</strong> Exchange cards via QR code. Scan — a contact appears. No username search.
+        </p>
 
-          <p><strong>Сообщения.</strong> Шифруются AES-GCM через общий ключ X25519. Сервер видит только
-            шифротекст и метаданные.</p>
+        <p><strong>Messages.</strong> Encrypted with AES-GCM using a shared X25519 key. The server only sees ciphertext
+          and metadata.</p>
 
-          <p><strong>Чаты живут 24 часа.</strong> Каждое новое сообщение сбрасывает таймер. Не пишешь сутки — чат удаляется
-            у обоих. Можно завершить вручную.</p>
+        <p><strong>Chats live 24 hours.</strong> Each new message resets the timer. If you don't write for a day, the
+          chat is deleted for both. Can be ended manually.</p>
 
-          <p><strong>Файлы.</strong> Вся история хранится локально в OPFS браузера, зашифрованная. Очистил данные браузера —
-            потерял всё.</p>
+        <p><strong>Files.</strong> All history is stored locally in the browser's OPFS, encrypted. Clear browser data —
+          lose everything.</p>
 
-          <p><strong>Что умеет:</strong></p>
-          <ul>
-            <li>Мультиаккаунт на одном устройстве</li>
-            <li>Импорт с другого устройства (QR + временный пароль)</li>
-            <li>QR-сканер карточек</li>
-          </ul>
+        <p><strong>Features:</strong></p>
+        <ul>
+          <li>Multi-account on one device</li>
+          <li>Import from another device (QR + temporary password)</li>
+          <li>QR card scanner</li>
+        </ul>
 
-          <p><strong>Криптостойкость.</strong> Пространство ключей — 2<sup>256</sup>. Перебор при 10<sup>9</sup> ключей/сек займёт
-            ~10<sup>60</sup> лет. Даже с квантовым компьютером (√N = 2<sup>128</sup>) — астрономически долго.</p>
-        </div>
-
-        <button id="btnCloseAbout" class="secondary">Закрыть</button>
+        <p><strong>Cryptographic strength.</strong> Key space — 2<sup>256</sup>. Brute force at 10<sup>9</sup>
+          keys/sec would take ~10<sup>60</sup> years. Even with a quantum computer (√N = 2<sup>128</sup>) —
+          astronomically long.</p>
       </div>
-    </div>
 
-  <!-- ASCII-ФОН -->
+      <button id="btnCloseAbout" class="secondary">Close</button>
+    </div>
+  </div>
+
+  <!-- ASCII BACKGROUND -->
   <script>
     (function initAsciiBg() {
       const canvas = document.getElementById('asciiBg');
@@ -697,7 +706,7 @@
       const ctx = canvas.getContext('2d');
 
       const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
-      const PARTICLE_COUNT = 60;
+      const PARTICLE_COUNT = 40;
       const particles = [];
 
       let W = 0, H = 0, DPR = 1;
@@ -717,13 +726,13 @@
         return {
           x: Math.random() * W,
           y: Math.random() * H,
-          vy: 0.15 + Math.random() * 0.35,
-          vx: (Math.random() - 0.5) * 0.1,
+          vy: 0.1 + Math.random() * 0.25,
+          vx: (Math.random() - 0.5) * 0.08,
           char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          size: 9 + Math.floor(Math.random() * 6),
-          alpha: 0.05 + Math.random() * 0.12,
+          size: 10 + Math.floor(Math.random() * 6),
+          alpha: 0.03 + Math.random() * 0.06,
           flicker: Math.random() * Math.PI * 2,
-          flickerSpeed: 0.01 + Math.random() * 0.02
+          flickerSpeed: 0.01 + Math.random() * 0.015
         };
       }
 
@@ -737,8 +746,6 @@
 
       function tick() {
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.fillRect(0, 0, W, H);
 
         for (const p of particles) {
           p.y += p.vy;
@@ -747,16 +754,16 @@
 
           const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
 
-          ctx.font = `${p.size}px 'Courier New', monospace`;
-          ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
+          ctx.font = `${p.size}px -apple-system, monospace`;
+          ctx.fillStyle = `rgba(26, 26, 26, ${a})`;
           ctx.fillText(p.char, p.x, p.y);
 
           if (p.y > H + 20) {
             p.y = -20;
             p.x = Math.random() * W;
             p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            p.alpha = 0.05 + Math.random() * 0.12;
-            p.size = 9 + Math.floor(Math.random() * 6);
+            p.alpha = 0.03 + Math.random() * 0.06;
+            p.size = 10 + Math.floor(Math.random() * 6);
           }
           if (p.x < -20) p.x = W + 20;
           if (p.x > W + 20) p.x = -20;
@@ -778,7 +785,7 @@
     })();
   </script>
 
-  <!-- Подгонка размера EMPTY под ширину карточки -->
+  <!-- Fit EMPTY logo to card width -->
   <script>
     (function fitLogo() {
       const logo = document.getElementById('logoText');
@@ -809,19 +816,19 @@
     })();
   </script>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js', { scope: './' })
-            .then((reg) => {
-              console.log('[PWA] Service Worker зарегистрирован, scope:', reg.scope);
-            })
-            .catch((e) => {
-              console.warn('[PWA] Ошибка регистрации SW:', e);
-            });
-        });
-      }
-    </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then((reg) => {
+            console.log('[PWA] Service Worker registered, scope:', reg.scope);
+          })
+          .catch((e) => {
+            console.warn('[PWA] SW registration error:', e);
+          });
+      });
+    }
+  </script>
 </body>
 
 </html>

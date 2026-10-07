@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>Empty — Мессенджер</title>
+  <title>Empty — Messenger</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#f5f5f5">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Empty">
   <link rel="apple-touch-icon" href="icons/icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon.png">
@@ -31,20 +31,20 @@
       height: 100dvh;
       margin: 0;
       overflow: hidden;
-      background: #000;
+      background: #f0f0f0;
     }
 
     body {
-      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
-      background: #000;
-      color: #d0d0d0;
-      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f0f0f0;
+      color: #1a1a1a;
+      font-size: 14px;
       display: flex;
       flex-direction: column;
-      letter-spacing: 0.3px;
+      letter-spacing: -0.01em;
     }
 
-    /* ============ ФОН ============ */
+    /* ============ BACKGROUND ============ */
     #asciiBg {
       position: fixed;
       inset: 0;
@@ -53,73 +53,74 @@
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
+      opacity: 0.3;
     }
 
-    /* ============ ШАПКА ============ */
+    /* ============ TOP BAR ============ */
     .topbar {
-      background: rgba(0, 0, 0, 0.7);
-      color: #d0d0d0;
-      padding: 8px 12px;
-      padding-top: calc(8px + env(safe-area-inset-top));
+      background: rgba(255, 255, 255, 0.85);
+      color: #1a1a1a;
+      padding: 10px 16px;
+      padding-top: calc(10px + env(safe-area-inset-top));
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-shrink: 0;
-      border-bottom: 1px solid #2a2a2a;
+      border-bottom: 1px solid #e5e5e5;
       position: relative;
       z-index: 2;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .me-name {
-      font-weight: bold;
-      font-size: 14px;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-weight: 700;
+      font-size: 17px;
+      color: #1a1a1a;
+      letter-spacing: -0.02em;
     }
 
     .me-name::before {
-      content: '> ';
-      color: #6f6;
+      content: none;
     }
 
     .topbar-actions {
       display: flex;
-      gap: 4px;
+      gap: 6px;
       flex-shrink: 0;
     }
 
     .topbar-actions button {
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid #2a2a2a;
-      color: #aaa;
-      padding: 4px 10px;
+      background: #f5f5f5;
+      border: 1px solid #e5e5e5;
+      color: #666;
+      padding: 7px 14px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 13px;
       font-family: inherit;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
       transition: all 0.15s;
+      border-radius: 20px;
     }
 
     .topbar-actions button:hover {
-      background: #111;
+      background: #1a1a1a;
       color: #fff;
-      border-color: #6f6;
+      border-color: #1a1a1a;
     }
 
     .topbar-actions button.primary {
-      color: #6f6;
-      border-color: #2a4a2a;
+      color: #fff;
+      background: #1a1a1a;
+      border-color: #1a1a1a;
     }
 
     .topbar-actions button.primary:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
+      opacity: 0.85;
     }
 
-    /* ============ ОСНОВНОЙ БЛОК ============ */
+    /* ============ MAIN ============ */
     .main {
       flex: 1;
       display: flex;
@@ -131,79 +132,90 @@
 
     /* ============ SIDEBAR ============ */
     .sidebar {
-      width: 280px;
-      background: rgba(10, 10, 10, 0.55);
-      border-right: 1px solid #2a2a2a;
+      width: 320px;
+      background: rgba(255, 255, 255, 0.7);
+      border-right: 1px solid #e5e5e5;
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
       min-height: 0;
       overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
     .sidebar-header {
-      padding: 8px 12px;
-      background: rgba(10, 10, 10, 0.7);
-      border-bottom: 1px solid #2a2a2a;
-      font-weight: bold;
-      color: #6f6;
+      padding: 16px 16px 10px;
+      background: transparent;
+      border-bottom: none;
+      font-weight: 700;
+      color: #1a1a1a;
       flex-shrink: 0;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-size: 11px;
+      letter-spacing: -0.02em;
+      font-size: 22px;
     }
 
-    .sidebar-header::before {
-      content: '[ ';
-    }
-
+    .sidebar-header::before,
     .sidebar-header::after {
-      content: ' ]';
+      content: none;
     }
 
     .contacts-list {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
+      padding: 0 8px;
     }
 
     .contact {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      border-bottom: 1px solid #1a1a1a;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: none;
+      border-radius: 12px;
       cursor: pointer;
-      transition: background 0.1s;
+      transition: background 0.15s;
+      margin-bottom: 2px;
     }
 
     .contact:hover {
-      background: rgba(17, 17, 17, 0.7);
+      background: rgba(0, 0, 0, 0.04);
     }
 
     .contact.active {
-      background: rgba(10, 26, 10, 0.8);
-      border-left: 2px solid #6f6;
-      padding-left: 10px;
+      background: #1a1a1a;
+      border-left: none;
+      padding-left: 12px;
     }
 
-    .avatar {
-      width: 32px;
-      height: 32px;
-      background: rgba(0, 0, 0, 0.5);
-      border: 1px solid #2a2a2a;
-      color: #6f6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      flex-shrink: 0;
-      font-size: 14px;
+    .contact.active .contact-name {
+      color: #fff;
+    }
+
+    .contact.active .contact-fp {
+      color: rgba(255, 255, 255, 0.6);
     }
 
     .contact.active .avatar {
-      border-color: #6f6;
-      color: #6f6;
+      background: rgba(255, 255, 255, 0.15);
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .avatar {
+      width: 46px;
+      height: 46px;
+      background: #e5e5e5;
+      border: none;
+      border-radius: 50%;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      flex-shrink: 0;
+      font-size: 16px;
     }
 
     .contact-info {
@@ -212,29 +224,32 @@
     }
 
     .contact-name {
-      font-weight: bold;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #d0d0d0;
+      color: #1a1a1a;
+      font-size: 15px;
+      letter-spacing: -0.01em;
     }
 
     .contact-fp {
-      font-size: 10px;
-      color: #555;
+      font-size: 12px;
+      color: #999;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      margin-top: 1px;
     }
 
     .empty-sidebar {
-      padding: 20px 12px;
-      color: #444;
+      padding: 40px 16px;
+      color: #aaa;
       text-align: center;
-      font-size: 11px;
+      font-size: 13px;
     }
 
-    /* ============ ОБЛАСТЬ ЧАТА ============ */
+    /* ============ CHAT AREA ============ */
     .chat-area {
       flex: 1;
       display: flex;
@@ -242,7 +257,7 @@
       min-width: 0;
       min-height: 0;
       overflow: hidden;
-      background: rgba(5, 5, 5, 0.4);
+      background: rgba(245, 245, 245, 0.5);
     }
 
     .chat-empty {
@@ -250,20 +265,22 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #444;
+      color: #aaa;
       padding: 20px;
       text-align: center;
-      font-size: 12px;
+      font-size: 14px;
     }
 
     .chat-header {
-      background: rgba(10, 10, 10, 0.7);
-      border-bottom: 1px solid #2a2a2a;
-      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.85);
+      border-bottom: 1px solid #e5e5e5;
+      padding: 10px 16px;
       display: none;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       flex-shrink: 0;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .chat-header.active {
@@ -276,704 +293,25 @@
     }
 
     .chat-title {
-      font-weight: bold;
-      font-size: 14px;
+      font-weight: 700;
+      font-size: 16px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #fff;
+      color: #1a1a1a;
+      letter-spacing: -0.02em;
     }
 
     .chat-timer {
-      font-size: 10px;
-      color: #555;
+      font-size: 12px;
+      color: #999;
+      margin-top: 1px;
     }
 
     .btn-end-chat {
-      background: rgba(0, 0, 0, 0.5);
-      color: #f66;
-      border: 1px solid #4a2a2a;
-      padding: 4px 10px;
+      background: #fff5f5;
+      color: #e53e3e;
+      border: 1px solid #fed7d7;
+      padding: 7px 14px;
       cursor: pointer;
-      white-space: nowrap;
-      flex-shrink: 0;
-      font-family: inherit;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.15s;
-    }
-
-    .btn-end-chat:hover {
-      background: #1a0a0a;
-      border-color: #f66;
-    }
-
-    .mobile-back {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: none;
-      border: none;
-      color: #6f6;
-      cursor: pointer;
-      padding: 4px 6px;
-      flex-shrink: 0;
-      transition: color 0.15s;
-    }
-
-    .mobile-back:hover {
-      color: #9f9;
-    }
-
-    .mobile-back svg {
-      display: block;
-      width: 22px;
-      height: 22px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    /* ============ СООБЩЕНИЯ ============ */
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 12px;
-      background: transparent;
-      display: none;
-      min-height: 0;
-    }
-
-    .messages.active {
-      display: block;
-    }
-
-    .msg {
-      display: block;
-      width: fit-content;
-      max-width: 70%;
-      padding: 6px 10px;
-      margin-bottom: 6px;
-      border: 1px solid #2a2a2a;
-      background: rgba(10, 10, 10, 0.9);
-      color: #d0d0d0;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-      font-size: 13px;
-    }
-
-    .msg.me {
-      margin-left: auto;
-      margin-right: 0;
-      background: rgba(10, 26, 10, 0.9);
-      border-color: #2a4a2a;
-      color: #b0d0b0;
-    }
-
-
-    .msg.other {
-      margin-left: 0;
-      margin-right: auto;
-    }
-
-
-    /* ============ ПОЛЕ ВВОДА ============ */
-    .input-area {
-      background: rgba(10, 10, 10, 0.7);
-      border-top: 1px solid #2a2a2a;
-      padding: 8px;
-      padding-bottom: calc(8px + env(safe-area-inset-bottom));
-      display: none;
-      gap: 6px;
-      align-items: flex-end;
-      flex-shrink: 0;
-    }
-
-    .input-area.active {
-      display: flex;
-    }
-
-    .input-area textarea {
-      flex: 1;
-      padding: 6px 8px;
-      border: 1px solid #2a2a2a;
-      background: rgba(5, 5, 5, 0.9);
-      color: #d0d0d0;
-      resize: none;
-      font-family: inherit;
-      font-size: 13px;
-      line-height: 1.3;
-      min-height: 32px;
-      max-height: 100px;
-      outline: none;
-      letter-spacing: 0.3px;
-    }
-
-    .input-area textarea:focus {
-      border-color: #6f6;
-    }
-
-    .input-area textarea::placeholder {
-      color: #333;
-    }
-
-    .btn-send {
-      background: rgba(0, 0, 0, 0.5);
-      color: #6f6;
-      border: 1px solid #2a4a2a;
-      padding: 6px 14px;
-      cursor: pointer;
-      height: 32px;
-      flex-shrink: 0;
-      align-self: flex-end;
-      white-space: nowrap;
-      font-family: inherit;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.15s;
-    }
-
-    .btn-send:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
-    }
-
-    /* ============ МОДАЛКИ ============ */
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      padding-top: calc(16px + env(safe-area-inset-top));
-      padding-bottom: calc(16px + env(safe-area-inset-bottom));
-      z-index: 1000;
-    }
-
-    .modal.active {
-      display: flex;
-    }
-
-    .modal-card {
-      background: rgba(10, 10, 10, 0.95);
-      border: 1px solid #2a2a2a;
-      padding: 16px;
-      max-width: 420px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      backdrop-filter: blur(6px);
-    }
-
-    .modal-card h2 {
-      color: #6f6;
-      margin: 0 0 10px;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .modal-card h2::before {
-      content: '[ ';
-    }
-
-    .modal-card h2::after {
-      content: ' ]';
-    }
-
-    .modal-card .hint {
-      color: #888;
-      font-size: 12px;
-      margin-bottom: 15px;
-      line-height: 1.4;
-      white-space: pre-line;
-    }
-
-    .modal-card label {
-      display: block;
-      font-size: 11px;
-      font-weight: bold;
-      margin: 8px 0 4px;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .modal-card input,
-    .modal-card textarea {
-      width: 100%;
-      padding: 6px 8px;
-      border: 1px solid #2a2a2a;
-      background: #050505;
-      color: #d0d0d0;
-      font-size: 13px;
-      font-family: inherit;
-      outline: none;
-      box-sizing: border-box;
-      letter-spacing: 0.3px;
-    }
-
-    .modal-card input:focus,
-    .modal-card textarea:focus {
-      border-color: #6f6;
-    }
-
-    .modal-card textarea {
-      min-height: 100px;
-      font-size: 11px;
-      resize: vertical;
-    }
-
-    .modal-card button {
-      width: 100%;
-      padding: 8px;
-      background: transparent;
-      color: #6f6;
-      border: 1px solid #2a4a2a;
-      cursor: pointer;
-      margin-top: 8px;
-      font-size: 12px;
-      font-family: inherit;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      transition: all 0.15s;
-    }
-
-    .modal-card button:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
-    }
-
-    .modal-card button.secondary {
-      background: transparent;
-      color: #888;
-      border-color: #2a2a2a;
-    }
-
-    .modal-card button.secondary:hover {
-      background: #111;
-      color: #fff;
-      border-color: #555;
-    }
-
-    .warning {
-      background: #1a0a0a;
-      border: 1px solid #4a2a2a;
-      padding: 8px;
-      font-size: 11px;
-      color: #c88;
-      margin-bottom: 10px;
-      line-height: 1.4;
-    }
-
-    .qr-box {
-      background: #fff;
-      padding: 10px;
-      border: 1px solid #2a2a2a;
-      text-align: center;
-      margin: 10px 0;
-    }
-
-    .qr-box svg,
-    .qr-box canvas,
-    .qr-box img {
-      display: block;
-      max-width: 100%;
-      height: auto;
-      margin: 0 auto;
-    }
-
-    #scannerVideo {
-      width: 100%;
-      background: #000;
-      margin-bottom: 10px;
-      aspect-ratio: 1 / 1;
-      object-fit: cover;
-    }
-
-    .error-text {
-      color: #f66;
-      font-size: 11px;
-      margin-top: 6px;
-      min-height: 16px;
-    }
-
-    .acct-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px;
-      border: 1px solid #2a2a2a;
-      margin-bottom: 6px;
-      background: #0a0a0a;
-      width: 100%;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-
-    .acct-item.current {
-      border-color: #2a4a2a;
-      background: #0a1a0a;
-    }
-
-    .acct-avatar {
-      width: 34px;
-      height: 34px;
-      background: transparent;
-      border: 1px solid #2a2a2a;
-      color: #6f6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      flex-shrink: 0;
-    }
-
-    .acct-info {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .acct-name,
-    .acct-fp {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .acct-name {
-      color: #d0d0d0;
-    }
-
-    .acct-fp {
-      font-size: 10px;
-      color: #555;
-    }
-
-    .acct-switch {
-      background: transparent !important;
-      color: #6f6 !important;
-      border: 1px solid #2a4a2a !important;
-      padding: 4px 10px !important;
-      cursor: pointer !important;
-      font-size: 11px !important;
-      font-family: inherit !important;
-      text-transform: uppercase !important;
-      letter-spacing: 1px !important;
-      flex-shrink: 0 !important;
-      white-space: nowrap !important;
-      width: auto !important;
-      max-width: 100px !important;
-      margin: 0 0 0 auto !important;
-      display: inline-block !important;
-    }
-
-    /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
-    @media (max-width: 768px) {
-      .sidebar {
-        width: 100%;
-        border-right: none;
-        background: rgba(10, 10, 10, 0.55);
-      }
-
-      .chat-area {
-        position: absolute;
-        inset: 0;
-        background: #050505;
-        transform: translateX(100%);
-        transition: transform 0.2s ease;
-        z-index: 10;
-      }
-
-      .chat-area.active {
-        transform: translateX(0);
-      }
-
-      .mobile-back {
-        display: block;
-      }
-
-      .msg {
-        max-width: 85%;
-      }
-
-      .topbar {
-        padding: 6px 8px;
-        padding-top: calc(6px + env(safe-area-inset-top));
-      }
-
-      .topbar-actions {
-        gap: 3px;
-      }
-
-      .topbar-actions button {
-        padding: 4px 8px;
-        font-size: 10px;
-      }
-    }
-
-    @media (max-width: 380px) {
-      .topbar-actions button {
-        padding: 3px 6px;
-        font-size: 9px;
-      }
-
-      .avatar {
-        width: 28px;
-        height: 28px;
-        font-size: 12px;
-      }
-
-      .contact {
-        padding: 6px 8px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-
-  <!-- ASCII-ФОН -->
-  <canvas id="asciiBg"></canvas>
-
-  <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
-  <div class="topbar">
-    <div>
-      <div class="me-name" id="meName">...</div>
-    </div>
-    <div class="topbar-actions">
-      <button id="btnMyCard">Мой QR</button>
-      <button id="btnAccounts">Мои аккаунты</button>
-      <button id="btnAddContact" class="primary">Добавить контакт</button>
-    </div>
-  </div>
-
-  <!-- ОСНОВНОЙ БЛОК -->
-  <div class="main">
-    <div class="sidebar">
-      <div class="sidebar-header">contacts</div>
-      <div class="contacts-list" id="contactsList"></div>
-    </div>
-
-    <div class="chat-area" id="chatArea">
-      <div class="chat-empty" id="chatEmpty">Выберите контакт слева</div>
-
-      <div class="chat-header" id="chatHeader">
-        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">
-          <svg viewBox="0 0 24 24">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-        </button>
-        <div class="chat-header-info">
-          <div class="chat-title" id="chatTitle">—</div>
-          <div class="chat-timer" id="chatTimer"></div>
-        </div>
-        <button class="btn-end-chat" id="btnEndChat">завершить</button>
-      </div>
-
-      <div class="messages" id="messages"></div>
-
-      <div class="input-area" id="inputArea">
-        <textarea id="msgInput" rows="1" placeholder="Сообщение..."></textarea>
-        <button class="btn-send" id="btnSend">send</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: МОЯ КАРТОЧКА -->
-  <div class="modal" id="modalMyCard">
-    <div class="modal-card">
-      <h2>Моя карточка</h2>
-      <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
-      <div class="qr-box" id="qrBox"></div>
-      <button id="btnCloseMyCard" class="secondary">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ -->
-  <div class="modal" id="modalAddContact">
-    <div class="modal-card">
-      <h2>Добавить контакт</h2>
-      <p class="hint">Наведите камеру на QR-код собеседника.</p>
-
-      <div id="scannerBox"
-        style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px; border:1px solid #2a2a2a;">
-        <video id="scannerVideo" playsinline style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-        <div id="scannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
-                    align-items:center; justify-content:center; border:1px solid #6f6;">
-          <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-        </div>
-      </div>
-
-      <div class="error-text" id="scanError"></div>
-
-      <button id="btnCloseAddContact" class="secondary">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: АККАУНТЫ -->
-  <div class="modal" id="modalAccounts">
-    <div class="modal-card">
-      <h2>Мои аккаунты</h2>
-      <p class="hint">Переключение между вашими локальными аккаунтами.</p>
-
-      <div id="accountsList" style="margin-bottom: 10px;"></div>
-
-      <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
-      <button id="btnOpenDevices" class="secondary">Перенести аккаунт на другое устройство</button>
-      <button id="btnLogout" class="secondary" style="color:#f66; border-color:#4a2a2a;">Выйти из текущего
-        аккаунта</button>
-      <button id="btnCloseAccounts" class="secondary">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: УСТРОЙСТВА -->
-  <div class="modal" id="modalDevices">
-    <div class="modal-card">
-      <h2>Перенос на другое устройство</h2>
-      <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
-
-      <div class="warning">
-        ⚠️ QR-код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
-      </div>
-
-      <label>Временный пароль для передачи</label>
-      <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
-
-      <button id="btnGenerateExport">Сгенерировать QR</button>
-
-      <div id="exportResult" style="display:none; margin-top: 10px;">
-        <div class="qr-box" id="exportQrBox"></div>
-        <textarea id="exportJson" readonly></textarea>
-        <button id="btnCopyExport" class="secondary">Скопировать код</button>
-      </div>
-
-      <button id="btnCloseDevices" class="secondary">Закрыть</button>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
-  <div class="modal" id="modalConfirm">
-    <div class="modal-card">
-      <h2 id="confirmTitle">Подтверждение</h2>
-      <p class="hint" id="confirmText">—</p>
-      <button id="btnConfirmYes">Да</button>
-      <button class="secondary" id="btnConfirmNo">Отмена</button>
-    </div>
-  </div>
-
-  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
-  <div class="modal" id="modalAlert">
-    <div class="modal-card">
-      <h2 id="alertTitle">Уведомление</h2>
-      <p class="hint" id="alertText">—</p>
-      <button id="btnAlertOk">ОК</button>
-    </div>
-  </div>
-
-  <script type="module" src="messenger.js"></script>
-
-  <!-- ASCII-ФОН -->
-  <script>
-    (function initAsciiBg() {
-      const canvas = document.getElementById('asciiBg');
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-
-      const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
-      const PARTICLE_COUNT = 60;
-      const particles = [];
-
-      let W = 0, H = 0, DPR = 1;
-
-      function resize() {
-        DPR = window.devicePixelRatio || 1;
-        W = window.innerWidth;
-        H = window.innerHeight;
-        canvas.width = W * DPR;
-        canvas.height = H * DPR;
-        canvas.style.width = W + 'px';
-        canvas.style.height = H + 'px';
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      }
-
-      function makeParticle() {
-        return {
-          x: Math.random() * W,
-          y: Math.random() * H,
-          vy: 0.15 + Math.random() * 0.35,
-          vx: (Math.random() - 0.5) * 0.1,
-          char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          size: 9 + Math.floor(Math.random() * 6),
-          alpha: 0.05 + Math.random() * 0.12,
-          flicker: Math.random() * Math.PI * 2,
-          flickerSpeed: 0.01 + Math.random() * 0.02
-        };
-      }
-
-      function init() {
-        resize();
-        particles.length = 0;
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-          particles.push(makeParticle());
-        }
-      }
-
-      function tick() {
-        ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.fillRect(0, 0, W, H);
-
-        for (const p of particles) {
-          p.y += p.vy;
-          p.x += p.vx;
-          p.flicker += p.flickerSpeed;
-
-          const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
-
-          ctx.font = `${p.size}px 'Courier New', monospace`;
-          ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
-          ctx.fillText(p.char, p.x, p.y);
-
-          if (p.y > H + 20) {
-            p.y = -20;
-            p.x = Math.random() * W;
-            p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            p.alpha = 0.05 + Math.random() * 0.12;
-            p.size = 9 + Math.floor(Math.random() * 6);
-          }
-          if (p.x < -20) p.x = W + 20;
-          if (p.x > W + 20) p.x = -20;
-        }
-
-        requestAnimationFrame(tick);
-      }
-
-      window.addEventListener('resize', () => {
-        resize();
-        for (const p of particles) {
-          if (p.x > W) p.x = Math.random() * W;
-          if (p.y > H) p.y = Math.random() * H;
-        }
-      });
-
-      init();
-      tick();
-    })();
-  </script>
-</body>
-
-</html>
+      white-space:
