@@ -245,6 +245,7 @@
       resize: vertical;
     }
 
+    /* ============ BASE BUTTON ============ */
     button {
       margin-top: 10px;
       padding: 8px 16px;
@@ -259,6 +260,12 @@
       letter-spacing: 1px;
       transition: all 0.15s;
       border-radius: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1;
+      min-height: 32px;
     }
 
     button:hover {
@@ -287,8 +294,8 @@
       border-color: #555;
     }
 
-    /* SVG icons inside buttons — flex centering */
-    button svg {
+    /* ============ SVG IN BUTTONS ============ */
+    button > svg {
       display: block;
       flex-shrink: 0;
       width: 14px;
@@ -298,14 +305,13 @@
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
+      margin: 0;
     }
 
-    /* Buttons that contain an icon + label */
-    button:has(> svg) {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+    /* Кнопка без текста (только иконка) — квадратная, без gap */
+    button:has(> svg):not(:has(*:not(svg))) {
+      gap: 0;
+      padding: 6px;
     }
 
     .error {
@@ -403,13 +409,16 @@
       border: none;
       color: #555;
       cursor: pointer;
-      padding: 4px 8px;
+      padding: 6px;
       margin: 0;
       font-family: inherit;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 0;
+      min-height: 0;
       transition: color 0.15s;
+      flex-shrink: 0;
     }
 
     .account-delete:hover {
@@ -418,16 +427,9 @@
       border: none;
     }
 
-    .account-delete svg {
+    .account-delete > svg {
       width: 16px;
       height: 16px;
-      display: block;
-      margin: 0;
-      gap: 0;
-    }
-
-    .account-delete:has(> svg) {
-      gap: 0;
     }
 
     /* ============ ROW BUTTONS ============ */
@@ -516,6 +518,12 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1;
+      min-height: 32px;
     }
 
     .modal-card button:hover {
@@ -861,19 +869,19 @@
     })();
   </script>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js', { scope: './' })
-            .then((reg) => {
-              console.log('[PWA] Service Worker registered, scope:', reg.scope);
-            })
-            .catch((e) => {
-              console.warn('[PWA] Service Worker registration failed:', e);
-            });
-        });
-      }
-    </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then((reg) => {
+            console.log('[PWA] Service Worker registered, scope:', reg.scope);
+          })
+          .catch((e) => {
+            console.warn('[PWA] Service Worker registration failed:', e);
+          });
+      });
+    }
+  </script>
 </body>
 
 </html>
