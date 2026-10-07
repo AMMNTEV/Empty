@@ -1,7 +1,7 @@
 // ============================================
-// messenger.js — contacts, chats, E2EE, relay
-// Schema: users/{hashHex}/inbox/{blobId}
-// Contact and chat files are per-account
+// messenger.js — контакты, чаты, E2EE, relay
+// Схема: users/{hashHex}/inbox/{blobId}
+// Файлы контактов и чатов — свои на каждый аккаунт
 // ============================================
 import { db } from './firebase-init.js';
 import {
@@ -20,7 +20,7 @@ import {
 } from './crypto.js';
 
 // ============================================
-// UTF-8 for QR (qrcode-generator doesn't support it by default)
+// UTF-8 для QR (qrcode-generator по умолчанию не умеет)
 // ============================================
 if (typeof qrcode === 'function') {
   qrcode.stringToBytes = function (s) {
@@ -36,8 +36,8 @@ if (typeof qrcode === 'function') {
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Proof-of-work: how many leading zero hex chars we require in SHA-256.
-// 4 → ~65536 attempts on average, ~0.1–0.5 sec on a phone.
+// Proof-of-work: сколько ведущих нулевых hex-символов требуем в SHA-256.
+// 4 → в среднем ~65536 попыток, ~0.1–0.5 сек на телефоне.
 const POW_DIFFICULTY = 4;
 
 let myIdentity = null;
@@ -58,9 +58,9 @@ let CHATS_FILE = null;
 
 
 // ============================================
-// CUSTOM DIALOGS
+// КАСТОМНЫЕ ДИАЛОГИ
 // ============================================
-function showConfirm(text, title = 'Confirm') {
+function showConfirm(text, title = 'Подтверждение') {
   return new Promise((resolve) => {
     const modal = document.getElementById('modalConfirm');
     const titleEl = document.getElementById('confirmTitle');
@@ -88,7 +88,7 @@ function showConfirm(text, title = 'Confirm') {
   });
 }
 
-function showAlert(text, title = 'Notice') {
+function showAlert(text, title = 'Уведомление') {
   return new Promise((resolve) => {
     const modal = document.getElementById('modalAlert');
     const titleEl = document.getElementById('alertTitle');
@@ -126,12 +126,12 @@ async function loadContacts() {
     const enc = await opfsRead(CONTACTS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('[OPFS] contacts:', e);
+    console.error('[OPFS] контакты:', e);
     return {};
   }
 }
 
-// Debounced chat save (for frequent updates)
+// Debounced сохранение чатов (для частых обновлений)
 async function saveChats() {
   if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) clearTimeout(saveChatsTimer);
@@ -140,12 +140,12 @@ async function saveChats() {
       const encrypted = await encryptIdentity(chatHistory, myPassword);
       await opfsWrite(CHATS_FILE, encrypted);
     } catch (e) {
-      console.error('[OPFS] chats:', e);
+      console.error('[OPFS] чаты:', e);
     }
   }, 500);
 }
 
-// Immediate save (for endChat — in case the user closes the tab)
+// Немедленное сохранение (для endChat — если пользователь закроет вкладку)
 async function saveChatsNow() {
   if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) { clearTimeout(saveChatsTimer); saveChatsTimer = null; }
@@ -153,7 +153,7 @@ async function saveChatsNow() {
     const encrypted = await encryptIdentity(chatHistory, myPassword);
     await opfsWrite(CHATS_FILE, encrypted);
   } catch (e) {
-    console.error('[OPFS] chats:', e);
+    console.error('[OPFS] чаты:', e);
   }
 }
 
@@ -164,7 +164,7 @@ async function loadChats() {
     const enc = await opfsRead(CHATS_FILE);
     return await decryptIdentity(enc, myPassword);
   } catch (e) {
-    console.error('[OPFS] chats:', e);
+    console.error('[OPFS] чаты:', e);
     return {};
   }
 }
@@ -194,7 +194,7 @@ async function computePow(ciphertextB64) {
     }
     nonce++;
     if (nonce > 10_000_000) {
-      throw new Error('PoW did not converge in reasonable time');
+      throw new Error('PoW не сошёлся за разумное время');
     }
   }
 }
@@ -211,7 +211,7 @@ async function verifyPow(ciphertextB64, pow) {
 
 
 // ============================================
-// AUTO-PURGE
+// АВТООЧИСТКА
 // ============================================
 async function purgeExpiredChats() {
   const now = Date.now();
@@ -222,7 +222,7 @@ async function purgeExpiredChats() {
     if (!h || !h.expiresAt) continue;
 
     if (h.expiresAt < now) {
-      console.log(`[PURGE] Chat with "${h.peerNickname}" expired`);
+      console.log(`[PURGE] Чат с "${h.peerNickname}" истёк`);
 
       purgeRelayForContact(fp).catch(e => console.warn('[PURGE]', e));
 
@@ -264,7 +264,7 @@ async function purgeRelayForContact(peerFingerprint) {
     }
 
     if (toDelete.length > 0) {
-      console.log(`[PURGE] Deleted blobs from "${peer.nickname}": ${toDelete.length}`);
+      console.log(`[PURGE] Удалено блобов от "${peer.nickname}": ${toDelete.length}`);
     }
     return toDelete.length;
   } catch (e) {
@@ -275,7 +275,7 @@ async function purgeRelayForContact(peerFingerprint) {
 
 
 // ============================================
-// INITIALIZATION
+// ИНИЦИАЛИЗАЦИЯ
 // ============================================
 async function init() {
   myPassword = sessionStorage.getItem('_pw');
@@ -288,7 +288,7 @@ async function init() {
 
   try {
     const path = identityFilePath(myFp);
-    if (!await opfsExists(path)) throw new Error('Account file not found');
+    if (!await opfsExists(path)) throw new Error('Файл аккаунта не найден');
     const enc = await opfsRead(path);
     myIdentity = await decryptIdentity(enc, myPassword);
   } catch (e) {
@@ -322,7 +322,7 @@ async function init() {
 
 
 // ============================================
-// CARD
+// КАРТОЧКА
 // ============================================
 function buildMyCard() {
   return {
@@ -336,14 +336,14 @@ function buildMyCard() {
 
 
 // ============================================
-// CONTACTS
+// КОНТАКТЫ
 // ============================================
 function renderContacts() {
   const list = document.getElementById('contactsList');
   const keys = Object.keys(contacts);
 
   if (keys.length === 0) {
-    list.innerHTML = '<div class="empty-sidebar">No contacts.<br>Tap "Add Contact".</div>';
+    list.innerHTML = '<div class="empty-sidebar">Нет контактов.<br>Нажмите «Добавить».</div>';
     return;
   }
 
@@ -355,7 +355,7 @@ function renderContacts() {
       <div class="contact ${active}" data-fp="${fp}">
         <div class="avatar">${initial}</div>
         <div class="contact-info">
-          <div class="contact-name">${escapeHtml(c.nickname || 'No name')}</div>
+          <div class="contact-name">${escapeHtml(c.nickname || 'Без имени')}</div>
           <div class="contact-fp">${fp}</div>
         </div>
       </div>
@@ -377,7 +377,7 @@ function escapeHtml(s) {
 
 
 // ============================================
-// QR: MY CARD
+// QR: МОЯ КАРТОЧКА
 // ============================================
 async function showMyCard() {
   const card = buildMyCard();
@@ -387,7 +387,7 @@ async function showMyCard() {
   qrBox.innerHTML = '';
 
   try {
-    if (typeof qrcode !== 'function') throw new Error('QR library not loaded');
+    if (typeof qrcode !== 'function') throw new Error('QR-библиотека не загружена');
     const qr = qrcode(0, 'M');
     qr.addData(json);
     qr.make();
@@ -419,14 +419,14 @@ async function showMyCard() {
     qrBox.appendChild(canvas);
   } catch (e) {
     console.error('[QR]', e);
-    qrBox.innerHTML = '<div style="color:#999;font-size:12px;padding:10px;">QR unavailable</div>';
+    qrBox.innerHTML = '<div style="color:#666;font-size:11px;padding:10px;">QR недоступен</div>';
   }
 
   document.getElementById('modalMyCard').classList.add('active');
 }
 
 // ============================================
-// QR SCANNER
+// QR-СКАНЕР
 // ============================================
 async function startScanner() {
   const video = document.getElementById('scannerVideo');
@@ -460,7 +460,7 @@ async function startScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            // Decode binary data as UTF-8 (jsQR may return Latin-1)
+            // Декодируем бинарные данные в UTF-8 (jsQR может отдавать Latin-1)
             let text;
             if (code.binaryData && code.binaryData.length) {
               const bytes = new Uint8Array(code.binaryData);
@@ -487,7 +487,7 @@ async function startScanner() {
     tick();
   } catch (e) {
     console.error('[SCAN]', e);
-    errEl.textContent = 'Could not access camera: ' + e.message;
+    errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
   }
 }
 
@@ -515,7 +515,7 @@ async function handleScannedQR(text) {
     }, 600);
   } catch (e) {
     console.error('[SCAN]', e);
-    document.getElementById('scanError').textContent = 'Could not parse: ' + e.message;
+    document.getElementById('scanError').textContent = 'Не удалось распознать: ' + e.message;
     stopScanner();
     setTimeout(() => startScanner(), 500);
   }
@@ -523,14 +523,14 @@ async function handleScannedQR(text) {
 
 
 // ============================================
-// ADD CONTACT
+// ДОБАВЛЕНИЕ КОНТАКТА
 // ============================================
 async function addContactFromCard(card) {
   if (!card || !card.x25519 || !card.fingerprint || !card.ed25519) {
-    throw new Error('Card has no keys');
+    throw new Error('В карточке нет ключей');
   }
   if (card.fingerprint === myIdentity.fingerprint) {
-    throw new Error('This is your own card');
+    throw new Error('Это ваша карточка');
   }
 
   const existing = contacts[card.fingerprint];
@@ -538,9 +538,9 @@ async function addContactFromCard(card) {
     const keysChanged = existing.x25519 !== card.x25519 || existing.ed25519 !== card.ed25519;
     if (keysChanged) {
       const ok = await showConfirm(
-        `Contact "${card.nickname}" keys have changed.\n` +
-        `Update contact? Old conversation will be deleted.`,
-        'Update Contact'
+        `Ключи контакта "${card.nickname}" изменились.\n` +
+        `Обновить контакт? Старая переписка будет удалена.`,
+        'Обновление контакта'
       );
       if (!ok) return;
       delete chatHistory[card.fingerprint];
@@ -560,7 +560,7 @@ async function addContactFromCard(card) {
 
 
 // ============================================
-// ADD CONTACT MODAL
+// МОДАЛКА ДОБАВЛЕНИЯ
 // ============================================
 function openAddContactModal() {
   document.getElementById('scanError').textContent = '';
@@ -579,7 +579,7 @@ function switchTab(tabName) {
 
 
 // ============================================
-// OPEN CHAT
+// ОТКРЫТИЕ ЧАТА
 // ============================================
 async function openChat(fingerprint) {
   const card = contacts[fingerprint];
@@ -592,8 +592,8 @@ async function openChat(fingerprint) {
 
   activeChat = { fingerprint, peerCard: card, sharedKey };
 
-  // IMPORTANT: do NOT create chatHistory on open.
-  // A chat is created only on the first sent or received message.
+  // ВАЖНО: НЕ создаём chatHistory при открытии.
+  // Чат создаётся только при первом отправленном или полученном сообщении.
 
   renderContacts();
   renderChat();
@@ -602,7 +602,7 @@ async function openChat(fingerprint) {
 
 
 // ============================================
-// CHAT RENDER
+// РЕНДЕР ЧАТА
 // ============================================
 function renderChat() {
   const chatArea = document.getElementById('chatArea');
@@ -633,7 +633,7 @@ function renderChat() {
   const history = chatHistory[activeChat.fingerprint];
 
   if (!history) {
-    messages.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px;font-size:14px;">No messages. Say hi!</div>';
+    messages.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px;">Нет сообщений. Напишите первым.</div>';
     document.getElementById('chatTimer').textContent = '';
     return;
   }
@@ -650,14 +650,14 @@ function renderChat() {
   });
 }
 
-// Instant append of one message at the end (no full re-render)
+// Мгновенное добавление одного сообщения в конец (без полной перерисовки)
 function appendMessage(msg) {
   const messages = document.getElementById('messages');
   if (!messages) return;
 
-  // Remove the "No messages" placeholder
+  // Убираем заглушку "Нет сообщений"
   const placeholder = messages.querySelector('div[style*="text-align:center"]');
-  if (placeholder && placeholder.textContent.includes('No messages')) {
+  if (placeholder && placeholder.textContent.includes('Нет сообщений')) {
     placeholder.remove();
   }
 
@@ -716,10 +716,10 @@ function startTimer() {
 
 
 // ============================================
-// END-CHAT SIGNAL
+// СИГНАЛ ЗАВЕРШЕНИЯ ЧАТА
 // ============================================
-// Sends an { end: true } signal for a specific fp.
-// Uses contacts[fp] directly — does not depend on activeChat.
+// Отправляет сигнал { end: true } по конкретному fp.
+// Использует contacts[fp] напрямую — не зависит от activeChat.
 async function sendEndSignalForFp(fp) {
   const peerCard = contacts[fp];
   if (!peerCard) return;
@@ -762,22 +762,22 @@ async function sendEndSignalForFp(fp) {
     ttl: Date.now() + RELAY_TTL_MS
   });
 
-  console.log('[END] End signal sent');
+  console.log('[END] Сигнал завершения отправлен');
 }
 
 
 // ============================================
-// END CHAT (UI instantly, network in background)
+// ЗАВЕРШЕНИЕ ЧАТА (UI мгновенно, сеть в фоне)
 // ============================================
 function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. INSTANTLY delete local history
+  // 1. МГНОВЕННО удаляем локальную историю
   delete chatHistory[fp];
 
-  // 2. INSTANTLY close the chat in UI
+  // 2. МГНОВЕННО закрываем чат в UI
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -785,32 +785,32 @@ function endChat() {
   renderContacts();
   renderChat();
 
-  // 3. Background signal + cleanup + save
+  // 3. Фоновая отправка сигнала + очистка + сохранение
   endChatBackground(fp, peerNickname);
 
-  console.log(`[END] Chat with "${peerNickname}" ended (UI)`);
+  console.log(`[END] Чат с "${peerNickname}" завершён (UI)`);
 }
 
 async function endChatBackground(fp, peerNickname) {
   try {
-    // Signal to peer
+    // Сигнал собеседнику
     try {
       await sendEndSignalForFp(fp);
     } catch (e) {
       console.warn('[END] signal failed:', e);
     }
 
-    // Clean our inbox from peer blobs
+    // Чистим свой inbox от blob'ов собеседника
     try {
       await purgeRelayForContact(fp);
     } catch (e) {
       console.warn('[END] purge failed:', e);
     }
 
-    // Save immediately — if the user closes the tab, the chat is already deleted
+    // Сохраняем немедленно — если пользователь закроет вкладку, чат уже удалён
     await saveChatsNow();
 
-    console.log(`[END] Background cleanup for "${peerNickname}" complete`);
+    console.log(`[END] Фоновая очистка "${peerNickname}" завершена`);
   } catch (e) {
     console.warn('[END] background failed:', e);
   }
@@ -826,14 +826,14 @@ function exitChat() {
 
 
 // ============================================
-// SEND MESSAGE (UI instantly, network in background)
+// ОТПРАВКА СООБЩЕНИЯ (UI мгновенно, сеть в фоне)
 // ============================================
 function sendMessage() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text || !activeChat) return;
 
-  // 1. INSTANTLY clear the input
+  // 1. МГНОВЕННО очищаем поле ввода
   input.value = '';
   input.style.height = 'auto';
 
@@ -841,7 +841,7 @@ function sendMessage() {
   const msgId = uuid();
   const ts = Date.now();
 
-  // 2. INSTANTLY create history if missing
+  // 2. МГНОВЕННО создаём историю, если её нет
   if (!chatHistory[fp]) {
     chatHistory[fp] = {
       peerNickname: activeChat.peerCard.nickname,
@@ -851,16 +851,16 @@ function sendMessage() {
     };
   }
 
-  // 3. INSTANTLY add message to history
+  // 3. МГНОВЕННО добавляем сообщение в историю
   chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
   chatHistory[fp].lastActivity = ts;
   chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
-  // 4. INSTANTLY render the message (append, no full re-render)
+  // 4. МГНОВЕННО рендерим сообщение (append, без полной перерисовки)
   appendMessage({ from: 'me', text, ts });
   startTimer();
 
-  // 5. Background send
+  // 5. Фоновая отправка
   sendMessageBackground({ fp, msgId, text, ts });
 }
 
@@ -906,7 +906,7 @@ async function sendMessageBackground({ fp, msgId, text, ts }) {
       ttl: Date.now() + RELAY_TTL_MS
     });
 
-    // Save to OPFS in background
+    // Сохраняем в OPFS в фоне
     saveChats();
   } catch (e) {
     console.error('[SEND]', e);
@@ -915,7 +915,7 @@ async function sendMessageBackground({ fp, msgId, text, ts }) {
 
 
 // ============================================
-// INCOMING LISTENER
+// СЛУШАТЕЛЬ ВХОДЯЩИХ
 // ============================================
 async function listenIncoming() {
   const inboxRef = myInboxRef();
@@ -928,7 +928,7 @@ async function listenIncoming() {
       const docId = change.doc.id;
       const docRef = doc(db, 'users', myHashHex, 'inbox', docId);
 
-      // 1. Structural validation
+      // 1. Структурная валидация
       if (
         typeof data.from !== 'string' ||
         typeof data.to !== 'string' ||
@@ -942,7 +942,7 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 2. "to" must be us
+      // 2. to должен быть нами
       if (data.to !== myHashHex) {
         await deleteDoc(docRef); continue;
       }
@@ -957,7 +957,7 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 5. Find contact by "from"
+      // 5. Ищем контакт по from
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
@@ -967,12 +967,12 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 6. senderEd25519 must match the contact
+      // 6. senderEd25519 должен совпадать с контактом
       if (data.senderEd25519 !== contacts[peerFp].ed25519) {
         await deleteDoc(docRef); continue;
       }
 
-      // 7. Signature over {ciphertext, from, to}
+      // 7. Подпись над {ciphertext, from, to}
       const signedData = JSON.stringify({
         ciphertext: data.ciphertext,
         from: data.from,
@@ -983,7 +983,7 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 8. Decrypt
+      // 8. Расшифровка
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -1000,12 +1000,12 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // 9. payload.from / payload.to must match
+      // 9. payload.from / payload.to должны совпадать
       if (payload.from !== data.from || payload.to !== myHashHex) {
         await deleteDoc(docRef); continue;
       }
 
-      // 10. End-chat signal
+      // 10. Сигнал завершения чата
       if (payload.end === true) {
         await deleteDoc(docRef);
 
@@ -1026,11 +1026,11 @@ async function listenIncoming() {
 
         purgeRelayForContact(peerFp).catch(e => console.warn('[END] purge:', e));
 
-        console.log(`[END] Peer "${peerNickname}" ended the chat`);
+        console.log(`[END] Собеседник "${peerNickname}" завершил чат`);
         continue;
       }
 
-      // 11. Check for expired chat
+      // 11. Проверка на истёкший чат
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
@@ -1041,7 +1041,7 @@ async function listenIncoming() {
 
       try { await deleteDoc(docRef); } catch (e) {}
 
-      // 12. Instant render of the incoming message
+      // 12. Мгновенный рендер входящего
       const isFirstMessage = !chatHistory[peerFp];
 
       if (!chatHistory[peerFp]) {
@@ -1124,8 +1124,8 @@ function bindUI() {
 
   document.getElementById('btnEndChat').addEventListener('click', async () => {
     const ok = await showConfirm(
-      'End chat? History will be permanently deleted for both participants.',
-      'End Chat'
+      'Завершить чат? История будет удалена безвозвратно у обоих участников.',
+      'Завершение чата'
     );
     if (ok) endChat();
   });
@@ -1133,7 +1133,7 @@ function bindUI() {
 
 
 // ============================================
-// DEVICES
+// УСТРОЙСТВА
 // ============================================
 function openDevicesModal() {
   document.getElementById('exportPassword').value = '';
@@ -1150,7 +1150,7 @@ function closeDevicesModal() {
 async function generateExport() {
   const pw = document.getElementById('exportPassword').value;
   if (pw.length < 6) {
-    await showAlert('Password must be at least 6 characters', 'Error');
+    await showAlert('Пароль минимум 6 символов', 'Ошибка');
     return;
   }
   try {
@@ -1191,7 +1191,7 @@ async function generateExport() {
     document.getElementById('exportResult').style.display = 'block';
   } catch (e) {
     console.error(e);
-    await showAlert('Error: ' + e.message, 'Error');
+    await showAlert('Ошибка: ' + e.message, 'Ошибка');
   }
 }
 
@@ -1202,7 +1202,7 @@ async function copyExport() {
     await navigator.clipboard.writeText(ta.value);
     const btn = document.getElementById('btnCopyExport');
     const prev = btn.textContent;
-    btn.textContent = 'Copied ✓';
+    btn.textContent = 'Скопировано ✓';
     setTimeout(() => { btn.textContent = prev; }, 1200);
   } catch {
     document.execCommand('copy');
@@ -1211,7 +1211,7 @@ async function copyExport() {
 
 
 // ============================================
-// ACCOUNTS
+// АККАУНТЫ
 // ============================================
 async function openAccountsModal() {
   await renderAccountsModal();
@@ -1227,7 +1227,7 @@ async function renderAccountsModal() {
   const list = document.getElementById('accountsList');
 
   if (data.accounts.length === 0) {
-    list.innerHTML = '<div style="text-align:center;color:#999;font-size:14px;">No accounts</div>';
+    list.innerHTML = '<div style="text-align:center;color:#666;font-size:13px;">Нет аккаунтов</div>';
     return;
   }
 
@@ -1244,10 +1244,10 @@ async function renderAccountsModal() {
       <div class="acct-item ${isCurrent ? 'current' : ''}">
         <div class="acct-avatar">${initial}</div>
         <div class="acct-info">
-          <div class="acct-name">${escapeHtml(acc.nickname || 'No name')}${isCurrent ? ' (current)' : ''}</div>
+          <div class="acct-name">${escapeHtml(acc.nickname || 'Без имени')}${isCurrent ? ' (текущий)' : ''}</div>
           <div class="acct-fp">${acc.fingerprint}</div>
         </div>
-        ${isCurrent ? '' : `<button class="acct-switch" data-switch="${acc.fingerprint}">Switch</button>`}
+        ${isCurrent ? '' : `<button class="acct-switch" data-switch="${acc.fingerprint}">Перейти</button>`}
       </div>
     `;
   }).join('');
@@ -1257,8 +1257,8 @@ async function renderAccountsModal() {
       e.stopPropagation();
       const fp = btn.dataset.switch;
       const ok = await showConfirm(
-        'Switch to another account? You will be asked for a password.',
-        'Switch Account'
+        'Переключиться на другой аккаунт? Вас попросят ввести пароль.',
+        'Переключение аккаунта'
       );
       if (!ok) return;
       sessionStorage.removeItem('_pw');
@@ -1271,8 +1271,8 @@ async function renderAccountsModal() {
 
 async function handleLogout() {
   const ok = await showConfirm(
-    'Sign out of account? Data will remain on the device — you can return with your password.',
-    'Sign Out'
+    'Выйти из аккаунта? Данные останутся на устройстве — сможете вернуться с паролем.',
+    'Выход из аккаунта'
   );
   if (!ok) return;
   sessionStorage.removeItem('_pw');
@@ -1288,6 +1288,6 @@ function handleAddAnotherAccount() {
 
 
 // ============================================
-// START
+// СТАРТ
 // ============================================
 init();

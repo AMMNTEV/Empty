@@ -1,658 +1,610 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Empty — Sign In</title>
+  <title>Empty — Вход</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#f5f5f5">
+  <meta name="theme-color" content="#000000">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Empty">
   <link rel="apple-touch-icon" href="icons/icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon.png">
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
-  :root {
-    --accent: #5b5bff;
-    --accent-hover: #4340e0;
-    --accent-soft: #eef0ff;
-    --accent-soft-border: #d8dcff;
-    --danger: #e5484d;
-    --danger-soft: #fff0f0;
-    --danger-soft-border: #ffd7d8;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
-  html,
-  body {
-    min-height: 100%;
-    margin: 0;
-    background: #f0f0f0;
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    color: #1a1a1a;
-    letter-spacing: -0.01em;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .about-text sup {
-    font-size: 0.75em;
-    vertical-align: super;
-    line-height: 0;
-  }
-
-  .about-text {
-    color: #666;
-    font-size: 13px;
-    line-height: 1.5;
-    margin-bottom: 12px;
-  }
-
-  .about-text p {
-    margin: 0 0 8px;
-  }
-
-  .about-text strong {
-    color: #1a1a1a;
-    font-weight: 600;
-  }
-
-  .about-text ul {
-    margin: 4px 0 8px;
-    padding-left: 16px;
-    list-style: none;
-  }
-
-  .about-text li {
-    position: relative;
-    margin: 2px 0;
-  }
-
-  .about-text li::before {
-    content: '•';
-    color: var(--accent);
-    position: absolute;
-    left: -14px;
-    font-weight: 700;
-  }
-
-  .about-link {
-    width: 100%;
-    max-width: 400px;
-    margin: 4px auto 0;
-    display: flex;
-    justify-content: center;
-  }
-
-  .about-link button {
-    margin-top: 0;
-    font-size: 12px;
-    padding: 8px 16px;
-    opacity: 0.7;
-  }
-
-  .about-link button:hover {
-    opacity: 1;
-  }
-
-  /* ============ BACK ARROW SVG ============ */
-  .back-arrow {
-    width: 14px;
-    height: 14px;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 6px;
-    margin-top: -2px;
-    stroke: currentColor;
-    fill: none;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  /* ============ BACKGROUND ============ */
-  #asciiBg {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-    opacity: 0.5;
-  }
-
-  /* ============ CONTENT ============ */
-  .page {
-    position: relative;
-    z-index: 1;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  @media (max-height: 700px) {
-    .page {
-      justify-content: flex-start;
-      padding-top: 30px;
-      padding-bottom: 30px;
+    * {
+      box-sizing: border-box;
     }
-  }
 
-  .brand {
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto 24px;
-  }
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: #000;
+    }
 
-  .logo {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-weight: 800;
-    font-size: 64px;
-    line-height: 0.85;
-    color: #1a1a1a;
-    text-align: center;
-    letter-spacing: -0.04em;
-    user-select: none;
-    text-transform: uppercase;
-    transform: scaleY(1.05);
-    transform-origin: center;
-    width: 100%;
-    white-space: nowrap;
-    position: relative;
-  }
+    body {
+      font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+      color: #d0d0d0;
+      letter-spacing: 0.3px;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
 
-  .logo::after {
-    content: '';
-    display: block;
-    width: 40px;
-    height: 4px;
-    background: var(--accent);
-    border-radius: 2px;
-    margin: 10px auto 0;
-  }
+        .about-text sup {
+      font-size: 0.75em;
+      vertical-align: super;
+      line-height: 0;
+    }
 
-  .logo-sub {
-    color: var(--accent);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-align: center;
-    margin-top: 10px;
-    opacity: 0.85;
-  }
+        .about-text {
+      color: #b0b0b0;
+      font-size: 11px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
 
-  .card {
-    background: #ffffff;
-    border: 1px solid #e5e5e5;
-    border-radius: 16px;
-    padding: 24px;
-    max-width: 400px;
-    width: 100%;
-    margin: 0 auto;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    scroll-margin-top: 20px;
-  }
+    .about-text p {
+      margin: 0 0 8px;
+    }
 
-  h1 {
-    color: #1a1a1a;
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0 0 6px;
-    letter-spacing: -0.02em;
-  }
+    .about-text strong {
+      color: #6f6;
+      font-weight: bold;
+    }
 
-  h1::before,
-  h1::after {
-    content: none;
-  }
+    .about-text ul {
+      margin: 4px 0 8px;
+      padding-left: 16px;
+      list-style: none;
+    }
 
-  .subtitle {
-    color: #999;
-    font-size: 13px;
-    margin-bottom: 18px;
-  }
+    .about-text li {
+      position: relative;
+      margin: 2px 0;
+    }
 
-  label {
-    display: block;
-    color: #666;
-    font-size: 12px;
-    margin: 14px 0 6px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-  }
+    .about-text li::before {
+      content: '> ';
+      color: #6f6;
+      position: absolute;
+      left: -14px;
+    }
 
-  input,
-  textarea {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid #e0e0e0;
-    background: #fafafa;
-    color: #1a1a1a;
-    border-radius: 10px;
-    font-size: 14px;
-    font-family: inherit;
-    box-sizing: border-box;
-    outline: none;
-    letter-spacing: -0.01em;
-    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-  }
+        .about-link {
+      width: 100%;
+      max-width: 400px;
+      margin: 4px auto 0;
+      display: flex;
+      justify-content: center;
+    }
 
-  input:focus,
-  textarea:focus {
-    border-color: var(--accent);
-    background: #ffffff;
-    box-shadow: 0 0 0 3px var(--accent-soft);
-  }
+    .about-link button {
+      margin-top: 0;
+      font-size: 10px;
+      padding: 6px 14px;
+      opacity: 0.7;
+    }
 
-  input::placeholder,
-  textarea::placeholder {
-    color: #bbb;
-  }
+    .about-link button:hover {
+      opacity: 1;
+    }
 
-  textarea {
-    min-height: 100px;
-    font-size: 13px;
-    resize: vertical;
-  }
+    /* ============ ФОН ============ */
+    #asciiBg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
 
-  button {
-    margin-top: 12px;
-    padding: 12px 20px;
-    background: var(--accent);
-    border: 1px solid var(--accent);
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: -0.01em;
-    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
-    border-radius: 10px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
+    /* ============ КОНТЕНТ ============ */
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
 
-  button:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-  }
+    @media (max-height: 700px) {
+      .page {
+        justify-content: flex-start;
+        padding-top: 30px;
+        padding-bottom: 30px;
+      }
+    }
 
-  button:disabled {
-    background: #e0e0e0;
-    border-color: #e0e0e0;
-    color: #aaa;
-    cursor: not-allowed;
-  }
-
-  button.secondary {
-    background: transparent;
-    color: #666;
-    border: 1px solid #e0e0e0;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: -0.01em;
-  }
-
-  button.secondary:hover {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-color: var(--accent-soft-border);
-  }
-
-  .error {
-    color: var(--danger);
-    font-size: 12px;
-    margin-top: 8px;
-    min-height: 16px;
-  }
-
-  .hint {
-    color: #aaa;
-    font-size: 12px;
-  }
-
-  .warning {
-    background: var(--danger-soft);
-    border: 1px solid var(--danger-soft-border);
-    padding: 12px;
-    font-size: 13px;
-    color: #b02a2e;
-    margin: 12px 0;
-    border-radius: 10px;
-    line-height: 1.4;
-  }
-
-  .screen {
-    display: none;
-  }
-
-  .screen.active {
-    display: block;
-  }
-
-  .account-list {
-    margin: 10px 0;
-  }
-
-  .account-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border: 1px solid #eee;
-    border-radius: 12px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    background: #fafafa;
-    transition: all 0.15s;
-  }
-
-  .account-item:hover {
-    background: var(--accent-soft);
-    border-color: var(--accent-soft-border);
-  }
-
-  .account-item.current {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-
-  .account-avatar {
-    width: 40px;
-    height: 40px;
-    background: var(--accent);
-    border: none;
-    border-radius: 50%;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .account-info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .account-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: #1a1a1a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .account-fp {
-    font-size: 12px;
-    color: #999;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .account-delete {
-    background: transparent;
-    border: none;
-    color: #ccc;
-    cursor: pointer;
-    padding: 6px;
-    margin: 0;
-    font-family: inherit;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s, background 0.15s;
-    border-radius: 50%;
-  }
-
-  .account-delete:hover {
-    color: var(--danger);
-    background: var(--danger-soft);
-    border: none;
-  }
-
-  .account-delete svg {
-    width: 18px;
-    height: 18px;
-    display: block;
-  }
-
-  /* ============ BUTTON ROW ============ */
-  .actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .actions button {
-    flex: 1;
-    margin-top: 0;
-    padding: 10px 8px;
-    font-size: 13px;
-    letter-spacing: -0.01em;
-    white-space: nowrap;
-  }
-
-  #importScannerSuccess {
-    transition: opacity 0.15s ease;
-  }
-
-  /* ============ MODALS ============ */
-  .modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    padding-top: calc(16px + env(safe-area-inset-top));
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-    z-index: 1000;
-    backdrop-filter: blur(8px);
-  }
-
-  .modal.active {
-    display: flex;
-  }
-
-  .modal-card {
-    background: #ffffff;
-    border: none;
-    border-radius: 20px;
-    padding: 24px;
-    max-width: 400px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  }
-
-  .modal-card h2 {
-    color: #1a1a1a;
-    margin: 0 0 12px;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-
-  .modal-card h2::before,
-  .modal-card h2::after {
-    content: none;
-  }
-
-  .modal-card .hint {
-    color: #888;
-    font-size: 13px;
-    margin-bottom: 18px;
-    line-height: 1.5;
-    white-space: pre-line;
-  }
-
-  .modal-card button {
-    width: 100%;
-    padding: 12px;
-    background: var(--accent);
-    color: #ffffff;
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    cursor: pointer;
-    margin-top: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: inherit;
-    letter-spacing: -0.01em;
-    transition: background 0.15s, border-color 0.15s;
-  }
-
-  .modal-card button:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-  }
-
-  .modal-card button.secondary {
-    background: transparent;
-    color: #666;
-    border: 1px solid #e0e0e0;
-  }
-
-  .modal-card button.secondary:hover {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-color: var(--accent-soft-border);
-  }
-
-  @media (max-width: 480px) {
     .brand {
-      margin-bottom: 20px;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto 24px;
     }
 
     .logo {
+      font-family: 'Arial Black', 'Impact', 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 900;
+      font-size: 64px;
+      line-height: 0.85;
+      color: #e8e8e8;
+      text-align: center;
       letter-spacing: -0.03em;
+      user-select: none;
+      text-transform: uppercase;
+      transform: scaleY(1.12);
+      transform-origin: center;
+      width: 100%;
+      white-space: nowrap;
+      text-shadow:
+        0 0 1px rgba(232, 232, 232, 0.2),
+        0 0 24px rgba(200, 200, 200, 0.04);
     }
 
     .logo-sub {
-      font-size: 10px;
-      letter-spacing: 1.5px;
-    }
-
-    .actions button {
-      font-size: 12px;
-      padding: 9px 4px;
+      color: #6f6;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: 6px;
+      opacity: 0.65;
     }
 
     .card {
+      background: rgba(10, 10, 10, 0.92);
+      border: 1px solid #2a2a2a;
       padding: 20px;
-      border-radius: 14px;
+      max-width: 400px;
+      width: 100%;
+      margin: 0 auto;
+      backdrop-filter: blur(4px);
+      scroll-margin-top: 20px;
     }
-  }
-</style>
+
+    h1 {
+      color: #6f6;
+      font-size: 16px;
+      margin: 0 0 15px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    h1::before {
+      content: '[ ';
+      color: #444;
+    }
+
+    h1::after {
+      content: ' ]';
+      color: #444;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 11px;
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      color: #888;
+      font-size: 11px;
+      margin: 10px 0 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      background: #050505;
+      color: #d0d0d0;
+      border-radius: 0;
+      font-size: 13px;
+      font-family: inherit;
+      box-sizing: border-box;
+      outline: none;
+      letter-spacing: 0.3px;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: #6f6;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #333;
+    }
+
+    textarea {
+      min-height: 100px;
+      font-size: 11px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+      border-radius: 0;
+    }
+
+    button:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
+
+    button:disabled {
+      color: #333;
+      border-color: #1a1a1a;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: #888;
+      border-color: #2a2a2a;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: 0.3px;
+    }
+
+    button.secondary:hover {
+      background: #111;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .error {
+      color: #f66;
+      font-size: 11px;
+      margin-top: 8px;
+      min-height: 16px;
+    }
+
+    .hint {
+      color: #444;
+      font-size: 10px;
+    }
+
+    .warning {
+      background: #1a0a0a;
+      border: 1px solid #4a2a2a;
+      padding: 8px;
+      font-size: 11px;
+      color: #c88;
+      margin: 10px 0;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .account-list {
+      margin: 10px 0;
+    }
+
+    .account-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      margin-bottom: 6px;
+      cursor: pointer;
+      background: #0a0a0a;
+      transition: all 0.1s;
+    }
+
+    .account-item:hover {
+      background: #111;
+      border-color: #555;
+    }
+
+    .account-item.current {
+      border-color: #2a4a2a;
+      background: #0a1a0a;
+    }
+
+    .account-avatar {
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: 1px solid #2a2a2a;
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .account-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .account-name {
+      font-weight: bold;
+      font-size: 13px;
+      color: #d0d0d0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-fp {
+      font-size: 10px;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .account-delete {
+      background: transparent;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      padding: 4px 8px;
+      margin: 0;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+    }
+
+    .account-delete:hover {
+      color: #f66;
+      background: transparent;
+      border: none;
+    }
+
+    .account-delete svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    /* ============ КНОПКИ В РЯД ============ */
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .actions button {
+      flex: 1;
+      margin-top: 0;
+      padding: 8px 6px;
+      font-size: 10px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    #importScannerSuccess {
+      transition: opacity 0.15s ease;
+    }
+
+    /* ============ МОДАЛКИ ============ */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      padding-top: calc(16px + env(safe-area-inset-top));
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+      z-index: 1000;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: rgba(10, 10, 10, 0.95);
+      border: 1px solid #2a2a2a;
+      padding: 16px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      backdrop-filter: blur(6px);
+    }
+
+    .modal-card h2 {
+      color: #6f6;
+      margin: 0 0 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .modal-card h2::before {
+      content: '[ ';
+    }
+
+    .modal-card h2::after {
+      content: ' ]';
+    }
+
+    .modal-card .hint {
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 15px;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    .modal-card button {
+      width: 100%;
+      padding: 8px;
+      background: transparent;
+      color: #6f6;
+      border: 1px solid #2a4a2a;
+      cursor: pointer;
+      margin-top: 8px;
+      font-size: 12px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+    }
+
+    .modal-card button:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+    }
+
+    .modal-card button.secondary {
+      background: transparent;
+      color: #888;
+      border-color: #2a2a2a;
+    }
+
+    .modal-card button.secondary:hover {
+      background: #111;
+      color: #fff;
+      border-color: #555;
+    }
+
+    @media (max-width: 480px) {
+      .brand {
+        margin-bottom: 16px;
+      }
+
+      .logo {
+        letter-spacing: -0.02em;
+      }
+
+      .logo-sub {
+        font-size: 8px;
+        letter-spacing: 3px;
+      }
+
+      .actions button {
+        font-size: 9px;
+        padding: 7px 4px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-  <!-- ASCII BACKGROUND -->
+  <!-- ASCII-ФОН -->
   <canvas id="asciiBg"></canvas>
 
   <div class="page">
 
-    <!-- LOGO -->
+    <!-- ЛОГОТИП -->
     <div class="brand">
       <div class="logo" id="logoText">EMPTY</div>
       <div class="logo-sub">Encrypted · Local</div>
     </div>
 
-    <!-- My Accounts -->
+    <!-- Мои аккаунты -->
     <div class="card screen" id="screen-accounts">
-      <h1>My Accounts</h1>
-      <p class="subtitle">Select an account or add a new one.</p>
+      <h1>Мои аккаунты</h1>
+      <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
       <div class="account-list" id="accountList"></div>
       <div class="actions">
-        <button id="btnAddAccount">+ Add</button>
-        <button class="secondary" id="btnImportAccount">Import</button>
+        <button id="btnAddAccount">+ Добавить</button>
+        <button class="secondary" id="btnImportAccount">Импорт</button>
       </div>
     </div>
 
-    <!-- About Button -->
-    <div class="about-link">
-      <button class="secondary" id="btnAbout">About</button>
-    </div>
+        <!-- Кнопка "О приложении" -->
+        <div class="about-link">
+          <button class="secondary" id="btnAbout">О приложении</button>
+        </div>
 
-    <!-- Create -->
+    <!-- Создание -->
     <div class="card screen" id="screen-create">
-      <h1>New Account</h1>
-      <p class="subtitle">Create a local identity. No registration required.</p>
+      <h1>Новый аккаунт</h1>
+      <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
 
-      <label>Nickname</label>
-      <input type="text" id="nickname" placeholder="Alice" maxlength="24" autocomplete="off">
-      <div class="hint">Letters, numbers, spaces and _ - . only</div>
+      <label>Никнейм</label>
+      <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
+      <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
 
-      <label>Password (for key encryption)</label>
-      <input type="password" id="password" placeholder="At least 6 characters">
+      <label>Пароль (для шифрования ключей)</label>
+      <input type="password" id="password" placeholder="Минимум 6 символов">
 
-      <label>Confirm Password</label>
-      <input type="password" id="password2" placeholder="Repeat password">
+      <label>Повторите пароль</label>
+      <input type="password" id="password2" placeholder="Ещё раз">
 
-      <button id="createBtn">Create</button>
-      <button class="secondary" id="linkBackFromCreate">← Back</button>
+      <button id="createBtn">Создать</button>
+      <button class="secondary" id="linkBackFromCreate">← Назад</button>
       <div class="error" id="createError"></div>
     </div>
 
-    <!-- Unlock -->
+    <!-- Вход -->
     <div class="card screen" id="screen-unlock">
-      <h1>Sign In</h1>
-      <p class="subtitle" id="unlockSubtitle">Enter your password</p>
+      <h1>Вход в аккаунт</h1>
+      <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
 
-      <label>Password</label>
-      <input type="password" id="unlockPassword" placeholder="Your password">
+      <label>Пароль</label>
+      <input type="password" id="unlockPassword" placeholder="Ваш пароль">
 
-      <button id="unlockBtn">Sign In</button>
-      <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
+      <button id="unlockBtn">Войти</button>
+      <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
       <div class="error" id="unlockError"></div>
     </div>
 
-    <!-- Import -->
+    <!-- Импорт -->
     <div class="card screen" id="screen-import">
-      <h1>Import Account</h1>
-      <p class="subtitle">Scan the QR code from your old device.</p>
+      <h1>Импорт аккаунта</h1>
+      <p class="subtitle">Отсканируйте QR со старого устройства.</p>
 
       <div class="warning">
-        ⚠️ This data contains your private keys. Never show it to anyone.
+        ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
       </div>
 
       <div id="importScannerWrap" style="margin-top:10px;">
         <div id="importScannerBox"
-          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border-radius:14px; border:1px solid #e0e0e0;">
+          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
           <video id="importScannerVideo" playsinline
             style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#f0fdf4;
-                      align-items:center; justify-content:center; border-radius:14px;">
-            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#22c55e" stroke-width="3"
+          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                      align-items:center; justify-content:center; border:1px solid #6f6;">
+            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
@@ -661,84 +613,83 @@
         <div class="error" id="importScanError"></div>
       </div>
 
-      <label>Export Password</label>
-      <input type="password" id="importPassword" placeholder="Temporary password">
+      <label>Пароль экспорта</label>
+      <input type="password" id="importPassword" placeholder="Временный пароль">
 
-      <label>New Password for This Device</label>
-      <input type="password" id="importNewPassword" placeholder="At least 6 characters">
+      <label>Новый пароль для этого устройства</label>
+      <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
 
-      <label>Confirm New Password</label>
-      <input type="password" id="importNewPassword2" placeholder="Repeat password">
+      <label>Повторите новый пароль</label>
+      <input type="password" id="importNewPassword2" placeholder="Ещё раз">
 
-      <button id="importBtn" disabled>Import</button>
-      <button class="secondary" id="linkBackFromImport">← Back</button>
+      <button id="importBtn" disabled>Импортировать</button>
+      <button class="secondary" id="linkBackFromImport">← Назад</button>
       <div class="error" id="importError"></div>
     </div>
 
   </div>
 
-  <!-- MODAL: CONFIRM -->
+  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
   <div class="modal" id="modalConfirm">
     <div class="modal-card">
-      <h2 id="confirmTitle">Confirm</h2>
+      <h2 id="confirmTitle">Подтверждение</h2>
       <p class="hint" id="confirmText">—</p>
-      <button id="btnConfirmYes">Yes</button>
-      <button class="secondary" id="btnConfirmNo">Cancel</button>
+      <button id="btnConfirmYes">Да</button>
+      <button class="secondary" id="btnConfirmNo">Отмена</button>
     </div>
   </div>
 
-  <!-- MODAL: ALERT -->
+  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
   <div class="modal" id="modalAlert">
     <div class="modal-card">
-      <h2 id="alertTitle">Notice</h2>
+      <h2 id="alertTitle">Уведомление</h2>
       <p class="hint" id="alertText">—</p>
-      <button id="btnAlertOk">OK</button>
+      <button id="btnAlertOk">ОК</button>
     </div>
   </div>
 
   <script type="module" src="index.js"></script>
 
-  <!-- MODAL: ABOUT -->
-  <div class="modal" id="modalAbout">
-    <div class="modal-card">
-      <h2>About</h2>
+    <!-- МОДАЛКА: О ПРИЛОЖЕНИИ -->
+    <div class="modal" id="modalAbout">
+      <div class="modal-card">
+        <h2>О приложении</h2>
 
-      <div class="about-text">
-        <p><strong>Empty</strong> — a temporary web messenger without registration. No emails, phone numbers, or
-          passwords on the server.</p>
+        <div class="about-text">
+          <p><strong>Empty</strong> — временный веб-мессенджер без регистрации. Никаких email, телефонов и паролей на
+            сервере.</p>
 
-        <p><strong>Identity.</strong> On first launch, a cryptographic key pair (X25519 + Ed25519) is generated. It is
-          stored only on your device, encrypted with a password.</p>
+          <p><strong>Личность.</strong> При первом запуске генерируется криптографическая пара (X25519 + Ed25519). Она
+            хранится только на твоём устройстве, зашифрованная паролем.</p>
 
-        <p><strong>How to connect.</strong> Exchange cards via QR code. Scan — a contact appears. No username search.
-        </p>
+          <p><strong>Как связаться.</strong> Обмен карточками через QR-код. Сканируешь — появляется контакт. Никакого поиска
+            по нику.</p>
 
-        <p><strong>Messages.</strong> Encrypted with AES-GCM using a shared X25519 key. The server only sees ciphertext
-          and metadata.</p>
+          <p><strong>Сообщения.</strong> Шифруются AES-GCM через общий ключ X25519. Сервер видит только
+            шифротекст и метаданные.</p>
 
-        <p><strong>Chats live 24 hours.</strong> Each new message resets the timer. If you don't write for a day, the
-          chat is deleted for both. Can be ended manually.</p>
+          <p><strong>Чаты живут 24 часа.</strong> Каждое новое сообщение сбрасывает таймер. Не пишешь сутки — чат удаляется
+            у обоих. Можно завершить вручную.</p>
 
-        <p><strong>Files.</strong> All history is stored locally in the browser's OPFS, encrypted. Clear browser data —
-          lose everything.</p>
+          <p><strong>Файлы.</strong> Вся история хранится локально в OPFS браузера, зашифрованная. Очистил данные браузера —
+            потерял всё.</p>
 
-        <p><strong>Features:</strong></p>
-        <ul>
-          <li>Multi-account on one device</li>
-          <li>Import from another device (QR + temporary password)</li>
-          <li>QR card scanner</li>
-        </ul>
+          <p><strong>Что умеет:</strong></p>
+          <ul>
+            <li>Мультиаккаунт на одном устройстве</li>
+            <li>Импорт с другого устройства (QR + временный пароль)</li>
+            <li>QR-сканер карточек</li>
+          </ul>
 
-        <p><strong>Cryptographic strength.</strong> Key space — 2<sup>256</sup>. Brute force at 10<sup>9</sup>
-          keys/sec would take ~10<sup>60</sup> years. Even with a quantum computer (√N = 2<sup>128</sup>) —
-          astronomically long.</p>
+          <p><strong>Криптостойкость.</strong> Пространство ключей — 2<sup>256</sup>. Перебор при 10<sup>9</sup> ключей/сек займёт
+            ~10<sup>60</sup> лет. Даже с квантовым компьютером (√N = 2<sup>128</sup>) — астрономически долго.</p>
+        </div>
+
+        <button id="btnCloseAbout" class="secondary">Закрыть</button>
       </div>
-
-      <button id="btnCloseAbout" class="secondary">Close</button>
     </div>
-  </div>
 
-  <!-- ASCII BACKGROUND -->
+  <!-- ASCII-ФОН -->
   <script>
     (function initAsciiBg() {
       const canvas = document.getElementById('asciiBg');
@@ -746,7 +697,7 @@
       const ctx = canvas.getContext('2d');
 
       const CHARS = '0123456789+-*/=<>[]{}()#$%&@!?^~:;.,|_abcdefABCDEF';
-      const PARTICLE_COUNT = 40;
+      const PARTICLE_COUNT = 60;
       const particles = [];
 
       let W = 0, H = 0, DPR = 1;
@@ -766,13 +717,13 @@
         return {
           x: Math.random() * W,
           y: Math.random() * H,
-          vy: 0.1 + Math.random() * 0.25,
-          vx: (Math.random() - 0.5) * 0.08,
+          vy: 0.15 + Math.random() * 0.35,
+          vx: (Math.random() - 0.5) * 0.1,
           char: CHARS[Math.floor(Math.random() * CHARS.length)],
-          size: 10 + Math.floor(Math.random() * 6),
-          alpha: 0.03 + Math.random() * 0.06,
+          size: 9 + Math.floor(Math.random() * 6),
+          alpha: 0.05 + Math.random() * 0.12,
           flicker: Math.random() * Math.PI * 2,
-          flickerSpeed: 0.01 + Math.random() * 0.015
+          flickerSpeed: 0.01 + Math.random() * 0.02
         };
       }
 
@@ -786,6 +737,8 @@
 
       function tick() {
         ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, 0, W, H);
 
         for (const p of particles) {
           p.y += p.vy;
@@ -794,16 +747,16 @@
 
           const a = p.alpha * (0.6 + 0.4 * Math.sin(p.flicker));
 
-          ctx.font = `${p.size}px -apple-system, monospace`;
-          ctx.fillStyle = `rgba(26, 26, 26, ${a})`;
+          ctx.font = `${p.size}px 'Courier New', monospace`;
+          ctx.fillStyle = `rgba(111, 255, 111, ${a})`;
           ctx.fillText(p.char, p.x, p.y);
 
           if (p.y > H + 20) {
             p.y = -20;
             p.x = Math.random() * W;
             p.char = CHARS[Math.floor(Math.random() * CHARS.length)];
-            p.alpha = 0.03 + Math.random() * 0.06;
-            p.size = 10 + Math.floor(Math.random() * 6);
+            p.alpha = 0.05 + Math.random() * 0.12;
+            p.size = 9 + Math.floor(Math.random() * 6);
           }
           if (p.x < -20) p.x = W + 20;
           if (p.x > W + 20) p.x = -20;
@@ -825,7 +778,7 @@
     })();
   </script>
 
-  <!-- Fit EMPTY logo to card width -->
+  <!-- Подгонка размера EMPTY под ширину карточки -->
   <script>
     (function fitLogo() {
       const logo = document.getElementById('logoText');
@@ -856,19 +809,19 @@
     })();
   </script>
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .then((reg) => {
-            console.log('[PWA] Service Worker registered, scope:', reg.scope);
-          })
-          .catch((e) => {
-            console.warn('[PWA] SW registration error:', e);
-          });
-      });
-    }
-  </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .then((reg) => {
+              console.log('[PWA] Service Worker зарегистрирован, scope:', reg.scope);
+            })
+            .catch((e) => {
+              console.warn('[PWA] Ошибка регистрации SW:', e);
+            });
+        });
+      }
+    </script>
 </body>
 
 </html>
