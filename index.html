@@ -287,6 +287,21 @@
       border-color: #555;
     }
 
+    /* SVG icons inside buttons */
+    button svg {
+      display: inline-block;
+      vertical-align: middle;
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      margin-top: -2px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     .error {
       color: #f66;
       font-size: 11px;
@@ -401,6 +416,7 @@
       width: 16px;
       height: 16px;
       display: block;
+      margin: 0;
     }
 
     /* ============ ROW BUTTONS ============ */
@@ -571,7 +587,13 @@
         <input type="password" id="password2" placeholder="Once again">
 
         <button id="createBtn">Create</button>
-        <button class="secondary" id="linkBackFromCreate">← Back</button>
+        <button class="secondary" id="linkBackFromCreate">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back
+        </button>
         <div class="error" id="createError"></div>
       </div>
 
@@ -584,7 +606,13 @@
         <input type="password" id="unlockPassword" placeholder="Your password">
 
         <button id="unlockBtn">Sign In</button>
-        <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
+        <button class="secondary" id="linkBackFromUnlock">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back to accounts
+        </button>
         <div class="error" id="unlockError"></div>
       </div>
 
@@ -623,7 +651,13 @@
         <input type="password" id="importNewPassword2" placeholder="Once again">
 
         <button id="importBtn" disabled>Import</button>
-        <button class="secondary" id="linkBackFromImport">← Back</button>
+        <button class="secondary" id="linkBackFromImport">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back
+        </button>
         <div class="error" id="importError"></div>
       </div>
 
