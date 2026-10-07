@@ -287,19 +287,25 @@
       border-color: #555;
     }
 
-    /* SVG icons inside buttons */
+    /* SVG icons inside buttons — flex centering */
     button svg {
-      display: inline-block;
-      vertical-align: middle;
+      display: block;
+      flex-shrink: 0;
       width: 14px;
       height: 14px;
-      margin-right: 6px;
-      margin-top: -2px;
       stroke: currentColor;
       fill: none;
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
+    }
+
+    /* Buttons that contain an icon + label */
+    button:has(> svg) {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     .error {
@@ -417,6 +423,11 @@
       height: 16px;
       display: block;
       margin: 0;
+      gap: 0;
+    }
+
+    .account-delete:has(> svg) {
+      gap: 0;
     }
 
     /* ============ ROW BUTTONS ============ */
