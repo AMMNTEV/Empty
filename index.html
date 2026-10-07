@@ -77,22 +77,28 @@
       left: -14px;
     }
 
-        .about-link {
-      width: 100%;
-      max-width: 400px;
-      margin: 4px auto 0;
+        .about-fixed {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(12px + env(safe-area-inset-bottom));
       display: flex;
       justify-content: center;
+      z-index: 50;
+      pointer-events: none;
     }
 
-    .about-link button {
+    .about-fixed button {
+      pointer-events: auto;
       margin-top: 0;
       font-size: 10px;
       padding: 6px 14px;
       opacity: 0.7;
+      background: rgba(10, 10, 10, 0.7);
+      backdrop-filter: blur(4px);
     }
 
-    .about-link button:hover {
+    .about-fixed button:hover {
       opacity: 1;
     }
 
@@ -117,6 +123,7 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      padding-bottom: calc(60px + env(safe-area-inset-bottom));
       box-sizing: border-box;
     }
 
@@ -124,7 +131,7 @@
       .page {
         justify-content: flex-start;
         padding-top: 30px;
-        padding-bottom: 30px;
+        padding-bottom: calc(60px + env(safe-area-inset-bottom));
       }
     }
 
@@ -550,11 +557,6 @@
       </div>
     </div>
 
-        <!-- About button -->
-        <div class="about-link">
-          <button class="secondary" id="btnAbout">About</button>
-        </div>
-
     <!-- Create -->
     <div class="card screen" id="screen-create">
       <h1>New Account</h1>
@@ -627,6 +629,11 @@
       <div class="error" id="importError"></div>
     </div>
 
+  </div>
+
+  <!-- Fixed About button -->
+  <div class="about-fixed">
+    <button class="secondary" id="btnAbout">About</button>
   </div>
 
   <!-- MODAL: CONFIRM -->
