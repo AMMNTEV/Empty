@@ -37,13 +37,13 @@
       overflow-y: auto;
     }
 
-        .about-text sup {
+    .about-text sup {
       font-size: 0.75em;
       vertical-align: super;
       line-height: 0;
     }
 
-        .about-text {
+    .about-text {
       color: #b0b0b0;
       font-size: 11px;
       line-height: 1.5;
@@ -77,31 +77,6 @@
       left: -14px;
     }
 
-        .about-fixed {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: calc(12px + env(safe-area-inset-bottom));
-      display: flex;
-      justify-content: center;
-      z-index: 50;
-      pointer-events: none;
-    }
-
-    .about-fixed button {
-      pointer-events: auto;
-      margin-top: 0;
-      font-size: 10px;
-      padding: 6px 14px;
-      opacity: 0.7;
-      background: rgba(10, 10, 10, 0.7);
-      backdrop-filter: blur(4px);
-    }
-
-    .about-fixed button:hover {
-      opacity: 1;
-    }
-
     /* ============ BACKGROUND ============ */
     #asciiBg {
       position: fixed;
@@ -119,25 +94,30 @@
       z-index: 1;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 20px;
-      padding-bottom: calc(60px + env(safe-area-inset-bottom));
       box-sizing: border-box;
+    }
+
+    .page-inner {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     @media (max-height: 700px) {
       .page {
-        justify-content: flex-start;
+        align-items: flex-start;
         padding-top: 30px;
-        padding-bottom: calc(60px + env(safe-area-inset-bottom));
+        padding-bottom: 30px;
       }
     }
 
     .brand {
       width: 100%;
-      max-width: 400px;
       margin: 0 auto 24px;
     }
 
@@ -176,11 +156,28 @@
       background: rgba(10, 10, 10, 0.92);
       border: 1px solid #2a2a2a;
       padding: 20px;
-      max-width: 400px;
       width: 100%;
-      margin: 0 auto;
       backdrop-filter: blur(4px);
       scroll-margin-top: 20px;
+    }
+
+    /* About button — always right below the card */
+    .about-link {
+      width: 100%;
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .about-link button {
+      margin-top: 0;
+      font-size: 10px;
+      padding: 6px 14px;
+      opacity: 0.7;
+    }
+
+    .about-link button:hover {
+      opacity: 1;
     }
 
     h1 {
@@ -539,101 +536,103 @@
   <canvas id="asciiBg"></canvas>
 
   <div class="page">
+    <div class="page-inner">
 
-    <!-- LOGO -->
-    <div class="brand">
-      <div class="logo" id="logoText">EMPTY</div>
-      <div class="logo-sub">Encrypted · Local</div>
-    </div>
-
-    <!-- My accounts -->
-    <div class="card screen" id="screen-accounts">
-      <h1>My Accounts</h1>
-      <p class="subtitle">Choose an account or add a new one.</p>
-      <div class="account-list" id="accountList"></div>
-      <div class="actions">
-        <button id="btnAddAccount">+ Add</button>
-        <button class="secondary" id="btnImportAccount">Import</button>
-      </div>
-    </div>
-
-    <!-- Create -->
-    <div class="card screen" id="screen-create">
-      <h1>New Account</h1>
-      <p class="subtitle">Create a local identity. No registration needed.</p>
-
-      <label>Nickname</label>
-      <input type="text" id="nickname" placeholder="Alice" maxlength="24" autocomplete="off">
-      <div class="hint">Only letters, digits, space and _ - . characters.</div>
-
-      <label>Password (for key encryption)</label>
-      <input type="password" id="password" placeholder="At least 6 characters">
-
-      <label>Repeat password</label>
-      <input type="password" id="password2" placeholder="Once again">
-
-      <button id="createBtn">Create</button>
-      <button class="secondary" id="linkBackFromCreate">← Back</button>
-      <div class="error" id="createError"></div>
-    </div>
-
-    <!-- Unlock -->
-    <div class="card screen" id="screen-unlock">
-      <h1>Sign In</h1>
-      <p class="subtitle" id="unlockSubtitle">Enter your password</p>
-
-      <label>Password</label>
-      <input type="password" id="unlockPassword" placeholder="Your password">
-
-      <button id="unlockBtn">Sign In</button>
-      <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
-      <div class="error" id="unlockError"></div>
-    </div>
-
-    <!-- Import -->
-    <div class="card screen" id="screen-import">
-      <h1>Import Account</h1>
-      <p class="subtitle">Scan the QR code from your old device.</p>
-
-      <div class="warning">
-        ⚠️ This data contains your private keys. Never show it to anyone.
+      <!-- LOGO -->
+      <div class="brand">
+        <div class="logo" id="logoText">EMPTY</div>
+        <div class="logo-sub">Encrypted · Local</div>
       </div>
 
-      <div id="importScannerWrap" style="margin-top:10px;">
-        <div id="importScannerBox"
-          style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
-          <video id="importScannerVideo" playsinline
-            style="width:100%; height:100%; object-fit:cover; display:block;"></video>
-          <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
-                      align-items:center; justify-content:center; border:1px solid #6f6;">
-            <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </div>
+      <!-- My accounts -->
+      <div class="card screen" id="screen-accounts">
+        <h1>My Accounts</h1>
+        <p class="subtitle">Choose an account or add a new one.</p>
+        <div class="account-list" id="accountList"></div>
+        <div class="actions">
+          <button id="btnAddAccount">+ Add</button>
+          <button class="secondary" id="btnImportAccount">Import</button>
         </div>
-        <div class="error" id="importScanError"></div>
       </div>
 
-      <label>Export password</label>
-      <input type="password" id="importPassword" placeholder="Temporary password">
+      <!-- Create -->
+      <div class="card screen" id="screen-create">
+        <h1>New Account</h1>
+        <p class="subtitle">Create a local identity. No registration needed.</p>
 
-      <label>New password for this device</label>
-      <input type="password" id="importNewPassword" placeholder="At least 6 characters">
+        <label>Nickname</label>
+        <input type="text" id="nickname" placeholder="Alice" maxlength="24" autocomplete="off">
+        <div class="hint">Only letters, digits, space and _ - . characters.</div>
 
-      <label>Repeat new password</label>
-      <input type="password" id="importNewPassword2" placeholder="Once again">
+        <label>Password (for key encryption)</label>
+        <input type="password" id="password" placeholder="At least 6 characters">
 
-      <button id="importBtn" disabled>Import</button>
-      <button class="secondary" id="linkBackFromImport">← Back</button>
-      <div class="error" id="importError"></div>
+        <label>Repeat password</label>
+        <input type="password" id="password2" placeholder="Once again">
+
+        <button id="createBtn">Create</button>
+        <button class="secondary" id="linkBackFromCreate">← Back</button>
+        <div class="error" id="createError"></div>
+      </div>
+
+      <!-- Unlock -->
+      <div class="card screen" id="screen-unlock">
+        <h1>Sign In</h1>
+        <p class="subtitle" id="unlockSubtitle">Enter your password</p>
+
+        <label>Password</label>
+        <input type="password" id="unlockPassword" placeholder="Your password">
+
+        <button id="unlockBtn">Sign In</button>
+        <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
+        <div class="error" id="unlockError"></div>
+      </div>
+
+      <!-- Import -->
+      <div class="card screen" id="screen-import">
+        <h1>Import Account</h1>
+        <p class="subtitle">Scan the QR code from your old device.</p>
+
+        <div class="warning">
+          ⚠️ This data contains your private keys. Never show it to anyone.
+        </div>
+
+        <div id="importScannerWrap" style="margin-top:10px;">
+          <div id="importScannerBox"
+            style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; border:1px solid #2a2a2a;">
+            <video id="importScannerVideo" playsinline
+              style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+            <div id="importScannerSuccess" style="display:none; position:absolute; inset:0; background:#0a1a0a;
+                        align-items:center; justify-content:center; border:1px solid #6f6;">
+              <svg viewBox="0 0 24 24" width="96" height="96" fill="none" stroke="#6f6" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="error" id="importScanError"></div>
+        </div>
+
+        <label>Export password</label>
+        <input type="password" id="importPassword" placeholder="Temporary password">
+
+        <label>New password for this device</label>
+        <input type="password" id="importNewPassword" placeholder="At least 6 characters">
+
+        <label>Repeat new password</label>
+        <input type="password" id="importNewPassword2" placeholder="Once again">
+
+        <button id="importBtn" disabled>Import</button>
+        <button class="secondary" id="linkBackFromImport">← Back</button>
+        <div class="error" id="importError"></div>
+      </div>
+
+      <!-- About button — always right below the card -->
+      <div class="about-link">
+        <button class="secondary" id="btnAbout">About</button>
+      </div>
+
     </div>
-
-  </div>
-
-  <!-- Fixed About button -->
-  <div class="about-fixed">
-    <button class="secondary" id="btnAbout">About</button>
   </div>
 
   <!-- MODAL: CONFIRM -->
@@ -657,45 +656,45 @@
 
   <script type="module" src="index.js"></script>
 
-    <!-- MODAL: ABOUT -->
-    <div class="modal" id="modalAbout">
-      <div class="modal-card">
-        <h2>About</h2>
+  <!-- MODAL: ABOUT -->
+  <div class="modal" id="modalAbout">
+    <div class="modal-card">
+      <h2>About</h2>
 
-        <div class="about-text">
-          <p><strong>Empty</strong> is a temporary web messenger with no registration. No emails, phone numbers, or
-            passwords on the server.</p>
+      <div class="about-text">
+        <p><strong>Empty</strong> is a temporary web messenger with no registration. No emails, phone numbers, or
+          passwords on the server.</p>
 
-          <p><strong>Identity.</strong> On first launch, a cryptographic keypair (X25519 + Ed25519) is generated. It is
-            stored only on your device, encrypted with a password.</p>
+        <p><strong>Identity.</strong> On first launch, a cryptographic keypair (X25519 + Ed25519) is generated. It is
+          stored only on your device, encrypted with a password.</p>
 
-          <p><strong>How to connect.</strong> Exchange cards via QR code. Scan — and the contact appears. No search by
-            nickname.</p>
+        <p><strong>How to connect.</strong> Exchange cards via QR code. Scan — and the contact appears. No search by
+          nickname.</p>
 
-          <p><strong>Messages.</strong> Encrypted with AES-GCM via a shared X25519 key. The server sees only ciphertext
-            and metadata.</p>
+        <p><strong>Messages.</strong> Encrypted with AES-GCM via a shared X25519 key. The server sees only ciphertext
+          and metadata.</p>
 
-          <p><strong>Chats live for 24 hours.</strong> Every new message resets the timer. Don't write for a day — the
-            chat is deleted for both sides. You can end it manually.</p>
+        <p><strong>Chats live for 24 hours.</strong> Every new message resets the timer. Don't write for a day — the
+          chat is deleted for both sides. You can end it manually.</p>
 
-          <p><strong>Files.</strong> All history is stored locally in the browser's OPFS, encrypted. Clear browser
-            data — lose everything.</p>
+        <p><strong>Files.</strong> All history is stored locally in the browser's OPFS, encrypted. Clear browser
+          data — lose everything.</p>
 
-          <p><strong>Features:</strong></p>
-          <ul>
-            <li>Multiple accounts on one device</li>
-            <li>Import from another device (QR + temporary password)</li>
-            <li>QR card scanner</li>
-          </ul>
+        <p><strong>Features:</strong></p>
+        <ul>
+          <li>Multiple accounts on one device</li>
+          <li>Import from another device (QR + temporary password)</li>
+          <li>QR card scanner</li>
+        </ul>
 
-          <p><strong>Cryptographic strength.</strong> The key space is 2<sup>256</sup>. Brute-forcing at 10<sup>9</sup>
-            keys/sec would take ~10<sup>60</sup> years. Even with a quantum computer (√N = 2<sup>128</sup>) —
-            astronomically long.</p>
-        </div>
-
-        <button id="btnCloseAbout" class="secondary">Close</button>
+        <p><strong>Cryptographic strength.</strong> The key space is 2<sup>256</sup>. Brute-forcing at 10<sup>9</sup>
+          keys/sec would take ~10<sup>60</sup> years. Even with a quantum computer (√N = 2<sup>128</sup>) —
+          astronomically long.</p>
       </div>
+
+      <button id="btnCloseAbout" class="secondary">Close</button>
     </div>
+  </div>
 
   <!-- ASCII BACKGROUND -->
   <script>
