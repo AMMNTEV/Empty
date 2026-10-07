@@ -1,5 +1,5 @@
 // ============================================
-// index.js — мультиаккаунт: список, создание, вход, импорт
+// index.js — multi-account: list, create, unlock, import
 // ============================================
 import {
   opfsWrite, opfsRead, opfsExists, opfsDelete,
@@ -11,7 +11,7 @@ import {
 } from './crypto.js';
 
 // ============================================
-// UTF-8 для QR (qrcode-generator по умолчанию не умеет)
+// UTF-8 for QR (qrcode-generator doesn't support it by default)
 // ============================================
 if (typeof qrcode === 'function') {
   qrcode.stringToBytes = function (s) {
@@ -33,9 +33,9 @@ function showScreen(id) {
 }
 
 // ============================================
-// КАСТОМНЫЕ ДИАЛОГИ
+// CUSTOM DIALOGS
 // ============================================
-function showConfirm(text, title = 'Подтверждение') {
+function showConfirm(text, title = 'Confirmation') {
   return new Promise((resolve) => {
     const modal = document.getElementById('modalConfirm');
     const titleEl = document.getElementById('confirmTitle');
@@ -63,7 +63,7 @@ function showConfirm(text, title = 'Подтверждение') {
   });
 }
 
-function showAlert(text, title = 'Уведомление') {
+function showAlert(text, title = 'Notice') {
   return new Promise((resolve) => {
     const modal = document.getElementById('modalAlert');
     const titleEl = document.getElementById('alertTitle');
@@ -84,7 +84,7 @@ function showAlert(text, title = 'Уведомление') {
   });
 }
 
-// ---------- Валидация ника ----------
+// ---------- Nickname validation ----------
 function sanitizeNickname(raw) {
   let s = (raw || '').normalize('NFC').trim();
   s = s.replace(/[^\p{L}\p{N} _\-.]+/gu, '');
@@ -93,13 +93,13 @@ function sanitizeNickname(raw) {
   return s;
 }
 
-// ---------- Рендер списка аккаунтов ----------
+// ---------- Render account list ----------
 async function renderAccountsList() {
   const data = await listAccounts();
   const list = document.getElementById('accountList');
 
   if (data.accounts.length === 0) {
-    list.innerHTML = '<div style="text-align:center; color:#666; font-size:13px; padding:20px 0;">Пока нет аккаунтов</div>';
+    list.innerHTML = '<div style="text-align:center; color:#666; font-size:13px; padding:20px 0;">No accounts yet</div>';
     return;
   }
 
@@ -116,10 +116,10 @@ async function renderAccountsList() {
       <div class="account-item ${isCurrent}" data-fp="${acc.fingerprint}">
         <div class="account-avatar">${initial}</div>
         <div class="account-info">
-          <div class="account-name">${escapeHtml(acc.nickname || 'Без имени')}</div>
+          <div class="account-name">${escapeHtml(acc.nickname || 'No name')}</div>
           <div class="account-fp">${acc.fingerprint}</div>
         </div>
-        <button class="account-delete" data-delete="${acc.fingerprint}" title="Удалить">
+        <button class="account-delete" data-delete="${acc.fingerprint}" title="Delete">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"></polyline>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -129,7 +129,7 @@ async function renderAccountsList() {
     `;
   }).join('');
 
-  // Клик по аккаунту — открыть экран входа
+  // Click on account — open unlock screen
   list.querySelectorAll('.account-item').forEach(el => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.account-delete')) return;
@@ -139,7 +139,7 @@ async function renderAccountsList() {
     });
   });
 
-  // Удалить аккаунт
+  // Delete account
   list.querySelectorAll('.account-delete').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -148,10 +148,10 @@ async function renderAccountsList() {
       if (!acc) return;
 
       const ok = await showConfirm(
-        `Удалить аккаунт "${acc.nickname}"?\n\n` +
-        `Все контакты, чаты и ключи будут удалены безвозвратно.\n` +
-        `Это действие нельзя отменить.`,
-        'Удаление аккаунта'
+        `Delete account "${acc.nickname}"?\n\n` +
+        `All contacts, chats and keys will be permanently deleted.\n` +
+        `This action cannot be undone.`,
+        'Delete Account'
       );
       if (!ok) return;
 
@@ -170,10 +170,10 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ---------- Экран входа в аккаунт ----------
+// ---------- Unlock screen ----------
 function openUnlockScreen(account) {
   selectedFingerprint = account.fingerprint;
-  document.getElementById('unlockSubtitle').textContent = `Введите пароль для "${account.nickname}"`;
+  document.getElementById('unlockSubtitle').textContent = `Enter password for "${account.nickname}"`;
   document.getElementById('unlockPassword').value = '';
   document.getElementById('unlockError').textContent = '';
 
@@ -184,7 +184,7 @@ function openUnlockScreen(account) {
   setTimeout(() => document.getElementById('unlockPassword').focus(), 100);
 }
 
-// ---------- Создание ----------
+// ---------- Create ----------
 async function handleCreate() {
   const rawNickname = document.getElementById('nickname').value;
   const nickname = sanitizeNickname(rawNickname);
@@ -194,13 +194,13 @@ async function handleCreate() {
   const btn = document.getElementById('createBtn');
 
   errEl.textContent = '';
-  if (!nickname) { errEl.textContent = 'Введите никнейм'; return; }
-  if (nickname.length < 2) { errEl.textContent = 'Ник минимум 2 символа'; return; }
-  if (password.length < 6) { errEl.textContent = 'Пароль минимум 6 символов'; return; }
-  if (password !== password2) { errEl.textContent = 'Пароли не совпадают'; return; }
+  if (!nickname) { errEl.textContent = 'Enter a nickname'; return; }
+  if (nickname.length < 2) { errEl.textContent = 'Nickname must be at least 2 characters'; return; }
+  if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; return; }
+  if (password !== password2) { errEl.textContent = 'Passwords do not match'; return; }
 
   btn.disabled = true;
-  btn.textContent = 'Генерация ключей...';
+  btn.textContent = 'Generating keys...';
 
   try {
     const identity = await generateIdentity(nickname);
@@ -214,13 +214,13 @@ async function handleCreate() {
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error('❌', e);
-    errEl.textContent = 'Ошибка: ' + e.message;
+    errEl.textContent = 'Error: ' + e.message;
     btn.disabled = false;
-    btn.textContent = 'Создать';
+    btn.textContent = 'Create';
   }
 }
 
-// ---------- Разблокировка ----------
+// ---------- Unlock ----------
 async function handleUnlock() {
   const password = document.getElementById('unlockPassword').value;
   const errEl = document.getElementById('unlockError');
@@ -228,20 +228,20 @@ async function handleUnlock() {
   const backBtn = document.getElementById('linkBackFromUnlock');
 
   if (!selectedFingerprint) {
-    errEl.textContent = 'Аккаунт не выбран';
+    errEl.textContent = 'No account selected';
     return;
   }
 
   errEl.textContent = '';
 
   btn.disabled = true;
-  btn.textContent = 'Расшифровка...';
+  btn.textContent = 'Decrypting...';
   backBtn.style.display = 'none';
 
   try {
     const path = identityFilePath(selectedFingerprint);
     if (!await opfsExists(path)) {
-      throw new Error('Файл аккаунта не найден');
+      throw new Error('Account file not found');
     }
     const encrypted = await opfsRead(path);
     const identity = await decryptIdentity(encrypted, password);
@@ -253,14 +253,14 @@ async function handleUnlock() {
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error(e);
-    errEl.textContent = 'Неверный пароль';
+    errEl.textContent = 'Wrong password';
     btn.disabled = false;
-    btn.textContent = 'Войти';
+    btn.textContent = 'Sign In';
     backBtn.style.display = '';
   }
 }
 
-// ---------- Импорт ----------
+// ---------- Import ----------
 async function handleImport() {
   const errEl = document.getElementById('importError');
   const btn = document.getElementById('importBtn');
@@ -271,13 +271,13 @@ async function handleImport() {
   const newPassword2 = document.getElementById('importNewPassword2').value;
 
   errEl.textContent = '';
-  if (!json) { errEl.textContent = 'Сначала отсканируйте QR'; return; }
-  if (!exportPassword) { errEl.textContent = 'Введите пароль экспорта'; return; }
-  if (newPassword.length < 6) { errEl.textContent = 'Новый пароль минимум 6 символов'; return; }
-  if (newPassword !== newPassword2) { errEl.textContent = 'Новые пароли не совпадают'; return; }
+  if (!json) { errEl.textContent = 'Scan the QR code first'; return; }
+  if (!exportPassword) { errEl.textContent = 'Enter the export password'; return; }
+  if (newPassword.length < 6) { errEl.textContent = 'New password must be at least 6 characters'; return; }
+  if (newPassword !== newPassword2) { errEl.textContent = 'New passwords do not match'; return; }
 
   btn.disabled = true;
-  btn.textContent = 'Импорт...';
+  btn.textContent = 'Importing...';
 
   try {
     const exportObj = JSON.parse(json);
@@ -287,12 +287,12 @@ async function handleImport() {
     const exists = data.accounts.find(a => a.fingerprint === identity.fingerprint);
     if (exists) {
       const overwrite = await showConfirm(
-        `Аккаунт "${identity.nickname}" уже есть на этом устройстве.\nПерезаписать его?`,
-        'Перезапись аккаунта'
+        `Account "${identity.nickname}" already exists on this device.\nOverwrite it?`,
+        'Overwrite Account'
       );
       if (!overwrite) {
         btn.disabled = false;
-        btn.textContent = 'Импортировать';
+        btn.textContent = 'Import';
         return;
       }
     }
@@ -307,13 +307,13 @@ async function handleImport() {
     window.location.href = 'messenger.html';
   } catch (e) {
     console.error('❌', e);
-    errEl.textContent = 'Ошибка: ' + e.message;
+    errEl.textContent = 'Error: ' + e.message;
     btn.disabled = false;
-    btn.textContent = 'Импортировать';
+    btn.textContent = 'Import';
   }
 }
 
-// ---------- Инициализация ----------
+// ---------- Init ----------
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createBtn').addEventListener('click', handleCreate);
   document.getElementById('unlockBtn').addEventListener('click', handleUnlock);
@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     handleUnlock();
   });
 
-  // О приложении
+  // About
   document.getElementById('btnAbout').addEventListener('click', () => {
     document.getElementById('modalAbout').classList.add('active');
   });
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ============================================
-// QR-СКАНЕР ДЛЯ ИМПОРТА
+// QR SCANNER FOR IMPORT
 // ============================================
 let importScannerStream = null;
 let importScannerRAF = null;
@@ -412,7 +412,7 @@ async function startImportScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            // Декодируем бинарные данные в UTF-8 (jsQR может отдавать Latin-1)
+            // Decode binary data as UTF-8 (jsQR may return Latin-1)
             let text;
             if (code.binaryData && code.binaryData.length) {
               const bytes = new Uint8Array(code.binaryData);
@@ -440,7 +440,7 @@ async function startImportScanner() {
     tick();
   } catch (e) {
     console.error('Camera error:', e);
-    errEl.textContent = 'Не удалось получить доступ к камере: ' + e.message;
+    errEl.textContent = 'Failed to access camera: ' + e.message;
   }
 }
 

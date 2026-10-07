@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Empty — Вход</title>
+  <title>Empty — Sign In</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -96,7 +96,7 @@
       opacity: 1;
     }
 
-    /* ============ ФОН ============ */
+    /* ============ BACKGROUND ============ */
     #asciiBg {
       position: fixed;
       inset: 0;
@@ -107,7 +107,7 @@
       overflow: hidden;
     }
 
-    /* ============ КОНТЕНТ ============ */
+    /* ============ CONTENT ============ */
     .page {
       position: relative;
       z-index: 1;
@@ -399,7 +399,7 @@
       display: block;
     }
 
-    /* ============ КНОПКИ В РЯД ============ */
+    /* ============ ROW BUTTONS ============ */
     .actions {
       display: flex;
       gap: 8px;
@@ -419,7 +419,7 @@
       transition: opacity 0.15s ease;
     }
 
-    /* ============ МОДАЛКИ ============ */
+    /* ============ MODALS ============ */
     .modal {
       display: none;
       position: fixed;
@@ -528,73 +528,73 @@
 
 <body>
 
-  <!-- ASCII-ФОН -->
+  <!-- ASCII BACKGROUND -->
   <canvas id="asciiBg"></canvas>
 
   <div class="page">
 
-    <!-- ЛОГОТИП -->
+    <!-- LOGO -->
     <div class="brand">
       <div class="logo" id="logoText">EMPTY</div>
       <div class="logo-sub">Encrypted · Local</div>
     </div>
 
-    <!-- Мои аккаунты -->
+    <!-- My accounts -->
     <div class="card screen" id="screen-accounts">
-      <h1>Мои аккаунты</h1>
-      <p class="subtitle">Выберите аккаунт или добавьте новый.</p>
+      <h1>My Accounts</h1>
+      <p class="subtitle">Choose an account or add a new one.</p>
       <div class="account-list" id="accountList"></div>
       <div class="actions">
-        <button id="btnAddAccount">+ Добавить</button>
-        <button class="secondary" id="btnImportAccount">Импорт</button>
+        <button id="btnAddAccount">+ Add</button>
+        <button class="secondary" id="btnImportAccount">Import</button>
       </div>
     </div>
 
-        <!-- Кнопка "О приложении" -->
+        <!-- About button -->
         <div class="about-link">
-          <button class="secondary" id="btnAbout">О приложении</button>
+          <button class="secondary" id="btnAbout">About</button>
         </div>
 
-    <!-- Создание -->
+    <!-- Create -->
     <div class="card screen" id="screen-create">
-      <h1>Новый аккаунт</h1>
-      <p class="subtitle">Создайте локальную личность. Регистрация не нужна.</p>
+      <h1>New Account</h1>
+      <p class="subtitle">Create a local identity. No registration needed.</p>
 
-      <label>Никнейм</label>
-      <input type="text" id="nickname" placeholder="Алиса" maxlength="24" autocomplete="off">
-      <div class="hint">Только буквы, цифры, пробел и символы _ - .</div>
+      <label>Nickname</label>
+      <input type="text" id="nickname" placeholder="Alice" maxlength="24" autocomplete="off">
+      <div class="hint">Only letters, digits, space and _ - . characters.</div>
 
-      <label>Пароль (для шифрования ключей)</label>
-      <input type="password" id="password" placeholder="Минимум 6 символов">
+      <label>Password (for key encryption)</label>
+      <input type="password" id="password" placeholder="At least 6 characters">
 
-      <label>Повторите пароль</label>
-      <input type="password" id="password2" placeholder="Ещё раз">
+      <label>Repeat password</label>
+      <input type="password" id="password2" placeholder="Once again">
 
-      <button id="createBtn">Создать</button>
-      <button class="secondary" id="linkBackFromCreate">← Назад</button>
+      <button id="createBtn">Create</button>
+      <button class="secondary" id="linkBackFromCreate">← Back</button>
       <div class="error" id="createError"></div>
     </div>
 
-    <!-- Вход -->
+    <!-- Unlock -->
     <div class="card screen" id="screen-unlock">
-      <h1>Вход в аккаунт</h1>
-      <p class="subtitle" id="unlockSubtitle">Введите пароль</p>
+      <h1>Sign In</h1>
+      <p class="subtitle" id="unlockSubtitle">Enter your password</p>
 
-      <label>Пароль</label>
-      <input type="password" id="unlockPassword" placeholder="Ваш пароль">
+      <label>Password</label>
+      <input type="password" id="unlockPassword" placeholder="Your password">
 
-      <button id="unlockBtn">Войти</button>
-      <button class="secondary" id="linkBackFromUnlock">← К списку аккаунтов</button>
+      <button id="unlockBtn">Sign In</button>
+      <button class="secondary" id="linkBackFromUnlock">← Back to accounts</button>
       <div class="error" id="unlockError"></div>
     </div>
 
-    <!-- Импорт -->
+    <!-- Import -->
     <div class="card screen" id="screen-import">
-      <h1>Импорт аккаунта</h1>
-      <p class="subtitle">Отсканируйте QR со старого устройства.</p>
+      <h1>Import Account</h1>
+      <p class="subtitle">Scan the QR code from your old device.</p>
 
       <div class="warning">
-        ⚠️ Эти данные содержат ваши приватные ключи. Никому их не показывайте.
+        ⚠️ This data contains your private keys. Never show it to anyone.
       </div>
 
       <div id="importScannerWrap" style="margin-top:10px;">
@@ -613,83 +613,84 @@
         <div class="error" id="importScanError"></div>
       </div>
 
-      <label>Пароль экспорта</label>
-      <input type="password" id="importPassword" placeholder="Временный пароль">
+      <label>Export password</label>
+      <input type="password" id="importPassword" placeholder="Temporary password">
 
-      <label>Новый пароль для этого устройства</label>
-      <input type="password" id="importNewPassword" placeholder="Минимум 6 символов">
+      <label>New password for this device</label>
+      <input type="password" id="importNewPassword" placeholder="At least 6 characters">
 
-      <label>Повторите новый пароль</label>
-      <input type="password" id="importNewPassword2" placeholder="Ещё раз">
+      <label>Repeat new password</label>
+      <input type="password" id="importNewPassword2" placeholder="Once again">
 
-      <button id="importBtn" disabled>Импортировать</button>
-      <button class="secondary" id="linkBackFromImport">← Назад</button>
+      <button id="importBtn" disabled>Import</button>
+      <button class="secondary" id="linkBackFromImport">← Back</button>
       <div class="error" id="importError"></div>
     </div>
 
   </div>
 
-  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
+  <!-- MODAL: CONFIRM -->
   <div class="modal" id="modalConfirm">
     <div class="modal-card">
-      <h2 id="confirmTitle">Подтверждение</h2>
+      <h2 id="confirmTitle">Confirmation</h2>
       <p class="hint" id="confirmText">—</p>
-      <button id="btnConfirmYes">Да</button>
-      <button class="secondary" id="btnConfirmNo">Отмена</button>
+      <button id="btnConfirmYes">Yes</button>
+      <button class="secondary" id="btnConfirmNo">Cancel</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
+  <!-- MODAL: ALERT -->
   <div class="modal" id="modalAlert">
     <div class="modal-card">
-      <h2 id="alertTitle">Уведомление</h2>
+      <h2 id="alertTitle">Notice</h2>
       <p class="hint" id="alertText">—</p>
-      <button id="btnAlertOk">ОК</button>
+      <button id="btnAlertOk">OK</button>
     </div>
   </div>
 
   <script type="module" src="index.js"></script>
 
-    <!-- МОДАЛКА: О ПРИЛОЖЕНИИ -->
+    <!-- MODAL: ABOUT -->
     <div class="modal" id="modalAbout">
       <div class="modal-card">
-        <h2>О приложении</h2>
+        <h2>About</h2>
 
         <div class="about-text">
-          <p><strong>Empty</strong> — временный веб-мессенджер без регистрации. Никаких email, телефонов и паролей на
-            сервере.</p>
+          <p><strong>Empty</strong> is a temporary web messenger with no registration. No emails, phone numbers, or
+            passwords on the server.</p>
 
-          <p><strong>Личность.</strong> При первом запуске генерируется криптографическая пара (X25519 + Ed25519). Она
-            хранится только на твоём устройстве, зашифрованная паролем.</p>
+          <p><strong>Identity.</strong> On first launch, a cryptographic keypair (X25519 + Ed25519) is generated. It is
+            stored only on your device, encrypted with a password.</p>
 
-          <p><strong>Как связаться.</strong> Обмен карточками через QR-код. Сканируешь — появляется контакт. Никакого поиска
-            по нику.</p>
+          <p><strong>How to connect.</strong> Exchange cards via QR code. Scan — and the contact appears. No search by
+            nickname.</p>
 
-          <p><strong>Сообщения.</strong> Шифруются AES-GCM через общий ключ X25519. Сервер видит только
-            шифротекст и метаданные.</p>
+          <p><strong>Messages.</strong> Encrypted with AES-GCM via a shared X25519 key. The server sees only ciphertext
+            and metadata.</p>
 
-          <p><strong>Чаты живут 24 часа.</strong> Каждое новое сообщение сбрасывает таймер. Не пишешь сутки — чат удаляется
-            у обоих. Можно завершить вручную.</p>
+          <p><strong>Chats live for 24 hours.</strong> Every new message resets the timer. Don't write for a day — the
+            chat is deleted for both sides. You can end it manually.</p>
 
-          <p><strong>Файлы.</strong> Вся история хранится локально в OPFS браузера, зашифрованная. Очистил данные браузера —
-            потерял всё.</p>
+          <p><strong>Files.</strong> All history is stored locally in the browser's OPFS, encrypted. Clear browser
+            data — lose everything.</p>
 
-          <p><strong>Что умеет:</strong></p>
+          <p><strong>Features:</strong></p>
           <ul>
-            <li>Мультиаккаунт на одном устройстве</li>
-            <li>Импорт с другого устройства (QR + временный пароль)</li>
-            <li>QR-сканер карточек</li>
+            <li>Multiple accounts on one device</li>
+            <li>Import from another device (QR + temporary password)</li>
+            <li>QR card scanner</li>
           </ul>
 
-          <p><strong>Криптостойкость.</strong> Пространство ключей — 2<sup>256</sup>. Перебор при 10<sup>9</sup> ключей/сек займёт
-            ~10<sup>60</sup> лет. Даже с квантовым компьютером (√N = 2<sup>128</sup>) — астрономически долго.</p>
+          <p><strong>Cryptographic strength.</strong> The key space is 2<sup>256</sup>. Brute-forcing at 10<sup>9</sup>
+            keys/sec would take ~10<sup>60</sup> years. Even with a quantum computer (√N = 2<sup>128</sup>) —
+            astronomically long.</p>
         </div>
 
-        <button id="btnCloseAbout" class="secondary">Закрыть</button>
+        <button id="btnCloseAbout" class="secondary">Close</button>
       </div>
     </div>
 
-  <!-- ASCII-ФОН -->
+  <!-- ASCII BACKGROUND -->
   <script>
     (function initAsciiBg() {
       const canvas = document.getElementById('asciiBg');
@@ -778,7 +779,7 @@
     })();
   </script>
 
-  <!-- Подгонка размера EMPTY под ширину карточки -->
+  <!-- Fit EMPTY logo to card width -->
   <script>
     (function fitLogo() {
       const logo = document.getElementById('logoText');
@@ -814,10 +815,10 @@
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js', { scope: './' })
             .then((reg) => {
-              console.log('[PWA] Service Worker зарегистрирован, scope:', reg.scope);
+              console.log('[PWA] Service Worker registered, scope:', reg.scope);
             })
             .catch((e) => {
-              console.warn('[PWA] Ошибка регистрации SW:', e);
+              console.warn('[PWA] Service Worker registration failed:', e);
             });
         });
       }

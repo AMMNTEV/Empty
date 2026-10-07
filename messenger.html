@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>Empty — Мессенджер</title>
+  <title>Empty — Messenger</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -44,7 +44,7 @@
       letter-spacing: 0.3px;
     }
 
-    /* ============ ФОН ============ */
+    /* ============ BACKGROUND ============ */
     #asciiBg {
       position: fixed;
       inset: 0;
@@ -55,7 +55,7 @@
       overflow: hidden;
     }
 
-    /* ============ ШАПКА ============ */
+    /* ============ TOPBAR ============ */
     .topbar {
       background: rgba(0, 0, 0, 0.7);
       color: #d0d0d0;
@@ -119,7 +119,7 @@
       border-color: #6f6;
     }
 
-    /* ============ ОСНОВНОЙ БЛОК ============ */
+    /* ============ MAIN ============ */
     .main {
       flex: 1;
       display: flex;
@@ -234,7 +234,7 @@
       font-size: 11px;
     }
 
-    /* ============ ОБЛАСТЬ ЧАТА ============ */
+    /* ============ CHAT AREA ============ */
     .chat-area {
       flex: 1;
       display: flex;
@@ -337,7 +337,7 @@
       stroke-linejoin: round;
     }
 
-    /* ============ СООБЩЕНИЯ ============ */
+    /* ============ MESSAGES ============ */
     .messages {
       flex: 1;
       overflow-y: auto;
@@ -382,7 +382,7 @@
     }
 
 
-    /* ============ ПОЛЕ ВВОДА ============ */
+    /* ============ INPUT AREA ============ */
     .input-area {
       background: rgba(10, 10, 10, 0.7);
       border-top: 1px solid #2a2a2a;
@@ -444,7 +444,7 @@
       border-color: #6f6;
     }
 
-    /* ============ МОДАЛКИ ============ */
+    /* ============ MODALS ============ */
     .modal {
       display: none;
       position: fixed;
@@ -726,7 +726,7 @@
       transform: scale(0.8);
     }
 
-    /* ============ СЕГМЕНТИРОВАННЫЙ ПЕРЕКЛЮЧАТЕЛЬ ============ */
+    /* ============ SEGMENTED CONTROL ============ */
     .segmented {
       display: flex;
       gap: 0;
@@ -758,7 +758,7 @@
       color: #6f6;
     }
 
-    /* ============ МОБИЛЬНЫЙ АДАПТИВ ============ */
+    /* ============ MOBILE ADAPTIVE ============ */
     @media (max-width: 768px) {
       .sidebar {
         width: 100%;
@@ -830,20 +830,20 @@
 
 <body>
 
-  <!-- ASCII-ФОН -->
+  <!-- ASCII BACKGROUND -->
   <canvas id="asciiBg"></canvas>
 
-  <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+  <!-- TOPBAR -->
   <div class="topbar">
     <div>
       <div class="me-name" id="meName">...</div>
     </div>
     <div class="topbar-actions">
-      <button id="btnAccounts">Мои аккаунты</button>
+      <button id="btnAccounts">My Accounts</button>
     </div>
   </div>
 
-  <!-- ОСНОВНОЙ БЛОК -->
+  <!-- MAIN -->
   <div class="main">
     <div class="sidebar">
       <div class="sidebar-header">contacts</div>
@@ -851,10 +851,10 @@
     </div>
 
     <div class="chat-area" id="chatArea">
-      <div class="chat-empty" id="chatEmpty">Выберите контакт слева</div>
+      <div class="chat-empty" id="chatEmpty">Select a contact on the left</div>
 
       <div class="chat-header" id="chatHeader">
-        <button class="mobile-back" id="btnMobileBack" aria-label="Назад">
+        <button class="mobile-back" id="btnMobileBack" aria-label="Back">
           <svg viewBox="0 0 24 24">
             <line x1="19" y1="12" x2="5" y2="12"></line>
             <polyline points="12 19 5 12 12 5"></polyline>
@@ -864,37 +864,37 @@
           <div class="chat-title" id="chatTitle">—</div>
           <div class="chat-timer" id="chatTimer"></div>
         </div>
-        <button class="btn-end-chat" id="btnEndChat">завершить</button>
+        <button class="btn-end-chat" id="btnEndChat">end chat</button>
       </div>
 
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
-        <textarea id="msgInput" rows="1" placeholder="Сообщение..."></textarea>
+        <textarea id="msgInput" rows="1" placeholder="Message..."></textarea>
         <button class="btn-send" id="btnSend">send</button>
       </div>
     </div>
   </div>
 
-  <!-- FAB: ДОБАВИТЬ / МОЙ QR -->
-  <button class="fab" id="fabAdd" aria-label="Добавить контакт или показать QR">
+  <!-- FAB: ADD / MY QR -->
+  <button class="fab" id="fabAdd" aria-label="Add contact or show QR">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <line x1="12" y1="5" x2="12" y2="19"></line>
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
   </button>
 
-  <!-- МОДАЛКА: ДОБАВИТЬ КОНТАКТ / МОЙ QR -->
+  <!-- MODAL: ADD CONTACT / MY QR -->
   <div class="modal" id="modalAddContact">
     <div class="modal-card">
       <div class="segmented">
-        <button id="tabScan" class="seg-btn active" type="button">Сканер</button>
-        <button id="tabMyQr" class="seg-btn" type="button">Мой QR</button>
+        <button id="tabScan" class="seg-btn active" type="button">Scanner</button>
+        <button id="tabMyQr" class="seg-btn" type="button">My QR</button>
       </div>
 
-      <!-- Панель: Сканер -->
+      <!-- Pane: Scanner -->
       <div id="paneScan">
-        <p class="hint">Наведите камеру на QR-код собеседника.</p>
+        <p class="hint">Point the camera at your contact's QR code.</p>
 
         <div id="scannerBox"
           style="position:relative; width:100%; aspect-ratio:1/1; background:#000; overflow:hidden; margin-bottom:10px; border:1px solid #2a2a2a;">
@@ -911,79 +911,79 @@
         <div class="error-text" id="scanError"></div>
       </div>
 
-      <!-- Панель: Мой QR -->
+      <!-- Pane: My QR -->
       <div id="paneMyQr" style="display:none;">
-        <p class="hint">Покажите этот QR тому, с кем хотите связаться.</p>
+        <p class="hint">Show this QR to the person you want to connect with.</p>
         <div class="qr-box" id="qrBox"></div>
       </div>
 
-      <button id="btnCloseAddContact" class="secondary">Закрыть</button>
+      <button id="btnCloseAddContact" class="secondary">Close</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: АККАУНТЫ -->
+  <!-- MODAL: ACCOUNTS -->
   <div class="modal" id="modalAccounts">
     <div class="modal-card">
-      <h2>Мои аккаунты</h2>
-      <p class="hint">Переключение между вашими локальными аккаунтами.</p>
+      <h2>My Accounts</h2>
+      <p class="hint">Switch between your local accounts.</p>
 
       <div id="accountsList" style="margin-bottom: 10px;"></div>
 
-      <button id="btnAddAnotherAccount" class="secondary">+ Добавить аккаунт</button>
-      <button id="btnOpenDevices" class="secondary">Перенести аккаунт на другое устройство</button>
-      <button id="btnLogout" class="secondary" style="color:#f66; border-color:#4a2a2a;">Выйти из текущего
-        аккаунта</button>
-      <button id="btnCloseAccounts" class="secondary">Закрыть</button>
+      <button id="btnAddAnotherAccount" class="secondary">+ Add Account</button>
+      <button id="btnOpenDevices" class="secondary">Transfer Account to Another Device</button>
+      <button id="btnLogout" class="secondary" style="color:#f66; border-color:#4a2a2a;">Sign Out of Current
+        Account</button>
+      <button id="btnCloseAccounts" class="secondary">Close</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: УСТРОЙСТВА -->
+  <!-- MODAL: DEVICES -->
   <div class="modal" id="modalDevices">
     <div class="modal-card">
-      <h2>Перенос на другое устройство</h2>
-      <p class="hint">Откройте этот аккаунт на другом устройстве.</p>
+      <h2>Transfer to Another Device</h2>
+      <p class="hint">Open this account on another device.</p>
 
       <div class="warning">
-        ⚠️ QR-код содержит ваши приватные ключи. Показывайте только доверенным устройствам.
+        ⚠️ The QR code contains your private keys. Show it only to trusted devices.
       </div>
 
-      <label>Временный пароль для передачи</label>
-      <input type="password" id="exportPassword" placeholder="Придумайте (мин. 6 символов)">
+      <label>Temporary transfer password</label>
+      <input type="password" id="exportPassword" placeholder="Create one (min. 6 characters)">
 
-      <button id="btnGenerateExport">Сгенерировать QR</button>
+      <button id="btnGenerateExport">Generate QR</button>
 
       <div id="exportResult" style="display:none; margin-top: 10px;">
         <div class="qr-box" id="exportQrBox"></div>
         <textarea id="exportJson" readonly></textarea>
-        <button id="btnCopyExport" class="secondary">Скопировать код</button>
+        <button id="btnCopyExport" class="secondary">Copy Code</button>
       </div>
 
-      <button id="btnCloseDevices" class="secondary">Закрыть</button>
+      <button id="btnCloseDevices" class="secondary">Close</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: ПОДТВЕРЖДЕНИЕ -->
+  <!-- MODAL: CONFIRM -->
   <div class="modal" id="modalConfirm">
     <div class="modal-card">
-      <h2 id="confirmTitle">Подтверждение</h2>
+      <h2 id="confirmTitle">Confirmation</h2>
       <p class="hint" id="confirmText">—</p>
-      <button id="btnConfirmYes">Да</button>
-      <button class="secondary" id="btnConfirmNo">Отмена</button>
+      <button id="btnConfirmYes">Yes</button>
+      <button class="secondary" id="btnConfirmNo">Cancel</button>
     </div>
   </div>
 
-  <!-- МОДАЛКА: УВЕДОМЛЕНИЕ -->
+  <!-- MODAL: ALERT -->
   <div class="modal" id="modalAlert">
     <div class="modal-card">
-      <h2 id="alertTitle">Уведомление</h2>
+      <h2 id="alertTitle">Notice</h2>
       <p class="hint" id="alertText">—</p>
-      <button id="btnAlertOk">ОК</button>
+      <button id="btnAlertOk">OK</button>
     </div>
   </div>
 
   <script type="module" src="messenger.js"></script>
 
-  <!-- ASCII-ФОН -->
+  <!-- ASCII BACKGROUND -->
   <script>
     (function initAsciiBg() {
       const canvas = document.getElementById('asciiBg');

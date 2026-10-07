@@ -1,8 +1,8 @@
 {
     "name": "Empty — E2EE Messenger",
     "short_name": "Empty",
-    "description": "Временный веб-мессенджер без регистрации. E2EE, QR-контакты, автоудаление чатов через 24 часа.",
-    "lang": "ru",
+    "description": "Temporary web messenger with no registration. E2EE, QR contacts, chats auto-delete after 24 hours.",
+    "lang": "en",
     "dir": "ltr",
     "start_url": "./index.html",
     "scope": "./",
