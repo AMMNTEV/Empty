@@ -39,8 +39,8 @@ const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 const POW_DIFFICULTY = 4;
 const TYPING_REFRESH_MS = 1000; // обновляем не чаще раза в секунду
-const TYPING_VISIBLE_MS = 3000; // индикатор виден 3 сек после последнего сигнала
-const TYPING_STOP_DELAY = 2500; // через 2.5 сек после последнего ввода считаем, что юзер перестал печатать
+const TYPING_VISIBLE_MS = 4000; 
+const TYPING_STOP_DELAY = 3000; 
 
 let myIdentity = null;
 let myPassword = null;
@@ -195,11 +195,32 @@ function myEphemeralRef() {
 
 async function sendTypingSignal(peerHash) {
   const now = Date.now();
-  if (now - lastTypingSent < TYPING_REFRESH_MS) return;
+  // Отправляем не чаще раза в 2 секунды, чтобы не спамить Firestore
+  if (now - lastTypingSent < 2000) return;
   lastTypingSent = now;
   try {
     await setDoc(doc(db, 'users', peerHash, 'ephemeral', myHashHex), { typing: true, ts: now });
-  } catch (e) {}
+    console.log('[TYPING] signal sent');
+  } catch (e) {
+    console.warn('[TYPING] signal failed', e);
+  }
+}
+
+function onTypingInput() {
+  if (!activeChat) return;
+  
+  if (typingStopTimer) clearTimeout(typingStopTimer);
+  
+  const fp = activeChat.fingerprint;
+  const peer = contacts[fp];
+  if (!peer) return;
+  
+  hashPubkeyHex(peer.x25519).then(peerHash => {
+    sendTypingSignal(peerHash);
+    typingStopTimer = setTimeout(() => {
+      clearTypingSignal(peerHash);
+    }, TYPING_STOP_DELAY);
+  });
 }
 
 async function clearTypingSignal(peerHash) {
@@ -208,30 +229,11 @@ async function clearTypingSignal(peerHash) {
   } catch (e) {}
 }
 
-function onTypingInput() {
-  if (!activeChat) return;
-  
-  // Сбрасываем таймер остановки при каждом нажатии клавиши
-  if (typingStopTimer) clearTimeout(typingStopTimer);
-  
-  const fp = activeChat.fingerprint;
-  const peer = contacts[fp];
-  if (!peer) return;
-  
-  hashPubkeyHex(peer.x25519).then(peerHash => {
-    // Отправляем сигнал (внутри есть троттлинг на 1 сек)
-    sendTypingSignal(peerHash);
-    
-    // Ставим таймер на "перестал печатать" через 2.5 сек после последнего ввода
-    typingStopTimer = setTimeout(() => {
-      clearTypingSignal(peerHash);
-    }, TYPING_STOP_DELAY);
-  });
-}
 
 function listenTyping() {
   if (unsubscribeTyping) unsubscribeTyping();
   unsubscribeTyping = onSnapshot(myEphemeralRef(), (snapshot) => {
+    console.log('[TYPING] snapshot, docs:', snapshot.size);
     let newest = null;
     snapshot.forEach(d => {
       const data = d.data();
@@ -240,7 +242,7 @@ function listenTyping() {
       if (!newest || data.ts > newest.ts) newest = { senderHash: d.id, ts: data.ts };
     });
     updateTypingIndicator(newest);
-  }, (err) => { console.warn('[TYPING]', err); });
+  }, (err) => { console.warn('[TYPING] error', err); });
 }
 
 async function updateTypingIndicator(newest) {
@@ -275,7 +277,10 @@ async function computePow(ciphertextB64) {
     const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     if (hex.startsWith('0'.repeat(POW_DIFFICULTY))) return nonce;
     nonce++;
-    if (nonce > 10_000_000) throw new Error('PoW did not converge in reasonable time');
+    if (nonce % 1000 === 0) {
+      await new Promise(r => setTimeout(r, 0)); // Отдаем поток
+    }
+    if (nonce > 10_000_000) throw new Error('PoW did not converge');
   }
 }
 
@@ -1653,50 +1658,68 @@ async function sendFileBackground({ fp, msgId, file, mime, name, isImage, ts }) 
   const toHashHex = await hashPubkeyHex(peerCard.x25519);
   const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
 
-  // 500 КБ бинарных данных на чанк
-  const CHUNK_SIZE = 500 * 1024; 
+  const CHUNK_SIZE = 400 * 1024; // 400 КБ бинарных данных (base64 будет ~533 КБ)
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
-    const chunkBlob = file.slice(start, end); // Читаем только кусок
+  const reader = file.stream().getReader();
+  let chunkIndex = 0;
+  let buffer = new Uint8Array(0);
 
-    const arrayBuf = await chunkBlob.arrayBuffer();
-    const chunkBytes = new Uint8Array(arrayBuf);
-    const chunkData = bufToBase64(chunkBytes);
-
-    const payload = JSON.stringify({
-      id: msgId, text: '', ts, from: myHashHex, to: toHashHex,
-      type: isImage ? 'image' : 'file',
-      file: {
-        chunk: i, total: totalChunks,
-        mime, name, size: file.size, isImage,
-        data: chunkData
-      }
-    });
+  while (true) {
+    const { done, value } = await reader.read();
     
-    const blob = await encryptMessage(payload, sharedKey);
-    const signedData = JSON.stringify({ ciphertext: blob.ciphertext, from: myHashHex, to: toHashHex });
-    const signature = await signBlob(signedData, myIdentity.ed25519.private);
-    const pow = await computePow(blob.ciphertext);
-    
-    await addDoc(collection(db, 'users', toHashHex, 'inbox'), {
-      from: myHashHex, to: toHashHex, iv: blob.iv, ciphertext: blob.ciphertext,
-      signature, senderEd25519: myIdentity.ed25519.public, pow, ttl: Date.now() + RELAY_TTL_MS
-    });
-
-    // Обновляем прогресс
-    const percent = Math.round(((i + 1) / totalChunks) * 100);
-    const el = document.querySelector(`[data-msg-id="${msgId}"]`);
-    if (el) {
-      const p = el.querySelector('.upload-progress');
-      if (p) p.innerHTML = `<span class="upload-spinner"></span>${percent}%`;
+    if (value) {
+      // Склеиваем буферы
+      const newBuf = new Uint8Array(buffer.length + value.length);
+      newBuf.set(buffer, 0);
+      newBuf.set(value, buffer.length);
+      buffer = newBuf;
     }
 
-    // Даем браузеру отдышаться
-    await new Promise(r => setTimeout(r, 10));
+    // Пока в буфере больше, чем размер чанка (или это конец файла)
+    while (buffer.length >= CHUNK_SIZE || (done && buffer.length > 0)) {
+      const chunkBytes = buffer.slice(0, Math.min(CHUNK_SIZE, buffer.length));
+      buffer = buffer.slice(chunkBytes.length);
+
+      const chunkData = bufToBase64(chunkBytes);
+
+      const payload = JSON.stringify({
+        id: msgId, text: '', ts, from: myHashHex, to: toHashHex,
+        type: isImage ? 'image' : 'file',
+        file: {
+          chunk: chunkIndex, total: totalChunks,
+          mime, name, size: file.size, isImage,
+          data: chunkData
+        }
+      });
+
+      const blob = await encryptMessage(payload, sharedKey);
+      const signedData = JSON.stringify({ ciphertext: blob.ciphertext, from: myHashHex, to: toHashHex });
+      const signature = await signBlob(signedData, myIdentity.ed25519.private);
+      const pow = await computePow(blob.ciphertext);
+
+      await addDoc(collection(db, 'users', toHashHex, 'inbox'), {
+        from: myHashHex, to: toHashHex, iv: blob.iv, ciphertext: blob.ciphertext,
+        signature, senderEd25519: myIdentity.ed25519.public, pow, ttl: Date.now() + RELAY_TTL_MS
+      });
+
+      // Обновляем прогресс
+      const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+      const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (el) {
+        const p = el.querySelector('.upload-progress');
+        if (p) p.innerHTML = `<span class="upload-spinner"></span>${percent}%`;
+      }
+
+      chunkIndex++;
+      
+      // Даем браузеру отдышаться
+      await new Promise(r => setTimeout(r, 10));
+    }
+
+    if (done) break;
   }
+
   saveChats();
 }
 
