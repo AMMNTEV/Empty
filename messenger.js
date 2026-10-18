@@ -988,7 +988,24 @@ async function stopRecordingAndSend() {
 }
 
 async function finalizeRecordingAndSend(mime) {
-  
+  // ГЛАВНАЯ ПРОВЕРКА: если была нажата корзина, ничего не отправляем
+  if (isCancelled) {
+    isCancelled = false;
+    recordedChunks = [];
+    if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
+    if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    mediaRecorder = null;
+    
+    // Возвращаем UI
+    document.getElementById('recordingUi').classList.remove('active');
+    document.getElementById('btnVoice').style.display = '';
+    document.getElementById('msgInput').style.display = '';
+    document.getElementById('btnSend').style.display = '';
+    return; // ВЫХОДИМ, НИЧЕГО НЕ ОТПРАВЛЯЕМ
+  }
+
   if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
   if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
   if (audioContext) { audioContext.close(); audioContext = null; }
