@@ -683,6 +683,8 @@ function renderMessageHtml(m) {
   // Фото
   if (m.type === 'image') {
     let imgSrc = m._imgUrl;
+    
+    // Если нет локального URL (например, после перезагрузки), но есть b64 — создаем URL
     if (!imgSrc && m.b64) {
       try {
         const bytes = base64ToBuf(m.b64);
@@ -693,8 +695,9 @@ function renderMessageHtml(m) {
       } catch (e) { imgSrc = ''; }
     }
     
+    // Если вообще ничего нет (например, фото еще грузится), показываем плейсхолдер
     if (!imgSrc) {
-      return `<div class="msg image ${cls}" data-msg-id="${m.id}"><div style="padding:10px; color:#666;">Loading...</div>${time}</div>`;
+      return `<div class="msg image ${cls}" data-msg-id="${m.id}"><div style="padding:10px; color:#666; font-size:10px;">Loading...</div>${time}</div>`;
     }
     
     return `<div class="msg image ${cls}" data-msg-id="${m.id}">
@@ -988,35 +991,16 @@ async function stopRecordingAndSend() {
 }
 
 async function finalizeRecordingAndSend(mime) {
-  // ГЛАВНАЯ ПРОВЕРКА: если была нажата корзина, ничего не отправляем
-  if (isCancelled) {
-    isCancelled = false;
-    recordedChunks = [];
-    if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
-    if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
-    if (audioContext) { audioContext.close(); audioContext = null; }
-    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-    mediaRecorder = null;
-    
-    // Возвращаем UI
-    document.getElementById('recordingUi').classList.remove('active');
-    document.getElementById('btnVoice').style.display = '';
-    document.getElementById('msgInput').style.display = '';
-    document.getElementById('btnSend').style.display = '';
-    return; // ВЫХОДИМ, НИЧЕГО НЕ ОТПРАВЛЯЕМ
-  }
+  if (isCancelled) return; // Если корзина нажата - выходим сразу
 
   if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
   if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
   if (audioContext) { audioContext.close(); audioContext = null; }
 
-  const btnVoice = document.getElementById('btnVoice');
-  const msgInput = document.getElementById('msgInput');
-  const btnSend = document.getElementById('btnSend');
-  if (btnVoice) btnVoice.style.display = '';
-  if (msgInput) msgInput.style.display = '';
-  if (btnSend) btnSend.style.display = '';
   document.getElementById('recordingUi').classList.remove('active');
+  document.getElementById('btnVoice').style.display = '';
+  document.getElementById('msgInput').style.display = '';
+  document.getElementById('btnSend').style.display = '';
 
   if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
   mediaRecorder = null;
@@ -1024,10 +1008,8 @@ async function finalizeRecordingAndSend(mime) {
   const duration = Date.now() - recordStartTs;
   recordStartTs = 0;
 
-  if (!recordedChunks.length) return;
-  if (duration < 500) {
+  if (!recordedChunks.length || duration < 500) {
     recordedChunks = [];
-    await showAlert('Recording too short.', 'Notice');
     return;
   }
 
@@ -1367,22 +1349,23 @@ function bindUI() {
     if (e.target.id === 'modalImage') document.getElementById('modalImage').classList.remove('active');
   });
 
-    document.getElementById('recBtnDelete').addEventListener('click', async () => {
-    isCancelled = true; // Ставим флаг отмены
+  document.getElementById('recBtnDelete').addEventListener('click', async () => {
+    isCancelled = true; 
     
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.onstop = null; // Отвязываем обработчик отправки
       mediaRecorder.stop();
     }
-    mediaRecorder = null;
-    recordedChunks = [];
-    isPaused = false; 
-    pausedTime = 0;
     
+    // Принудительно всё чистим
     if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
     if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
     if (audioContext) { audioContext.close(); audioContext = null; }
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    
+    mediaRecorder = null;
+    recordedChunks = [];
+    isPaused = false; 
+    pausedTime = 0;
     
     document.getElementById('recordingUi').classList.remove('active');
     document.getElementById('btnVoice').style.display = '';
@@ -1595,30 +1578,15 @@ async function compressImage(file) {
 
 async function handleFileSelect(e) {
   const file = e.target.files[0];
-  e.target.value = ''; // reset
+  e.target.value = ''; 
   if (!file || !activeChat) return;
 
-  let finalFile = file;
-
-  // Если это фото — ВСЕГДА пытаемся сжать, чтобы избежать зависания на телефонах
-  if (file.type.startsWith('image/')) {
-    try {
-      // Сжимаем, если файл больше 1 МБ или это HEIC/HEIF (с телефонов)
-      if (file.size > 1024 * 1024 || file.type === 'image/heic' || file.type === 'image/heif') {
-        finalFile = await compressImage(file);
-      }
-    } catch (err) {
-      console.warn('Compression failed, sending original', err);
-    }
-  }
-
-  // Если файл (не фото) больше 40 МБ — отказываем
-  if (finalFile.size > MAX_FILE_SIZE) {
+  if (file.size > 40 * 1024 * 1024) {
     await showAlert('File is too large. Maximum size is 40 MB.', 'Error');
     return;
   }
 
-  await sendFile(finalFile);
+  await sendFile(file);
 }
 
 async function sendFile(file) {
@@ -1630,28 +1598,23 @@ async function sendFile(file) {
   const mime = file.type || 'application/octet-stream';
   const name = file.name || 'file';
 
-  const arrayBuf = await file.arrayBuffer();
-  const bytes = new Uint8Array(arrayBuf);
-
   if (!chatHistory[fp]) {
     chatHistory[fp] = { peerNickname: activeChat.peerCard.nickname, messages: [], lastActivity: ts, expiresAt: ts + CHAT_TTL_MS };
   }
 
-  // Сохраняем b64 для фото, чтобы оно не терялось при перерисовке
-  let b64ForImage = null;
+  // Для фото делаем превью сразу, но НЕ держим в b64
+  let imgUrl = null;
   if (isImage) {
-    b64ForImage = bufToBase64(bytes);
+    imgUrl = URL.createObjectURL(file);
+    fileCache.set(msgId, imgUrl);
   }
 
   const msgRecord = {
     id: msgId, from: 'me', type: isImage ? 'image' : 'file',
     fileName: name, fileMime: mime, fileSize: file.size,
-    b64: b64ForImage,
-    _imgUrl: isImage ? URL.createObjectURL(file) : null,
+    _imgUrl: imgUrl,
     ts
   };
-  
-  if (isImage) fileCache.set(msgId, msgRecord._imgUrl);
   
   chatHistory[fp].messages.push(msgRecord);
   chatHistory[fp].lastActivity = ts;
@@ -1671,7 +1634,8 @@ async function sendFile(file) {
 
   startTimer();
 
-  sendFileBackground({ fp, msgId, bytes, mime, name, size: file.size, isImage, ts })
+  // Шлем файл (порезанный на куски)
+  sendFileBackground({ fp, msgId, file, mime, name, isImage, ts })
     .then(() => {
       const el2 = document.querySelector(`[data-msg-id="${msgId}"]`);
       if (el2) {
@@ -1683,20 +1647,23 @@ async function sendFile(file) {
     .catch(e => console.error('[FILE SEND]', e));
 }
 
-async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage, ts }) {
+async function sendFileBackground({ fp, msgId, file, mime, name, isImage, ts }) {
   const peerCard = contacts[fp];
   if (!peerCard) return;
   const toHashHex = await hashPubkeyHex(peerCard.x25519);
   const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
 
-  const CHUNK_SIZE = 400_000; // Уменьшили размер чанка для плавности
-  const totalChunks = Math.max(1, Math.ceil(bytes.length / CHUNK_SIZE));
+  // 500 КБ бинарных данных на чанк
+  const CHUNK_SIZE = 500 * 1024; 
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, bytes.length);
-    const chunkBytes = bytes.slice(start, end);
-    
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunkBlob = file.slice(start, end); // Читаем только кусок
+
+    const arrayBuf = await chunkBlob.arrayBuffer();
+    const chunkBytes = new Uint8Array(arrayBuf);
     const chunkData = bufToBase64(chunkBytes);
 
     const payload = JSON.stringify({
@@ -1704,7 +1671,7 @@ async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage,
       type: isImage ? 'image' : 'file',
       file: {
         chunk: i, total: totalChunks,
-        mime, name, size, isImage,
+        mime, name, size: file.size, isImage,
         data: chunkData
       }
     });
@@ -1727,7 +1694,7 @@ async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage,
       if (p) p.innerHTML = `<span class="upload-spinner"></span>${percent}%`;
     }
 
-    // Даем браузеру "продохнуть" (сбросить UI), чтобы не было зависания
+    // Даем браузеру отдышаться
     await new Promise(r => setTimeout(r, 10));
   }
   saveChats();
