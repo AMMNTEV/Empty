@@ -681,12 +681,8 @@ function renderMessageHtml(m) {
 
   // Фото
   if (m.type === 'image') {
-    if (!m.b64) {
-      return `<div class="msg image ${cls}"><div style="padding:10px; color:#666;">Loading image...</div>${time}</div>`;
-    }
-    // Создаем blob URL для отображения
     let imgSrc = m._imgUrl;
-    if (!imgSrc) {
+    if (!imgSrc && m.b64) {
       try {
         const bytes = base64ToBuf(m.b64);
         const blob = new Blob([bytes], { type: m.fileMime });
@@ -695,6 +691,11 @@ function renderMessageHtml(m) {
         fileCache.set(m.id, imgSrc);
       } catch (e) { imgSrc = ''; }
     }
+    
+    if (!imgSrc) {
+      return `<div class="msg image ${cls}" data-msg-id="${m.id}"><div style="padding:10px; color:#666;">Loading...</div>${time}</div>`;
+    }
+    
     return `<div class="msg image ${cls}" data-msg-id="${m.id}">
       <img src="${imgSrc}" alt="${escapeHtml(m.fileName)}" data-msg-id="${m.id}" class="msg-image-el">
       ${time}
@@ -1515,17 +1516,16 @@ const FILE_CHUNK_SIZE = 650_000; // bytes of base64 per chunk
 async function compressImage(file) {
   return new Promise(async (resolve, reject) => {
     try {
-      // Используем createImageBitmap для эффективного чтения без блокировки UI
       const img = await createImageBitmap(file);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       
       let width = img.width;
       let height = img.height;
-      let quality = 0.85;
-      const MAX_DIMENSION = 1920; // Ограничиваем разрешение (FullHD)
+      let quality = 0.8;
+      const MAX_DIMENSION = 1600; // Уменьшили с 1920 до 1600 для скорости
+      const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 МБ — максимум для фото
 
-      // Если фото огромное — уменьшаем до MAX_DIMENSION
       if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
         if (width > height) {
           height = Math.round((height * MAX_DIMENSION) / width);
@@ -1546,9 +1546,14 @@ async function compressImage(file) {
             reject(new Error('Canvas toBlob failed'));
             return;
           }
-          // Если фото всё ещё больше 5 МБ — сжимаем сильнее
-          if (blob.size > 5 * 1024 * 1024 && quality > 0.4) {
+          // Если фото больше 2 МБ — уменьшаем качество или разрешение
+          if (blob.size > MAX_SIZE_BYTES && quality > 0.3) {
             quality -= 0.15;
+            tryCompress();
+          } else if (blob.size > MAX_SIZE_BYTES && width > 800) {
+            width = Math.floor(width * 0.8);
+            height = Math.floor(height * 0.8);
+            quality = 0.7;
             tryCompress();
           } else {
             resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
@@ -1607,28 +1612,49 @@ async function sendFile(file) {
     chatHistory[fp] = { peerNickname: activeChat.peerCard.nickname, messages: [], lastActivity: ts, expiresAt: ts + CHAT_TTL_MS };
   }
 
-  // Создаем запись сообщения (без b64 для файлов, чтобы не грузить память)
+  // Сохраняем b64 для фото, чтобы оно не терялось при перерисовке
+  let b64ForImage = null;
+  if (isImage) {
+    b64ForImage = bufToBase64(bytes);
+  }
+
   const msgRecord = {
     id: msgId, from: 'me', type: isImage ? 'image' : 'file',
     fileName: name, fileMime: mime, fileSize: file.size,
-    b64: isImage ? null : null, // Убираем хранение b64 в объекте для экономии
-    _imgUrl: isImage ? URL.createObjectURL(file) : null, // Создаем локальный URL для мгновенного отображения
+    b64: b64ForImage,
+    _imgUrl: isImage ? URL.createObjectURL(file) : null,
     ts
   };
   
-  if (isImage) {
-    fileCache.set(msgId, msgRecord._imgUrl); // Кэшируем URL
-  }
+  if (isImage) fileCache.set(msgId, msgRecord._imgUrl);
   
   chatHistory[fp].messages.push(msgRecord);
   chatHistory[fp].lastActivity = ts;
   chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
   appendMessage(msgRecord);
+  
+  // Добавляем индикатор загрузки
+  const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+  if (el) {
+    el.classList.add('uploading');
+    const progressSpan = document.createElement('span');
+    progressSpan.className = 'upload-progress';
+    progressSpan.innerHTML = `<span class="upload-spinner"></span>0%`;
+    el.appendChild(progressSpan);
+  }
+
   startTimer();
 
-  // Асинхронно шлем чанки
   sendFileBackground({ fp, msgId, bytes, mime, name, size: file.size, isImage, ts })
+    .then(() => {
+      const el2 = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (el2) {
+        el2.classList.remove('uploading');
+        const p = el2.querySelector('.upload-progress');
+        if (p) p.remove();
+      }
+    })
     .catch(e => console.error('[FILE SEND]', e));
 }
 
@@ -1638,7 +1664,7 @@ async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage,
   const toHashHex = await hashPubkeyHex(peerCard.x25519);
   const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
 
-  const CHUNK_SIZE = 500_000; // 500 КБ бинарных данных на чанк
+  const CHUNK_SIZE = 400_000; // Уменьшили размер чанка для плавности
   const totalChunks = Math.max(1, Math.ceil(bytes.length / CHUNK_SIZE));
 
   for (let i = 0; i < totalChunks; i++) {
@@ -1646,7 +1672,6 @@ async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage,
     const end = Math.min(start + CHUNK_SIZE, bytes.length);
     const chunkBytes = bytes.slice(start, end);
     
-    // Конвертируем только текущий кусок в base64
     const chunkData = bufToBase64(chunkBytes);
 
     const payload = JSON.stringify({
@@ -1668,6 +1693,17 @@ async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage,
       from: myHashHex, to: toHashHex, iv: blob.iv, ciphertext: blob.ciphertext,
       signature, senderEd25519: myIdentity.ed25519.public, pow, ttl: Date.now() + RELAY_TTL_MS
     });
+
+    // Обновляем прогресс
+    const percent = Math.round(((i + 1) / totalChunks) * 100);
+    const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (el) {
+      const p = el.querySelector('.upload-progress');
+      if (p) p.innerHTML = `<span class="upload-spinner"></span>${percent}%`;
+    }
+
+    // Даем браузеру "продохнуть" (сбросить UI), чтобы не было зависания
+    await new Promise(r => setTimeout(r, 10));
   }
   saveChats();
 }
