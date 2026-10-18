@@ -293,20 +293,6 @@
       color: #555;
     }
 
-    /* Typing indicator */
-    .chat-typing {
-      font-size: 10px;
-      color: #6f6;
-      height: 12px;
-      opacity: 0;
-      transition: opacity 0.2s;
-      font-style: italic;
-    }
-
-    .chat-typing.visible {
-      opacity: 1;
-    }
-
     .btn-end-chat {
       background: rgba(0, 0, 0, 0.5);
       color: #f66;
@@ -393,12 +379,14 @@
       color: #b0d0b0;
     }
 
+
     .msg.other {
       margin-left: 0;
       margin-right: auto;
     }
 
-    /* ============ LINKS AND TIME IN MESSAGES ============ */
+
+        /* ============ LINKS AND TIME IN MESSAGES ============ */
     .msg a {
       color: inherit;
       text-decoration: underline;
@@ -424,110 +412,6 @@
 
     .msg.me .msg-time {
       color: #4a6a4a;
-    }
-
-    /* ============ VOICE MESSAGE (in chat) ============ */
-    .msg.voice {
-      padding: 8px 10px 6px;
-      min-width: 180px;
-      max-width: 70%;
-    }
-
-    .voice-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .voice-play-btn {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid #2a4a2a;
-      background: rgba(0, 0, 0, 0.5);
-      color: #6f6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      padding: 0;
-      transition: background 0.15s, border-color 0.15s;
-    }
-
-    .voice-play-btn:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
-    }
-
-    .voice-play-btn svg {
-      width: 14px;
-      height: 14px;
-      fill: currentColor;
-      stroke: none;
-    }
-
-    .msg.me .voice-play-btn {
-      border-color: #4a6a4a;
-      color: #b0d0b0;
-    }
-
-    .voice-wave {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      height: 24px;
-      min-width: 60px;
-    }
-
-    .voice-wave span {
-      display: block;
-      width: 2px;
-      background: #6f6;
-      opacity: 0.4;
-      border-radius: 1px;
-      transition: opacity 0.15s;
-    }
-
-    .msg.me .voice-wave span {
-      background: #b0d0b0;
-    }
-
-    .voice-wave.playing span {
-      opacity: 0.9;
-    }
-
-    .voice-duration {
-      font-size: 10px;
-      color: #666;
-      flex-shrink: 0;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .msg.me .voice-duration {
-      color: #6a8a6a;
-    }
-
-    .voice-progress {
-      height: 2px;
-      background: #1a1a1a;
-      margin-top: 6px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .voice-progress-bar {
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 0%;
-      background: #6f6;
-    }
-
-    .msg.me .voice-progress-bar {
-      background: #b0d0b0;
     }
 
     /* ============ INPUT AREA ============ */
@@ -568,138 +452,6 @@
 
     .input-area textarea::placeholder {
       color: #333;
-    }
-
-    /* ============ VOICE BUTTON (mic) ============ */
-    .btn-voice {
-      background: rgba(0, 0, 0, 0.5);
-      color: #6f6;
-      border: 1px solid #2a4a2a;
-      padding: 0;
-      width: 32px;
-      height: 32px;
-      cursor: pointer;
-      flex-shrink: 0;
-      align-self: flex-end;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-
-    .btn-voice:hover {
-      background: #0a1a0a;
-      border-color: #6f6;
-    }
-
-    .btn-voice svg {
-      width: 16px;
-      height: 16px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    /* ============ RECORDING UI ============ */
-    .recording-ui {
-      display: none;
-      flex: 1;
-      align-items: center;
-      gap: 8px;
-      height: 32px;
-    }
-
-    .recording-ui.active {
-      display: flex;
-    }
-
-    .rec-btn {
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      flex-shrink: 0;
-    }
-
-    .rec-btn svg {
-      width: 18px;
-      height: 18px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .rec-btn.del {
-      color: #f66;
-    }
-
-    .rec-btn.del:hover {
-      color: #f88;
-    }
-
-    .rec-btn.pause {
-      color: #fff;
-    }
-
-    .rec-btn.pause:hover {
-      color: #ccc;
-    }
-
-    .rec-btn.send {
-      color: #6f6;
-    }
-
-    .rec-btn.send:hover {
-      color: #9f9;
-    }
-
-    .rec-timer {
-      font-size: 13px;
-      color: #fff;
-      flex-shrink: 0;
-      font-variant-numeric: tabular-nums;
-      min-width: 45px;
-    }
-
-    .rec-wave {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 2px;
-      height: 24px;
-    }
-
-    .rec-wave span {
-      display: block;
-      width: 2px;
-      background: #6f6;
-      border-radius: 1px;
-      transition: opacity 0.1s;
-      height: 2px;
-    }
-
-    .recording-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #f66;
-      animation: pulse 1s infinite;
-      flex-shrink: 0;
-      margin-right: 4px;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
     }
 
     .btn-send {
@@ -1067,10 +819,6 @@
         max-width: 85%;
       }
 
-      .msg.voice {
-        max-width: 85%;
-      }
-
       .topbar {
         padding: 6px 8px;
         padding-top: calc(6px + env(safe-area-inset-top));
@@ -1146,7 +894,6 @@
         </button>
         <div class="chat-header-info">
           <div class="chat-title" id="chatTitle">—</div>
-          <div class="chat-typing" id="chatTyping"></div>
           <div class="chat-timer" id="chatTimer"></div>
         </div>
         <button class="btn-end-chat" id="btnEndChat">end chat</button>
@@ -1155,54 +902,13 @@
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
-        <!-- Кнопка микрофона -->
-        <button class="btn-voice" id="btnVoice" aria-label="Record voice message">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" y1="19" x2="12" y2="22"></line>
-          </svg>
-        </button>
-
-        <!-- Панель записи (скрыта по умолчанию) -->
-        <div class="recording-ui" id="recordingUi">
-          <button class="rec-btn del" id="recBtnDelete" title="Delete">
-            <svg viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
-
-          <div class="recording-dot" id="recDot"></div>
-
-          <div class="rec-timer" id="recTimer">0:00</div>
-
-          <div class="rec-wave" id="recWave">
-            <!-- Волны генерируются в JS -->
-          </div>
-
-          <button class="rec-btn pause" id="recBtnPause" title="Pause / Play">
-            <svg viewBox="0 0 24 24" id="recPauseIcon">
-              <rect x="6" y="4" width="4" height="16"></rect>
-              <rect x="14" y="4" width="4" height="16"></rect>
-            </svg>
-          </button>
-
-          <button class="rec-btn send" id="recBtnSend" title="Send">
-            <svg viewBox="0 0 24 24">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </div>
-
         <textarea id="msgInput" rows="1" placeholder="Message..."></textarea>
         <button class="btn-send" id="btnSend">send</button>
       </div>
     </div>
   </div>
 
-  <!-- FAB -->
+  <!-- FAB: ADD / MY QR -->
   <button class="fab" id="fabAdd" aria-label="Add contact or show QR">
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <line x1="12" y1="5" x2="12" y2="19"></line>
