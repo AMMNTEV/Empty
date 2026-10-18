@@ -38,8 +38,9 @@ if (typeof qrcode === 'function') {
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
 const POW_DIFFICULTY = 4;
-const TYPING_REFRESH_MS = 3000;
-const TYPING_VISIBLE_MS = 5000;
+const TYPING_REFRESH_MS = 1000; // обновляем не чаще раза в секунду
+const TYPING_VISIBLE_MS = 3000; // индикатор виден 3 сек после последнего сигнала
+const TYPING_STOP_DELAY = 2500; // через 2.5 сек после последнего ввода считаем, что юзер перестал печатать
 
 let myIdentity = null;
 let myPassword = null;
@@ -206,13 +207,22 @@ async function clearTypingSignal(peerHash) {
 
 function onTypingInput() {
   if (!activeChat) return;
+  
+  // Сбрасываем таймер остановки при каждом нажатии клавиши
   if (typingStopTimer) clearTimeout(typingStopTimer);
+  
   const fp = activeChat.fingerprint;
   const peer = contacts[fp];
   if (!peer) return;
+  
   hashPubkeyHex(peer.x25519).then(peerHash => {
+    // Отправляем сигнал (внутри есть троттлинг на 1 сек)
     sendTypingSignal(peerHash);
-    typingStopTimer = setTimeout(() => clearTypingSignal(peerHash), TYPING_REFRESH_MS + 500);
+    
+    // Ставим таймер на "перестал печатать" через 2.5 сек после последнего ввода
+    typingStopTimer = setTimeout(() => {
+      clearTypingSignal(peerHash);
+    }, TYPING_STOP_DELAY);
   });
 }
 
@@ -641,15 +651,17 @@ function renderMessageHtml(m) {
     const duration = formatDuration(m.duration || 0);
     const bars = renderWaveBars(m.id);
     return `<div class="msg voice ${cls}" data-msg-id="${m.id}">
-      <div class="voice-row">
+      <div class="voice-main">
         <button class="voice-play-btn" data-msg-id="${m.id}" aria-label="Play voice">
           <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         </button>
         <div class="voice-wave" data-msg-id="${m.id}">${bars}</div>
         <div class="voice-duration" data-msg-id="${m.id}">${duration}</div>
       </div>
-      <div class="voice-progress"><div class="voice-progress-bar" data-msg-id="${m.id}"></div></div>
-      ${time}
+      <div class="voice-footer">
+        <div class="voice-progress"><div class="voice-progress-bar" data-msg-id="${m.id}"></div></div>
+        ${time}
+      </div>
     </div>`;
   }
   return `<div class="msg ${cls}" data-msg-id="${m.id}">${linkifyAndEscape(m.text || '')}${time}</div>`;
@@ -741,19 +753,33 @@ async function toggleVoicePlayback(msgId) {
     const blob = new Blob([bytes], { type: msg.mime });
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
+    
     audio.addEventListener('timeupdate', () => {
-      if (!audio.duration || !isFinite(audio.duration)) return;
-      if (bar) bar.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
-      if (durEl) durEl.textContent = formatDuration(audio.currentTime * 1000);
+      // В webm/opus на iOS/Android audio.duration может быть NaN.
+      // Берем длительность из сообщения (msg.duration) для расчета прогресса.
+      const totalMs = (audio.duration && isFinite(audio.duration)) 
+        ? audio.duration * 1000 
+        : (msg.duration || 0);
+      
+      if (totalMs > 0 && bar) {
+        const currentMs = audio.currentTime * 1000;
+        const pct = Math.min(100, (currentMs / totalMs) * 100);
+        bar.style.width = pct + '%';
+        
+        // Показываем время прослушивания (вместо общей длительности)
+        if (durEl) durEl.textContent = formatDuration(currentMs);
+      }
     });
+
     audio.addEventListener('ended', () => {
       URL.revokeObjectURL(url);
       audioCache.delete(msgId);
       if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
       if (wave) wave.classList.remove('playing');
       if (bar) bar.style.width = '0%';
-      if (durEl) durEl.textContent = formatDuration(msg.duration || 0);
+      if (durEl) durEl.textContent = formatDuration(msg.duration || 0); // возвращаем общую длительность
     });
+
     audio.addEventListener('error', () => { URL.revokeObjectURL(url); audioCache.delete(msgId); });
     audioCache.set(msgId, { audio, url });
     await audio.play();
@@ -763,7 +789,6 @@ async function toggleVoicePlayback(msgId) {
     console.error('[VOICE] play failed:', e);
   }
 }
-
 // ============================================
 // VOICE RECORDING
 // ============================================

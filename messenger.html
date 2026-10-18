@@ -166,22 +166,26 @@
     }
     .msg.me .msg-time { color: #4a6a4a; }
 
-    /* Voice message in chat — сделано компактным */
+        /* Voice message in chat */
     .msg.voice {
-      padding: 6px 10px 4px;
+      padding: 4px 8px 6px;
       min-width: unset;
       max-width: 85%;
       width: fit-content;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-    .voice-row {
+    
+    .voice-main {
       display: flex;
       align-items: center;
       gap: 8px;
-      min-width: 140px;
     }
+
     .voice-play-btn {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       border: 1px solid #2a4a2a;
       background: rgba(0, 0, 0, 0.5);
@@ -197,15 +201,69 @@
     .voice-play-btn:hover { background: #0a1a0a; border-color: #6f6; }
     .voice-play-btn svg { width: 12px; height: 12px; fill: currentColor; stroke: none; }
     .msg.me .voice-play-btn { border-color: #4a6a4a; color: #b0d0b0; }
-    .voice-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 20px; min-width: 50px; }
-    .voice-wave span { display: block; width: 2px; background: #6f6; opacity: 0.4; border-radius: 1px; transition: opacity 0.15s; }
+
+    /* Волна */
+    .voice-wave {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 16px;
+      min-width: 60px;
+      overflow: hidden;
+    }
+    .voice-wave span {
+      display: block;
+      width: 2px;
+      background: #6f6;
+      opacity: 0.4;
+      border-radius: 1px;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
     .msg.me .voice-wave span { background: #b0d0b0; }
     .voice-wave.playing span { opacity: 0.9; }
-    .voice-duration { font-size: 10px; color: #666; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+    /* Длительность */
+    .voice-duration {
+      font-size: 10px;
+      color: #666;
+      flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+      min-width: 30px;
+      text-align: right;
+    }
     .msg.me .voice-duration { color: #6a8a6a; }
-    .voice-progress { height: 2px; background: #1a1a1a; margin-top: 4px; position: relative; overflow: hidden; }
-    .voice-progress-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #6f6; }
+
+    /* Полоса прогресса и время */
+    .voice-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      height: 14px;
+    }
+    .voice-progress {
+      flex: 1;
+      height: 2px;
+      background: #1a1a1a;
+      position: relative;
+      overflow: hidden;
+    }
+    .voice-progress-bar {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 0%;
+      background: #6f6;
+      transition: width 0.1s linear;
+    }
     .msg.me .voice-progress-bar { background: #b0d0b0; }
+
+    .voice-footer .msg-time {
+      float: none;
+      margin: 0;
+      margin-top: 0;
+    }
 
     .input-area {
       background: rgba(10, 10, 10, 0.7); border-top: 1px solid #2a2a2a;
