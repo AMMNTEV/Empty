@@ -1513,41 +1513,53 @@ const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB
 const FILE_CHUNK_SIZE = 650_000; // bytes of base64 per chunk
 
 async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Используем createImageBitmap для эффективного чтения без блокировки UI
+      const img = await createImageBitmap(file);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      
       let width = img.width;
       let height = img.height;
-      let quality = 0.9;
+      let quality = 0.85;
+      const MAX_DIMENSION = 1920; // Ограничиваем разрешение (FullHD)
+
+      // Если фото огромное — уменьшаем до MAX_DIMENSION
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        if (width > height) {
+          height = Math.round((height * MAX_DIMENSION) / width);
+          width = MAX_DIMENSION;
+        } else {
+          width = Math.round((width * MAX_DIMENSION) / height);
+          height = MAX_DIMENSION;
+        }
+      }
 
       const tryCompress = () => {
         canvas.width = width;
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
+        
         canvas.toBlob((blob) => {
-          if (blob.size <= MAX_FILE_SIZE) {
-            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-          } else if (quality > 0.4) {
+          if (!blob) {
+            reject(new Error('Canvas toBlob failed'));
+            return;
+          }
+          // Если фото всё ещё больше 5 МБ — сжимаем сильнее
+          if (blob.size > 5 * 1024 * 1024 && quality > 0.4) {
             quality -= 0.15;
             tryCompress();
-          } else if (width > 800) {
-            width = Math.floor(width * 0.8);
-            height = Math.floor(height * 0.8);
-            quality = 0.9;
-            tryCompress();
           } else {
-            reject(new Error('Image too large even after compression'));
+            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
           }
         }, 'image/jpeg', quality);
       };
+      
       tryCompress();
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
-    img.src = url;
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -1558,13 +1570,15 @@ async function handleFileSelect(e) {
 
   let finalFile = file;
 
-  // Если это фото и оно больше 40 МБ — пробуем сжать
-  if (file.type.startsWith('image/') && file.size > MAX_FILE_SIZE) {
+  // Если это фото — ВСЕГДА пытаемся сжать, чтобы избежать зависания на телефонах
+  if (file.type.startsWith('image/')) {
     try {
-      finalFile = await compressImage(file);
+      // Сжимаем, если файл больше 1 МБ или это HEIC/HEIF (с телефонов)
+      if (file.size > 1024 * 1024 || file.type === 'image/heic' || file.type === 'image/heif') {
+        finalFile = await compressImage(file);
+      }
     } catch (err) {
-      await showAlert('Failed to compress image. Try a smaller file.', 'Error');
-      return;
+      console.warn('Compression failed, sending original', err);
     }
   }
 
@@ -1586,46 +1600,55 @@ async function sendFile(file) {
   const mime = file.type || 'application/octet-stream';
   const name = file.name || 'file';
 
-  // Читаем файл в ArrayBuffer
   const arrayBuf = await file.arrayBuffer();
   const bytes = new Uint8Array(arrayBuf);
-  const b64 = bufToBase64(bytes);
 
   if (!chatHistory[fp]) {
     chatHistory[fp] = { peerNickname: activeChat.peerCard.nickname, messages: [], lastActivity: ts, expiresAt: ts + CHAT_TTL_MS };
   }
 
-  // Создаем запись сообщения (пока без данных, только мета)
+  // Создаем запись сообщения (без b64 для файлов, чтобы не грузить память)
   const msgRecord = {
     id: msgId, from: 'me', type: isImage ? 'image' : 'file',
     fileName: name, fileMime: mime, fileSize: file.size,
-    b64: isImage ? b64 : null, // Для фото храним b64 сразу в объекте (для быстрого отображения)
+    b64: isImage ? null : null, // Убираем хранение b64 в объекте для экономии
+    _imgUrl: isImage ? URL.createObjectURL(file) : null, // Создаем локальный URL для мгновенного отображения
     ts
   };
+  
+  if (isImage) {
+    fileCache.set(msgId, msgRecord._imgUrl); // Кэшируем URL
+  }
   
   chatHistory[fp].messages.push(msgRecord);
   chatHistory[fp].lastActivity = ts;
   chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
-  // Рендерим сообщение сразу (с превью, если это фото)
   appendMessage(msgRecord);
   startTimer();
 
   // Асинхронно шлем чанки
-  sendFileBackground({ fp, msgId, b64, mime, name, size: file.size, isImage, ts })
+  sendFileBackground({ fp, msgId, bytes, mime, name, size: file.size, isImage, ts })
     .catch(e => console.error('[FILE SEND]', e));
 }
 
-async function sendFileBackground({ fp, msgId, b64, mime, name, size, isImage, ts }) {
+async function sendFileBackground({ fp, msgId, bytes, mime, name, size, isImage, ts }) {
   const peerCard = contacts[fp];
   if (!peerCard) return;
   const toHashHex = await hashPubkeyHex(peerCard.x25519);
   const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
 
-  const totalChunks = Math.max(1, Math.ceil(b64.length / FILE_CHUNK_SIZE));
+  const CHUNK_SIZE = 500_000; // 500 КБ бинарных данных на чанк
+  const totalChunks = Math.max(1, Math.ceil(bytes.length / CHUNK_SIZE));
 
   for (let i = 0; i < totalChunks; i++) {
-    const chunkData = b64.slice(i * FILE_CHUNK_SIZE, (i + 1) * FILE_CHUNK_SIZE);
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, bytes.length);
+    const chunkBytes = bytes.slice(start, end);
+    
+    // Конвертируем только текущий кусок в base64
+    const chunkData = bufToBase64(chunkBytes);
+
     const payload = JSON.stringify({
       id: msgId, text: '', ts, from: myHashHex, to: toHashHex,
       type: isImage ? 'image' : 'file',
@@ -1666,7 +1689,6 @@ async function handleIncomingFile(payload, peerFp) {
   entry.chunks.set(f.chunk, f.data);
   if (entry.chunks.size < entry.total) return;
 
-  // Все чанки собраны
   const parts = [];
   for (let i = 0; i < entry.total; i++) {
     const c = entry.chunks.get(i);
@@ -1684,8 +1706,8 @@ async function handleIncomingFile(payload, peerFp) {
   const fileMsg = {
     id: msgId, from: 'peer', type: entry.meta.isImage ? 'image' : 'file',
     fileName: entry.meta.name, fileMime: entry.meta.mime, fileSize: entry.meta.size,
-    b64: entry.meta.isImage ? fullB64 : null, // Для фото храним b64 для отображения
-    fileB64: !entry.meta.isImage ? fullB64 : null, // Для файлов храним b64 для скачивания
+    b64: entry.meta.isImage ? fullB64 : null, // Для фото
+    fileB64: !entry.meta.isImage ? fullB64 : null, // Для файлов
     ts: payload.ts
   };
   
@@ -1702,7 +1724,6 @@ async function handleIncomingFile(payload, peerFp) {
     renderContacts();
   }
 }
-
 // ============================================
 // START
 // ============================================
