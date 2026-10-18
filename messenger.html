@@ -280,6 +280,93 @@
     .input-area textarea:focus { border-color: #6f6; }
     .input-area textarea::placeholder { color: #333; }
 
+    /* Attach button */
+    .btn-attach {
+      background: rgba(0, 0, 0, 0.5); color: #6f6; border: 1px solid #2a4a2a;
+      padding: 0; width: 32px; height: 32px; cursor: pointer;
+      flex-shrink: 0; align-self: flex-end;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-attach:hover { background: #0a1a0a; border-color: #6f6; }
+    .btn-attach svg {
+      width: 16px; height: 16px; stroke: currentColor; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    /* File message in chat */
+    .msg.file {
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 200px;
+      max-width: 85%;
+      width: fit-content;
+    }
+    .file-icon {
+      width: 36px; height: 36px;
+      border-radius: 4px;
+      background: rgba(111, 255, 111, 0.1);
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .file-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .file-info {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column;
+    }
+    .file-name {
+      font-weight: bold; font-size: 13px;
+      color: #d0d0d0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .msg.me .file-name { color: #b0d0b0; }
+    .file-size {
+      font-size: 10px; color: #555;
+    }
+    .file-download-btn {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .file-download-btn:hover { background: #0a1a0a; border-color: #6f6; }
+    .file-download-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    /* Image message in chat */
+    .msg.image {
+      padding: 4px;
+      background: rgba(10, 10, 10, 0.9);
+      min-width: unset;
+      max-width: 60%;
+      width: fit-content;
+    }
+    .msg.image img {
+      display: block;
+      max-width: 100%;
+      max-height: 300px;
+      height: auto;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .msg.image .msg-time {
+      position: absolute;
+      bottom: 6px; right: 6px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2px 4px;
+      border-radius: 2px;
+      color: #fff;
+    }
+    .msg.image { position: relative; }
+
     /* Mic button */
     .btn-voice {
       background: rgba(0, 0, 0, 0.5); color: #6f6; border: 1px solid #2a4a2a;
@@ -468,6 +555,12 @@
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
+                <button class="btn-attach" id="btnAttach" aria-label="Attach file">
+          <svg viewBox="0 0 24 24">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+          </svg>
+        </button>
+        <input type="file" id="fileInput" style="display:none;" accept="image/*,application/pdf,text/plain,*/*">
         <button class="btn-voice" id="btnVoice" aria-label="Record voice message">
           <svg viewBox="0 0 24 24">
             <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
@@ -664,6 +757,11 @@
       window.addEventListener('focusout', () => setTimeout(updateVh, 100));
     })();
   </script>
+
+  <div class="modal" id="modalImage" style="background: rgba(0,0,0,0.95); z-index: 2000;">
+    <img id="imageViewer" style="max-width: 95%; max-height: 95vh; object-fit: contain;">
+    <button id="btnCloseImage" class="secondary" style="position: absolute; top: 20px; right: 20px; width: auto; padding: 8px 16px; margin: 0;">CLOSE</button>
+  </div>
 </body>
 
 </html>

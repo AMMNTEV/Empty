@@ -74,6 +74,8 @@ let audioAnalyser = null;
 let isPaused = false;
 let pausedTime = 0;
 const audioCache = new Map();
+const fileCache = new Map(); // Для хранения blob-URL картинок
+const pendingFiles = new Map(); // Для склейки чанков
 
 // ============================================
 // CUSTOM DIALOGS
@@ -636,7 +638,17 @@ function renderChat() {
 
   const msgs = history.messages || [];
   for (const [id, url] of audioCache.entries()) { URL.revokeObjectURL(url); audioCache.delete(id); }
+    for (const [id, url] of fileCache.entries()) { URL.revokeObjectURL(url); fileCache.delete(id); }
   messages.innerHTML = msgs.map(m => renderMessageHtml(m)).join('');
+    messages.querySelectorAll('.msg-image-el').forEach(img => {
+    img.addEventListener('click', () => {
+      document.getElementById('imageViewer').src = img.src;
+      document.getElementById('modalImage').classList.add('active');
+    });
+  });
+  messages.querySelectorAll('.file-download-btn').forEach(btn => {
+    btn.addEventListener('click', () => downloadFile(btn.dataset.fileId));
+  });
   messages.querySelectorAll('.voice-play-btn').forEach(btn => {
     btn.addEventListener('click', () => toggleVoicePlayback(btn.dataset.msgId));
   });
@@ -647,6 +659,8 @@ function renderChat() {
 function renderMessageHtml(m) {
   const cls = m.from === 'me' ? 'me' : 'other';
   const time = `<span class="msg-time">${formatTime(m.ts)}</span>`;
+
+  // Голосовые
   if (m.type === 'voice') {
     const duration = formatDuration(m.duration || 0);
     const bars = renderWaveBars(m.id);
@@ -664,6 +678,49 @@ function renderMessageHtml(m) {
       </div>
     </div>`;
   }
+
+  // Фото
+  if (m.type === 'image') {
+    if (!m.b64) {
+      return `<div class="msg image ${cls}"><div style="padding:10px; color:#666;">Loading image...</div>${time}</div>`;
+    }
+    // Создаем blob URL для отображения
+    let imgSrc = m._imgUrl;
+    if (!imgSrc) {
+      try {
+        const bytes = base64ToBuf(m.b64);
+        const blob = new Blob([bytes], { type: m.fileMime });
+        imgSrc = URL.createObjectURL(blob);
+        m._imgUrl = imgSrc;
+        fileCache.set(m.id, imgSrc);
+      } catch (e) { imgSrc = ''; }
+    }
+    return `<div class="msg image ${cls}" data-msg-id="${m.id}">
+      <img src="${imgSrc}" alt="${escapeHtml(m.fileName)}" data-msg-id="${m.id}" class="msg-image-el">
+      ${time}
+    </div>`;
+  }
+
+  // Файл
+  if (m.type === 'file') {
+    const sizeKb = m.fileSize ? (m.fileSize / 1024).toFixed(1) + ' KB' : '';
+    const ext = (m.fileName || '').split('.').pop().toUpperCase();
+    return `<div class="msg file ${cls}" data-msg-id="${m.id}">
+      <div class="file-icon">
+        <svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+      </div>
+      <div class="file-info">
+        <div class="file-name">${escapeHtml(m.fileName || 'File')}</div>
+        <div class="file-size">${ext} • ${sizeKb}</div>
+      </div>
+      <button class="file-download-btn" data-file-id="${m.id}" title="Download">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      </button>
+      ${time}
+    </div>`;
+  }
+
+  // Текст
   return `<div class="msg ${cls}" data-msg-id="${m.id}">${linkifyAndEscape(m.text || '')}${time}</div>`;
 }
 
@@ -683,13 +740,58 @@ function appendMessage(msg) {
   if (!messages) return;
   const placeholder = messages.querySelector('div[style*="text-align:center"]');
   if (placeholder && placeholder.textContent.includes('No messages')) placeholder.remove();
+  
   messages.insertAdjacentHTML('beforeend', renderMessageHtml(msg));
   const newEl = messages.lastElementChild;
+  
   if (newEl && newEl.classList.contains('voice')) {
     const btn = newEl.querySelector('.voice-play-btn');
     if (btn) btn.addEventListener('click', () => toggleVoicePlayback(btn.dataset.msgId));
   }
+  
+  if (newEl && newEl.classList.contains('image')) {
+    const img = newEl.querySelector('.msg-image-el');
+    if (img) {
+      img.addEventListener('click', () => {
+        document.getElementById('imageViewer').src = img.src;
+        document.getElementById('modalImage').classList.add('active');
+      });
+    }
+  }
+  
+  if (newEl && newEl.classList.contains('file')) {
+    const btn = newEl.querySelector('.file-download-btn');
+    if (btn) {
+      btn.addEventListener('click', () => downloadFile(btn.dataset.fileId));
+    }
+  }
+  
   requestAnimationFrame(() => { messages.scrollTop = messages.scrollHeight; });
+}
+
+function downloadFile(msgId) {
+  if (!activeChat) return;
+  const history = chatHistory[activeChat.fingerprint];
+  if (!history) return;
+  const msg = (history.messages || []).find(m => m.id === msgId);
+  if (!msg || msg.type !== 'file' || !msg.fileB64) {
+    showAlert('File data not available yet.', 'Notice');
+    return;
+  }
+  try {
+    const bytes = base64ToBuf(msg.fileB64);
+    const blob = new Blob([bytes], { type: msg.fileMime || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = msg.fileName || 'file';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error('[DOWNLOAD]', e);
+  }
 }
 
 function startTimer() {
@@ -1153,6 +1255,10 @@ async function listenIncoming() {
         await handleIncomingVoice(payload, peerFp); continue;
       }
 
+           if ((payload.type === 'file' || payload.type === 'image') && payload.file) {
+        await handleIncomingFile(payload, peerFp); continue;
+      }
+
       const isFirstMessage = !chatHistory[peerFp];
       if (!chatHistory[peerFp]) {
         chatHistory[peerFp] = { peerNickname: contacts[peerFp].nickname, messages: [], lastActivity: payload.ts, expiresAt: payload.ts + CHAT_TTL_MS };
@@ -1231,6 +1337,14 @@ function bindUI() {
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
   document.getElementById('btnSend').addEventListener('click', sendMessage);
   document.getElementById('btnVoice').addEventListener('click', toggleRecording);
+  document.getElementById('btnAttach').addEventListener('click', () => document.getElementById('fileInput').click());
+  document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+  document.getElementById('btnCloseImage').addEventListener('click', () => {
+    document.getElementById('modalImage').classList.remove('active');
+  });
+  document.getElementById('modalImage').addEventListener('click', (e) => {
+    if (e.target.id === 'modalImage') document.getElementById('modalImage').classList.remove('active');
+  });
 
   document.getElementById('recBtnDelete').addEventListener('click', async () => {
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -1390,6 +1504,203 @@ function handleAddAnotherAccount() {
   sessionStorage.removeItem('_pw');
   sessionStorage.removeItem('_fp');
   window.location.href = 'index.html';
+}
+
+// ============================================
+// FILE & IMAGE HANDLING
+// ============================================
+const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB
+const FILE_CHUNK_SIZE = 650_000; // bytes of base64 per chunk
+
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      let width = img.width;
+      let height = img.height;
+      let quality = 0.9;
+
+      const tryCompress = () => {
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (blob.size <= MAX_FILE_SIZE) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          } else if (quality > 0.4) {
+            quality -= 0.15;
+            tryCompress();
+          } else if (width > 800) {
+            width = Math.floor(width * 0.8);
+            height = Math.floor(height * 0.8);
+            quality = 0.9;
+            tryCompress();
+          } else {
+            reject(new Error('Image too large even after compression'));
+          }
+        }, 'image/jpeg', quality);
+      };
+      tryCompress();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+    img.src = url;
+  });
+}
+
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  e.target.value = ''; // reset
+  if (!file || !activeChat) return;
+
+  let finalFile = file;
+
+  // Если это фото и оно больше 40 МБ — пробуем сжать
+  if (file.type.startsWith('image/') && file.size > MAX_FILE_SIZE) {
+    try {
+      finalFile = await compressImage(file);
+    } catch (err) {
+      await showAlert('Failed to compress image. Try a smaller file.', 'Error');
+      return;
+    }
+  }
+
+  // Если файл (не фото) больше 40 МБ — отказываем
+  if (finalFile.size > MAX_FILE_SIZE) {
+    await showAlert('File is too large. Maximum size is 40 MB.', 'Error');
+    return;
+  }
+
+  await sendFile(finalFile);
+}
+
+async function sendFile(file) {
+  if (!activeChat) return;
+  const fp = activeChat.fingerprint;
+  const msgId = uuid();
+  const ts = Date.now();
+  const isImage = file.type.startsWith('image/');
+  const mime = file.type || 'application/octet-stream';
+  const name = file.name || 'file';
+
+  // Читаем файл в ArrayBuffer
+  const arrayBuf = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuf);
+  const b64 = bufToBase64(bytes);
+
+  if (!chatHistory[fp]) {
+    chatHistory[fp] = { peerNickname: activeChat.peerCard.nickname, messages: [], lastActivity: ts, expiresAt: ts + CHAT_TTL_MS };
+  }
+
+  // Создаем запись сообщения (пока без данных, только мета)
+  const msgRecord = {
+    id: msgId, from: 'me', type: isImage ? 'image' : 'file',
+    fileName: name, fileMime: mime, fileSize: file.size,
+    b64: isImage ? b64 : null, // Для фото храним b64 сразу в объекте (для быстрого отображения)
+    ts
+  };
+  
+  chatHistory[fp].messages.push(msgRecord);
+  chatHistory[fp].lastActivity = ts;
+  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
+
+  // Рендерим сообщение сразу (с превью, если это фото)
+  appendMessage(msgRecord);
+  startTimer();
+
+  // Асинхронно шлем чанки
+  sendFileBackground({ fp, msgId, b64, mime, name, size: file.size, isImage, ts })
+    .catch(e => console.error('[FILE SEND]', e));
+}
+
+async function sendFileBackground({ fp, msgId, b64, mime, name, size, isImage, ts }) {
+  const peerCard = contacts[fp];
+  if (!peerCard) return;
+  const toHashHex = await hashPubkeyHex(peerCard.x25519);
+  const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
+
+  const totalChunks = Math.max(1, Math.ceil(b64.length / FILE_CHUNK_SIZE));
+
+  for (let i = 0; i < totalChunks; i++) {
+    const chunkData = b64.slice(i * FILE_CHUNK_SIZE, (i + 1) * FILE_CHUNK_SIZE);
+    const payload = JSON.stringify({
+      id: msgId, text: '', ts, from: myHashHex, to: toHashHex,
+      type: isImage ? 'image' : 'file',
+      file: {
+        chunk: i, total: totalChunks,
+        mime, name, size, isImage,
+        data: chunkData
+      }
+    });
+    
+    const blob = await encryptMessage(payload, sharedKey);
+    const signedData = JSON.stringify({ ciphertext: blob.ciphertext, from: myHashHex, to: toHashHex });
+    const signature = await signBlob(signedData, myIdentity.ed25519.private);
+    const pow = await computePow(blob.ciphertext);
+    
+    await addDoc(collection(db, 'users', toHashHex, 'inbox'), {
+      from: myHashHex, to: toHashHex, iv: blob.iv, ciphertext: blob.ciphertext,
+      signature, senderEd25519: myIdentity.ed25519.public, pow, ttl: Date.now() + RELAY_TTL_MS
+    });
+  }
+  saveChats();
+}
+
+async function handleIncomingFile(payload, peerFp) {
+  const f = payload.file;
+  if (typeof f.chunk !== 'number' || typeof f.total !== 'number' || typeof f.data !== 'string') return;
+  
+  const msgId = payload.id;
+  let entry = pendingFiles.get(msgId);
+  if (!entry) {
+    entry = {
+      total: f.total, chunks: new Map(),
+      meta: { ts: payload.ts, mime: f.mime, name: f.name, size: f.size, isImage: f.isImage }
+    };
+    pendingFiles.set(msgId, entry);
+  }
+  
+  entry.chunks.set(f.chunk, f.data);
+  if (entry.chunks.size < entry.total) return;
+
+  // Все чанки собраны
+  const parts = [];
+  for (let i = 0; i < entry.total; i++) {
+    const c = entry.chunks.get(i);
+    if (!c) return;
+    parts.push(c);
+  }
+  const fullB64 = parts.join('');
+  pendingFiles.delete(msgId);
+
+  const isFirstMessage = !chatHistory[peerFp];
+  if (!chatHistory[peerFp]) {
+    chatHistory[peerFp] = { peerNickname: contacts[peerFp].nickname, messages: [], lastActivity: payload.ts, expiresAt: payload.ts + CHAT_TTL_MS };
+  }
+  
+  const fileMsg = {
+    id: msgId, from: 'peer', type: entry.meta.isImage ? 'image' : 'file',
+    fileName: entry.meta.name, fileMime: entry.meta.mime, fileSize: entry.meta.size,
+    b64: entry.meta.isImage ? fullB64 : null, // Для фото храним b64 для отображения
+    fileB64: !entry.meta.isImage ? fullB64 : null, // Для файлов храним b64 для скачивания
+    ts: payload.ts
+  };
+  
+  chatHistory[peerFp].messages.push(fileMsg);
+  chatHistory[peerFp].lastActivity = payload.ts;
+  chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;
+  saveChats();
+
+  if (activeChat && activeChat.fingerprint === peerFp) {
+    if (isFirstMessage) renderChat();
+    else appendMessage(fileMsg);
+    startTimer();
+  } else {
+    renderContacts();
+  }
 }
 
 // ============================================
