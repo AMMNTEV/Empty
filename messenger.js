@@ -41,6 +41,9 @@ const POW_DIFFICULTY = 3;
 const TYPING_REFRESH_MS = 1000; // обновляем не чаще раза в секунду
 const TYPING_VISIBLE_MS = 4000; 
 const TYPING_STOP_DELAY = 3000; 
+const ONLINE_HEARTBEAT_MS = 15000; // раз в 15 сек
+const ONLINE_TIMEOUT_MS = 30000;  // если >30 сек нет сигнала — offline
+let onlineHeartbeatInterval = null;
 
 let myIdentity = null;
 let myPassword = null;
@@ -58,6 +61,8 @@ let purgeCheckInterval = null;
 let typingStopTimer = null;
 let lastTypingSent = 0;
 let typingHideTimer = null;
+let currentOnlineHashes = new Set();
+
 
 let CONTACTS_FILE = null;
 let CHATS_FILE = null;
@@ -233,37 +238,67 @@ async function clearTypingSignal(peerHash) {
 function listenTyping() {
   if (unsubscribeTyping) unsubscribeTyping();
   unsubscribeTyping = onSnapshot(myEphemeralRef(), (snapshot) => {
-    console.log('[TYPING] snapshot, docs:', snapshot.size);
-    let newest = null;
+    let newestTyping = null;
+    let onlineSenders = new Set();
+
     snapshot.forEach(d => {
       const data = d.data();
-      if (!data || !data.typing || typeof data.ts !== 'number') return;
-      if (Date.now() - data.ts > TYPING_VISIBLE_MS) return;
-      if (!newest || data.ts > newest.ts) newest = { senderHash: d.id, ts: data.ts };
+      if (!data || typeof data.ts !== 'number') return;
+      
+      // Проверяем online
+      if (data.online === true && Date.now() - data.ts < ONLINE_TIMEOUT_MS) {
+        onlineSenders.add(d.id);
+      }
+
+      // Проверяем typing
+      if (data.typing === true && Date.now() - data.ts < TYPING_VISIBLE_MS) {
+        if (!newestTyping || data.ts > newestTyping.ts) {
+          newestTyping = { senderHash: d.id, ts: data.ts };
+        }
+      }
     });
-    updateTypingIndicator(newest);
+    currentOnlineHashes = onlineSenders; // сохраняем
+    updateTypingIndicator(newestTyping, onlineSenders);
   }, (err) => { console.warn('[TYPING] error', err); });
 }
 
-async function updateTypingIndicator(newest) {
+async function updateTypingIndicator(newestTyping, onlineSenders) {
   const el = document.getElementById('chatTyping');
   if (!el) return;
+  
   if (typingHideTimer) { clearTimeout(typingHideTimer); typingHideTimer = null; }
-  if (!newest || !activeChat) { el.classList.remove('visible'); el.textContent = ''; return; }
-  let senderFp = null;
-  for (const fp in contacts) {
-    const h = await hashPubkeyHex(contacts[fp].x25519);
-    if (h === newest.senderHash) { senderFp = fp; break; }
+  if (!activeChat) { el.textContent = ''; el.className = 'chat-status'; return; }
+
+  const fp = activeChat.fingerprint;
+  const peer = contacts[fp];
+  if (!peer) { el.textContent = ''; el.className = 'chat-status'; return; }
+
+  const peerHash = await hashPubkeyHex(peer.x25519);
+
+  // Если печатает
+  if (newestTyping && newestTyping.senderHash === peerHash) {
+    el.textContent = `${peer.nickname || 'Peer'} is typing…`;
+    el.className = 'chat-typing visible';
+    const age = Date.now() - newestTyping.ts;
+    typingHideTimer = setTimeout(() => {
+      el.textContent = '';
+      el.className = 'chat-typing';
+      // После таймаута вызываем обновление (проверить online статус)
+      listenTyping(); // пересоздаст listener, но это костыль. Лучше просто вызвать updateTypingIndicator с текущим online
+    }, Math.max(1000, TYPING_VISIBLE_MS - age));
+    return;
   }
-  if (!senderFp || senderFp !== activeChat.fingerprint) {
-    el.classList.remove('visible'); el.textContent = ''; return;
+
+  // Если online
+  if (onlineSenders.has(peerHash)) {
+    el.textContent = 'online';
+    el.className = 'chat-status online';
+    return;
   }
-  el.textContent = `${contacts[senderFp].nickname || 'Peer'} is typing…`;
-  el.classList.add('visible');
-  const age = Date.now() - newest.ts;
-  typingHideTimer = setTimeout(() => {
-    el.classList.remove('visible'); el.textContent = '';
-  }, Math.max(1000, TYPING_VISIBLE_MS - age));
+
+  // Иначе offline
+  el.textContent = 'offline';
+  el.className = 'chat-status';
 }
 
 // ============================================
@@ -365,9 +400,16 @@ async function init() {
   renderContacts();
   listenIncoming();
   listenTyping();
+  startOnlineHeartbeat();
   bindUI();
   if (purgeCheckInterval) clearInterval(purgeCheckInterval);
   purgeCheckInterval = setInterval(() => { purgeExpiredChats().catch(e => console.warn('[PURGE]', e)); }, 60 * 1000);
+
+setInterval(() => {
+  if (activeChat) {
+    updateTypingIndicator(null, currentOnlineHashes);
+  }
+}, 5000);
 }
 
 // ============================================
@@ -1635,15 +1677,21 @@ async function sendFile(file) {
 
   appendMessage(msgRecord);
   
-  // Добавляем индикатор загрузки
-  const el = document.querySelector(`[data-msg-id="${msgId}"]`);
-  if (el) {
-    el.classList.add('uploading');
-    const progressSpan = document.createElement('span');
-    progressSpan.className = 'upload-progress';
-    progressSpan.innerHTML = `<span class="upload-spinner"></span>0%`;
-    el.appendChild(progressSpan);
-  }
+   // Добавляем индикатор загрузки
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+    if (el) {
+      el.classList.add('uploading');
+      const progressSpan = document.createElement('span');
+      progressSpan.className = 'upload-progress';
+      // Создаем спиннер и текст отдельно
+      const spinner = document.createElement('span');
+      spinner.className = 'upload-spinner';
+      progressSpan.appendChild(spinner);
+      progressSpan.appendChild(document.createTextNode('0%'));
+      el.appendChild(progressSpan);
+    }
+  });
 
   startTimer();
 
@@ -1711,17 +1759,21 @@ async function sendFileBackground({ fp, msgId, file, mime, name, isImage, ts }) 
         signature, senderEd25519: myIdentity.ed25519.public, pow, ttl: Date.now() + RELAY_TTL_MS
       });
 
-      // Обновляем прогресс
+            // Обновляем прогресс
       const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-      const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+      const el = document.querySelector(`[data-msg-id="${msgId}"] .upload-progress`);
       if (el) {
-        const p = el.querySelector('.upload-progress');
-        if (p) p.innerHTML = `<span class="upload-spinner"></span>${percent}%`;
+        const textNode = el.lastChild;
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+          textNode.textContent = percent + '%';
+        } else {
+          el.appendChild(document.createTextNode(percent + '%'));
+        }
       }
 
       chunkIndex++;
       
-      // Даем браузеру отдышаться
+      // Даем браузеру отдышаться и обновить DOM
       await new Promise(r => setTimeout(r, 10));
     }
 
@@ -1782,6 +1834,48 @@ async function handleIncomingFile(payload, peerFp) {
   } else {
     renderContacts();
   }
+}
+
+function startOnlineHeartbeat() {
+  if (onlineHeartbeatInterval) clearInterval(onlineHeartbeatInterval);
+  
+  const sendOnline = async () => {
+    if (!myHashHex) return;
+    // Пишем свой статус во все чаты, где мы активны (или вообще во все контакты)
+    // Но лучше писать в ephemeral контактов, чтобы они видели нас online.
+    // Оптимизация: отправляем только в чаты, где есть история.
+    const peers = Object.keys(chatHistory);
+    for (const fp of peers) {
+      const peer = contacts[fp];
+      if (!peer) continue;
+      try {
+        const peerHash = await hashPubkeyHex(peer.x25519);
+        await setDoc(doc(db, 'users', peerHash, 'ephemeral', myHashHex), { 
+          online: true, 
+          ts: Date.now() 
+        });
+      } catch (e) {}
+    }
+  };
+
+  sendOnline();
+  onlineHeartbeatInterval = setInterval(sendOnline, ONLINE_HEARTBEAT_MS);
+
+  // При закрытии страницы пытаемся отправить offline
+  window.addEventListener('beforeunload', () => {
+    // Не ждем промисов, просто вызываем (браузер может не дать завершить)
+    const peers = Object.keys(chatHistory);
+    for (const fp of peers) {
+      const peer = contacts[fp];
+      if (!peer) continue;
+      hashPubkeyHex(peer.x25519).then(peerHash => {
+        setDoc(doc(db, 'users', peerHash, 'ephemeral', myHashHex), { 
+          online: false, 
+          ts: Date.now() 
+        });
+      });
+    }
+  });
 }
 // ============================================
 // START
