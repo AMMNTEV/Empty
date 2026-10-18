@@ -76,6 +76,12 @@ let mediaStream = null;
 let recordedChunks = [];
 let recordStartTs = 0;
 let recordTimerInterval = null;
+let recWaveInterval = null;
+let audioContext = null;
+let audioAnalyser = null;
+let isPaused = false;
+let pausedTime = 0;
+let previewAudio = null;
 
 // voice reassembly: { [msgId]: { total, chunks: Map, meta } }
 const pendingVoice = new Map();
@@ -1067,8 +1073,33 @@ async function startRecording() {
     return;
   }
 
+  // Настройка визуализации (волн)
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const source = audioContext.createMediaStreamSource(mediaStream);
+  audioAnalyser = audioContext.createAnalyser();
+  audioAnalyser.fftSize = 64;
+  source.connect(audioAnalyser);
+
+  const recWave = document.getElementById('recWave');
+  recWave.innerHTML = '';
+  for (let i = 0; i < 24; i++) recWave.appendChild(document.createElement('span'));
+
+  const dataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+  recWaveInterval = setInterval(() => {
+    if (isPaused) return;
+    audioAnalyser.getByteFrequencyData(dataArray);
+    const spans = recWave.querySelectorAll('span');
+    for (let i = 0; i < spans.length; i++) {
+      const val = dataArray[i] || 0;
+      spans[i].style.height = Math.max(2, (val / 255) * 24) + 'px';
+      spans[i].style.opacity = 0.4 + (val / 255) * 0.6;
+    }
+  }, 100);
+
   recordedChunks = [];
-  recordStartTs = Date.now();
+  recordStartTs = Date.now() - pausedTime;
+  isPaused = false;
+  pausedTime = 0;
 
   try {
     mediaRecorder = new MediaRecorder(mediaStream, {
@@ -1077,8 +1108,8 @@ async function startRecording() {
     });
   } catch (e) {
     console.error('[VOICE] MediaRecorder failed:', e);
-    mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+    if (audioContext) audioContext.close();
     await showAlert('Failed to start recorder: ' + e.message, 'Error');
     return;
   }
@@ -1093,19 +1124,18 @@ async function startRecording() {
 
   mediaRecorder.start(250);
 
-  // UI: switch to recording mode
-  const btnVoice = document.getElementById('btnVoice');
-  const recBar = document.getElementById('recordingBar');
-  const msgInput = document.getElementById('msgInput');
-  btnVoice.classList.add('recording');
-  recBar.classList.add('active');
-  msgInput.style.display = 'none';
+  // UI
+  document.getElementById('recordingUi').classList.add('active');
+  document.getElementById('btnVoice').style.display = 'none';
+  document.getElementById('msgInput').style.display = 'none';
   document.getElementById('btnSend').style.display = 'none';
-  document.getElementById('recordingTime').textContent = '0:00';
+  document.getElementById('recTimer').textContent = '0:00';
+  updateRecPauseIcon();
 
   recordTimerInterval = setInterval(() => {
+    if (isPaused) return;
     const elapsed = Date.now() - recordStartTs;
-    document.getElementById('recordingTime').textContent = formatDuration(elapsed);
+    document.getElementById('recTimer').textContent = formatDuration(elapsed);
     if (elapsed >= VOICE_MAX_DURATION_MS) {
       stopRecordingAndSend();
     }
@@ -1115,22 +1145,24 @@ async function startRecording() {
 async function stopRecordingAndSend() {
   if (!mediaRecorder) return;
   if (mediaRecorder.state === 'recording') {
-    mediaRecorder.stop(); // triggers 'stop' event → finalizeRecordingAndSend
+    mediaRecorder.stop();
   }
 }
 
 async function finalizeRecordingAndSend(mime) {
   if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
+  if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
+  if (audioContext) { audioContext.close(); audioContext = null; }
+  if (previewAudio) { previewAudio.pause(); previewAudio = null; }
 
   // Restore UI
   const btnVoice = document.getElementById('btnVoice');
-  const recBar = document.getElementById('recordingBar');
   const msgInput = document.getElementById('msgInput');
   const btnSend = document.getElementById('btnSend');
-  if (btnVoice) btnVoice.classList.remove('recording');
-  if (recBar) recBar.classList.remove('active');
+  if (btnVoice) btnVoice.style.display = '';
   if (msgInput) msgInput.style.display = '';
   if (btnSend) btnSend.style.display = '';
+  document.getElementById('recordingUi').classList.remove('active');
 
   // Stop tracks
   if (mediaStream) {
@@ -1164,7 +1196,6 @@ async function finalizeRecordingAndSend(mime) {
   const mimeClean = mime.split(';')[0] || 'audio/webm';
   const b64 = bufToBase64(bytes);
 
-  // Ensure chat exists
   if (!chatHistory[fp]) {
     chatHistory[fp] = {
       peerNickname: activeChat.peerCard.nickname,
@@ -1191,9 +1222,34 @@ async function finalizeRecordingAndSend(mime) {
   appendMessage(msgRecord);
   startTimer();
 
-  // Background send
   sendVoiceBackground({ fp, msgId, b64, mime: mimeClean, duration, ts })
     .catch(e => console.error('[VOICE SEND]', e));
+}
+
+function togglePauseRecord() {
+  if (!mediaRecorder) return;
+  if (isPaused) {
+    mediaRecorder.resume();
+    recordStartTs = Date.now() - pausedTime;
+    isPaused = false;
+  } else {
+    mediaRecorder.pause();
+    pausedTime = Date.now() - recordStartTs;
+    isPaused = true;
+    const spans = document.querySelectorAll('#recWave span');
+    spans.forEach(s => { s.style.height = '2px'; s.style.opacity = '0.4'; });
+  }
+  updateRecPauseIcon();
+}
+
+function updateRecPauseIcon() {
+  const icon = document.getElementById('recPauseIcon');
+  if (!icon) return;
+  if (isPaused) {
+    icon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+  } else {
+    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+  }
 }
 
 
@@ -1381,7 +1437,6 @@ function sendMessage() {
   appendMessage(msgRecord);
   startTimer();
 
-  // Clear typing signal immediately on send
   const peer = contacts[fp];
   if (peer) {
     hashPubkeyHex(peer.x25519).then(h => clearTypingSignal(h)).catch(() => {});
@@ -1453,7 +1508,6 @@ async function listenIncoming() {
       const docId = change.doc.id;
       const docRef = doc(db, 'users', myHashHex, 'inbox', docId);
 
-      // Structural validation
       if (
         typeof data.from !== 'string' ||
         typeof data.to !== 'string' ||
@@ -1469,7 +1523,6 @@ async function listenIncoming() {
       if (data.ttl < Date.now()) { await deleteDoc(docRef); continue; }
       if (!await verifyPow(data.ciphertext, data.pow)) { await deleteDoc(docRef); continue; }
 
-      // Find contact
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
@@ -1487,7 +1540,6 @@ async function listenIncoming() {
       const valid = await verifyBlob(signedData, data.signature, data.senderEd25519);
       if (!valid) { await deleteDoc(docRef); continue; }
 
-      // Decrypt
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -1506,7 +1558,6 @@ async function listenIncoming() {
         await deleteDoc(docRef); continue;
       }
 
-      // End signal
       if (payload.end === true) {
         await deleteDoc(docRef);
         const peerNickname = contacts[peerFp].nickname;
@@ -1526,7 +1577,6 @@ async function listenIncoming() {
         continue;
       }
 
-      // Expired chat check
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
@@ -1536,13 +1586,11 @@ async function listenIncoming() {
 
       try { await deleteDoc(docRef); } catch (e) {}
 
-      // ====== VOICE MESSAGE ======
       if (payload.type === 'voice' && payload.voice) {
         await handleIncomingVoice(payload, peerFp);
         continue;
       }
 
-      // ====== TEXT MESSAGE ======
       const isFirstMessage = !chatHistory[peerFp];
 
       if (!chatHistory[peerFp]) {
@@ -1606,11 +1654,9 @@ async function handleIncomingVoice(payload, peerFp) {
   entry.chunks.set(v.chunk, v.data);
 
   if (entry.chunks.size < entry.total) {
-    // Wait for more chunks — nothing to render yet
     return;
   }
 
-  // All chunks received — assemble
   const parts = [];
   for (let i = 0; i < entry.total; i++) {
     const c = entry.chunks.get(i);
@@ -1686,6 +1732,11 @@ function bindUI() {
 
   document.getElementById('btnSend').addEventListener('click', sendMessage);
   document.getElementById('btnVoice').addEventListener('click', toggleRecording);
+
+  // Кнопки управления записью
+  document.getElementById('recBtnDelete').addEventListener('click', () => stopRecording('delete'));
+  document.getElementById('recBtnPause').addEventListener('click', togglePauseRecord);
+  document.getElementById('recBtnSend').addEventListener('click', () => stopRecording('send'));
 
   const msgInput = document.getElementById('msgInput');
   msgInput.addEventListener('keydown', (e) => {
