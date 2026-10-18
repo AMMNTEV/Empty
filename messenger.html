@@ -166,26 +166,44 @@
     }
     .msg.me .msg-time { color: #4a6a4a; }
 
-    /* Voice message in chat */
-    .msg.voice { padding: 8px 10px 6px; min-width: 180px; max-width: 70%; }
-    .voice-row { display: flex; align-items: center; gap: 8px; }
+    /* Voice message in chat — сделано компактным */
+    .msg.voice {
+      padding: 6px 10px 4px;
+      min-width: unset;
+      max-width: 85%;
+      width: fit-content;
+    }
+    .voice-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 140px;
+    }
     .voice-play-btn {
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 1px solid #2a4a2a; background: rgba(0, 0, 0, 0.5);
-      color: #6f6; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; flex-shrink: 0; padding: 0;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid #2a4a2a;
+      background: rgba(0, 0, 0, 0.5);
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
       transition: background 0.15s, border-color 0.15s;
     }
     .voice-play-btn:hover { background: #0a1a0a; border-color: #6f6; }
-    .voice-play-btn svg { width: 14px; height: 14px; fill: currentColor; stroke: none; }
+    .voice-play-btn svg { width: 12px; height: 12px; fill: currentColor; stroke: none; }
     .msg.me .voice-play-btn { border-color: #4a6a4a; color: #b0d0b0; }
-    .voice-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; min-width: 60px; }
+    .voice-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 20px; min-width: 50px; }
     .voice-wave span { display: block; width: 2px; background: #6f6; opacity: 0.4; border-radius: 1px; transition: opacity 0.15s; }
     .msg.me .voice-wave span { background: #b0d0b0; }
     .voice-wave.playing span { opacity: 0.9; }
     .voice-duration { font-size: 10px; color: #666; flex-shrink: 0; font-variant-numeric: tabular-nums; }
     .msg.me .voice-duration { color: #6a8a6a; }
-    .voice-progress { height: 2px; background: #1a1a1a; margin-top: 6px; position: relative; overflow: hidden; }
+    .voice-progress { height: 2px; background: #1a1a1a; margin-top: 4px; position: relative; overflow: hidden; }
     .voice-progress-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #6f6; }
     .msg.me .voice-progress-bar { background: #b0d0b0; }
 
@@ -233,8 +251,17 @@
     .rec-btn.del:hover { color: #f88; }
     .rec-btn.pause { color: #fff; }
     .rec-btn.pause:hover { color: #ccc; }
-    .rec-btn.send { color: #6f6; }
-    .rec-btn.send:hover { color: #9f9; }
+    
+    /* Кнопка send в режиме записи — такая же, как обычная */
+    .rec-btn.send {
+      background: rgba(0, 0, 0, 0.5); color: #6f6; border: 1px solid #2a4a2a;
+      padding: 6px 14px; cursor: pointer; height: 32px; flex-shrink: 0;
+      align-self: flex-end; white-space: nowrap;
+      font-family: inherit; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;
+      transition: all 0.15s; width: auto; display: inline-block;
+    }
+    .rec-btn.send:hover { background: #0a1a0a; border-color: #6f6; }
+
     .rec-timer { font-size: 13px; color: #fff; flex-shrink: 0; font-variant-numeric: tabular-nums; min-width: 45px; }
     .rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 24px; }
     .rec-wave span { display: block; width: 2px; background: #6f6; border-radius: 1px; transition: opacity 0.1s; height: 2px; }
@@ -407,12 +434,7 @@
               <rect x="14" y="4" width="4" height="16"></rect>
             </svg>
           </button>
-          <button class="rec-btn send" id="recBtnSend" title="Send">
-            <svg viewBox="0 0 24 24">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
+          <button class="btn-send" id="recBtnSend" style="margin: 0;">SEND</button>
         </div>
 
         <textarea id="msgInput" rows="1" placeholder="Message..."></textarea>
