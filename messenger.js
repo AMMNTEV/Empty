@@ -72,6 +72,7 @@ let recWaveInterval = null;
 let audioContext = null;
 let audioAnalyser = null;
 let isPaused = false;
+let isCancelled = false;
 let pausedTime = 0;
 const audioCache = new Map();
 const fileCache = new Map(); // Для хранения blob-URL картинок
@@ -944,6 +945,7 @@ async function startRecording() {
   recordedChunks = [];
   recordStartTs = Date.now() - pausedTime;
   isPaused = false;
+  isCancelled = false;
   pausedTime = 0;
 
   try {
@@ -986,6 +988,7 @@ async function stopRecordingAndSend() {
 }
 
 async function finalizeRecordingAndSend(mime) {
+  
   if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
   if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
   if (audioContext) { audioContext.close(); audioContext = null; }
@@ -1347,18 +1350,23 @@ function bindUI() {
     if (e.target.id === 'modalImage') document.getElementById('modalImage').classList.remove('active');
   });
 
-  document.getElementById('recBtnDelete').addEventListener('click', async () => {
+    document.getElementById('recBtnDelete').addEventListener('click', async () => {
+    isCancelled = true; // Ставим флаг отмены
+    
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.onstop = null;
+      mediaRecorder.onstop = null; // Отвязываем обработчик отправки
       mediaRecorder.stop();
     }
     mediaRecorder = null;
     recordedChunks = [];
-    isPaused = false; pausedTime = 0;
+    isPaused = false; 
+    pausedTime = 0;
+    
     if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
     if (recWaveInterval) { clearInterval(recWaveInterval); recWaveInterval = null; }
     if (audioContext) { audioContext.close(); audioContext = null; }
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    
     document.getElementById('recordingUi').classList.remove('active');
     document.getElementById('btnVoice').style.display = '';
     document.getElementById('msgInput').style.display = '';

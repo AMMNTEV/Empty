@@ -537,6 +537,46 @@
       margin-left: auto;
       margin-right: 8px;
     }
+
+    /* Кнопка закрытия фото */
+    #btnCloseImage {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(10, 10, 10, 0.7);
+      border: 1px solid #2a4a2a;
+      color: #6f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      backdrop-filter: blur(4px);
+      transition: all 0.15s;
+      z-index: 2010;
+    }
+    #btnCloseImage:hover {
+      background: #0a1a0a;
+      border-color: #6f6;
+      transform: scale(1.05);
+    }
+    #btnCloseImage svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+    /* Адаптация под мобильные (чтобы кнопка не наезжала на вырез экрана) */
+    @media (max-width: 768px) {
+      #btnCloseImage {
+        top: calc(12px + env(safe-area-inset-top));
+        right: 12px;
+        width: 40px;
+        height: 40px;
+      }
+    }
   </style>
 </head>
 
@@ -781,9 +821,14 @@
     })();
   </script>
 
-  <div class="modal" id="modalImage" style="background: rgba(0,0,0,0.95); z-index: 2000;">
-    <img id="imageViewer" style="max-width: 95%; max-height: 95vh; object-fit: contain;">
-    <button id="btnCloseImage" class="secondary" style="position: absolute; top: 20px; right: 20px; width: auto; padding: 8px 16px; margin: 0;">CLOSE</button>
+    <div class="modal" id="modalImage" style="background: rgba(0,0,0,0.95); z-index: 2000; padding: 0;">
+    <img id="imageViewer" style="max-width: 100%; max-height: 100vh; object-fit: contain;">
+    <button id="btnCloseImage" aria-label="Close image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
   </div>
 </body>
 
