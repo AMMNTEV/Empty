@@ -1,26 +1,30 @@
 // ============================================
 // messenger.js — contacts, chats, E2EE, relay
 // Scheme: users/{hashHex}/inbox/{blobId}
+//         users/{hashHex}/ephemeral/{peerHash}  (typing)
 // Contacts and chats files are per-account
 // ============================================
 import { db } from './firebase-init.js';
 import {
   collection, addDoc, onSnapshot,
-  deleteDoc, doc, getDocs, writeBatch
+  deleteDoc, doc, getDocs, writeBatch,
+  setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 import {
   opfsWrite, opfsRead, opfsExists,
   decryptIdentity, encryptIdentity,
-  deriveSharedKey, encryptMessage, decryptMessage,
+  deriveSharedKey, encryptMessage, decryptMessage, decryptMessageText,
   hashPubkeyHex,
   signBlob, verifyBlob, uuid,
   exportIdentity,
-  listAccounts, setLastActive, identityFilePath
+  listAccounts, setLastActive, identityFilePath,
+  utf8Encode, utf8Decode, bufToBase64, base64ToBuf,
+  padBytes, unpadBytes
 } from './crypto.js';
 
 // ============================================
-// UTF-8 for QR (qrcode-generator doesn't support it by default)
+// UTF-8 for QR
 // ============================================
 if (typeof qrcode === 'function') {
   qrcode.stringToBytes = function (s) {
@@ -35,10 +39,16 @@ if (typeof qrcode === 'function') {
 
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
-
-// Proof-of-work: how many leading zero hex chars we require in SHA-256.
-// 4 → on average ~65536 attempts, ~0.1–0.5 sec on a phone.
 const POW_DIFFICULTY = 4;
+
+// Voice: Firestore document hard limit is 1 MiB.
+// Base64 overhead ~33%, plus JSON wrapper → keep payload under ~700 KB base64.
+const VOICE_CHUNK_MAX_B64 = 650_000;   // bytes of base64 per chunk
+const VOICE_MAX_DURATION_MS = 5 * 60 * 1000; // 5 min hard cap
+
+// Typing: ephemeral doc refreshed every 3s, considered active if <5s old
+const TYPING_REFRESH_MS = 3000;
+const TYPING_VISIBLE_MS = 5000;
 
 let myIdentity = null;
 let myPassword = null;
@@ -47,15 +57,31 @@ let contacts = {};
 let chatHistory = {};
 let activeChat = null;
 let unsubscribeIncoming = null;
+let unsubscribeTyping = null;
 let timerInterval = null;
 let saveChatsTimer = null;
 let scannerStream = null;
 let scannerRAF = null;
 let purgeCheckInterval = null;
+let typingStopTimer = null;
+let lastTypingSent = 0;
+let typingHideTimer = null;
 
 let CONTACTS_FILE = null;
 let CHATS_FILE = null;
 
+// voice state
+let mediaRecorder = null;
+let mediaStream = null;
+let recordedChunks = [];
+let recordStartTs = 0;
+let recordTimerInterval = null;
+
+// voice reassembly: { [msgId]: { total, chunks: Map, meta } }
+const pendingVoice = new Map();
+
+// active audio players per message id (to revoke object URLs)
+const audioCache = new Map();
 
 // ============================================
 // CUSTOM DIALOGS
@@ -131,7 +157,6 @@ async function loadContacts() {
   }
 }
 
-// Debounced chats save (for frequent updates)
 async function saveChats() {
   if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) clearTimeout(saveChatsTimer);
@@ -145,7 +170,6 @@ async function saveChats() {
   }, 500);
 }
 
-// Immediate save (for endChat — in case the user closes the tab)
 async function saveChatsNow() {
   if (!myPassword || !CHATS_FILE) return;
   if (saveChatsTimer) { clearTimeout(saveChatsTimer); saveChatsTimer = null; }
@@ -175,6 +199,114 @@ async function loadChats() {
 // ============================================
 function myInboxRef() {
   return collection(db, 'users', myHashHex, 'inbox');
+}
+
+
+// ============================================
+// TYPING (idea 9 — ephemeral, auto-expires)
+// Doc: users/{peerHash}/ephemeral/{myHash}  (sender's view)
+// We write to peer's ephemeral collection, subscribe to our own.
+// ============================================
+function myEphemeralRef() {
+  return collection(db, 'users', myHashHex, 'ephemeral');
+}
+
+async function sendTypingSignal(peerHash) {
+  const now = Date.now();
+  if (now - lastTypingSent < TYPING_REFRESH_MS) return;
+  lastTypingSent = now;
+  try {
+    const ref = doc(db, 'users', peerHash, 'ephemeral', myHashHex);
+    await setDoc(ref, {
+      typing: true,
+      ts: now
+    });
+  } catch (e) {
+    // silently ignore — typing is non-critical
+  }
+}
+
+async function clearTypingSignal(peerHash) {
+  try {
+    const ref = doc(db, 'users', peerHash, 'ephemeral', myHashHex);
+    await setDoc(ref, { typing: false, ts: Date.now() });
+  } catch (e) {}
+}
+
+function onTypingInput() {
+  if (!activeChat) return;
+  if (typingStopTimer) clearTimeout(typingStopTimer);
+  const fp = activeChat.fingerprint;
+  const peer = contacts[fp];
+  if (!peer) return;
+
+  hashPubkeyHex(peer.x25519).then(peerHash => {
+    sendTypingSignal(peerHash);
+    typingStopTimer = setTimeout(() => {
+      clearTypingSignal(peerHash);
+    }, TYPING_REFRESH_MS + 500);
+  });
+}
+
+function listenTyping() {
+  if (unsubscribeTyping) unsubscribeTyping();
+
+  const ref = myEphemeralRef();
+  unsubscribeTyping = onSnapshot(ref, (snapshot) => {
+    // Find newest typing signal from any contact
+    let newest = null;
+    snapshot.forEach(d => {
+      const data = d.data();
+      if (!data || !data.typing) return;
+      if (typeof data.ts !== 'number') return;
+      if (Date.now() - data.ts > TYPING_VISIBLE_MS) return;
+      if (!newest || data.ts > newest.ts) {
+        newest = { senderHash: d.id, ts: data.ts };
+      }
+    });
+
+    updateTypingIndicator(newest);
+  }, (err) => {
+    console.warn('[TYPING]', err);
+  });
+}
+
+async function updateTypingIndicator(newest) {
+  const el = document.getElementById('chatTyping');
+  if (!el) return;
+
+  if (typingHideTimer) { clearTimeout(typingHideTimer); typingHideTimer = null; }
+
+  if (!newest || !activeChat) {
+    el.classList.remove('visible');
+    el.textContent = '';
+    return;
+  }
+
+  // Resolve senderHash → contact fp
+  let senderFp = null;
+  for (const fp in contacts) {
+    const h = await hashPubkeyHex(contacts[fp].x25519);
+    if (h === newest.senderHash) { senderFp = fp; break; }
+  }
+
+  if (!senderFp || senderFp !== activeChat.fingerprint) {
+    el.classList.remove('visible');
+    el.textContent = '';
+    return;
+  }
+
+  const name = contacts[senderFp].nickname || 'Peer';
+  el.textContent = `${name} is typing…`;
+  el.classList.add('visible');
+
+  // Auto-hide after TYPING_VISIBLE_MS if no refresh
+  const age = Date.now() - newest.ts;
+  const remaining = Math.max(1000, TYPING_VISIBLE_MS - age);
+  typingHideTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    el.textContent = '';
+  }, remaining);
 }
 
 
@@ -312,6 +444,7 @@ async function init() {
 
   renderContacts();
   listenIncoming();
+  listenTyping();
   bindUI();
 
   if (purgeCheckInterval) clearInterval(purgeCheckInterval);
@@ -375,10 +508,8 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Превращает URL в кликабельные ссылки, экранируя HTML
 function linkifyAndEscape(text) {
   const escaped = escapeHtml(text);
-  // http(s)://..., www...., и просто домены типа example.com/path
   const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+|[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+\.?[a-z]{2,}(?:\/[^\s<]*)?)/gi;
   return escaped.replace(urlRegex, (match) => {
     let href = match;
@@ -387,7 +518,6 @@ function linkifyAndEscape(text) {
   });
 }
 
-// Форматирует timestamp в HH:MM
 function formatTime(ts) {
   const d = new Date(ts);
   const hh = String(d.getHours()).padStart(2, '0');
@@ -395,9 +525,16 @@ function formatTime(ts) {
   return `${hh}:${mm}`;
 }
 
+function formatDuration(ms) {
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 
 // ============================================
-// QR: MY CARD (render only, no modal opening)
+// QR: MY CARD
 // ============================================
 async function showMyCard() {
   const card = buildMyCard();
@@ -443,6 +580,7 @@ async function showMyCard() {
   }
 }
 
+
 // ============================================
 // QR SCANNER
 // ============================================
@@ -478,7 +616,6 @@ async function startScanner() {
             inversionAttempts: 'dontInvert'
           });
           if (code && code.data) {
-            // Decode binary data as UTF-8 (jsQR may return Latin-1)
             let text;
             if (code.binaryData && code.binaryData.length) {
               const bytes = new Uint8Array(code.binaryData);
@@ -614,7 +751,6 @@ function closeAddContactModal() {
 function updateFabVisibility() {
   const fab = document.getElementById('fabAdd');
   if (!fab) return;
-
   const chatOpen = !!activeChat;
   fab.classList.toggle('hidden', chatOpen);
 }
@@ -633,9 +769,6 @@ async function openChat(fingerprint) {
   );
 
   activeChat = { fingerprint, peerCard: card, sharedKey };
-
-  // IMPORTANT: do NOT create chatHistory on open.
-  // Chat is created only on the first sent or received message.
 
   renderContacts();
   renderChat();
@@ -661,6 +794,7 @@ function renderChat() {
     inputArea.classList.remove('active');
     messages.innerHTML = '';
     document.getElementById('chatTimer').textContent = '';
+    document.getElementById('chatTyping').classList.remove('visible');
     updateFabVisibility();
     return;
   }
@@ -684,10 +818,19 @@ function renderChat() {
 
   const msgs = history.messages || [];
 
-  messages.innerHTML = msgs.map(m => {
-    const cls = m.from === 'me' ? 'me' : 'other';
-    return `<div class="msg ${cls}">${linkifyAndEscape(m.text)}<span class="msg-time">${formatTime(m.ts)}</span></div>`;
-  }).join('');
+  // Clean up any old audio URLs
+  for (const [id, url] of audioCache.entries()) {
+    URL.revokeObjectURL(url);
+    audioCache.delete(id);
+  }
+
+  messages.innerHTML = msgs.map(m => renderMessageHtml(m)).join('');
+
+  // Wire up voice players
+  messages.querySelectorAll('.voice-play-btn').forEach(btn => {
+    const id = btn.dataset.msgId;
+    btn.addEventListener('click', () => toggleVoicePlayback(id));
+  });
 
   requestAnimationFrame(() => {
     messages.scrollTop = messages.scrollHeight;
@@ -696,20 +839,66 @@ function renderChat() {
   updateFabVisibility();
 }
 
+// Renders one message to HTML (handles text and voice)
+function renderMessageHtml(m) {
+  const cls = m.from === 'me' ? 'me' : 'other';
+  const time = `<span class="msg-time">${formatTime(m.ts)}</span>`;
+
+  if (m.type === 'voice') {
+    const duration = formatDuration(m.duration || 0);
+    const bars = renderWaveBars(m.id);
+    return `<div class="msg voice ${cls}" data-msg-id="${m.id}">
+      <div class="voice-row">
+        <button class="voice-play-btn" data-msg-id="${m.id}" aria-label="Play voice">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="voice-wave" data-msg-id="${m.id}">${bars}</div>
+        <div class="voice-duration" data-msg-id="${m.id}">${duration}</div>
+      </div>
+      <div class="voice-progress"><div class="voice-progress-bar" data-msg-id="${m.id}"></div></div>
+      ${time}
+    </div>`;
+  }
+
+  return `<div class="msg ${cls}" data-msg-id="${m.id}">${linkifyAndEscape(m.text || '')}${time}</div>`;
+}
+
+// Deterministic pseudo-waveform from message id (so it's stable across renders)
+function renderWaveBars(msgId) {
+  let h = 0;
+  for (let i = 0; i < msgId.length; i++) {
+    h = ((h << 5) - h + msgId.charCodeAt(i)) | 0;
+  }
+  const bars = [];
+  for (let i = 0; i < 24; i++) {
+    h = ((h << 5) - h + i) | 0;
+    const v = 4 + (Math.abs(h) % 16);
+    bars.push(`<span style="height:${v}px"></span>`);
+  }
+  return bars.join('');
+}
+
 // Instant append of a single message (no full re-render)
 function appendMessage(msg) {
   const messages = document.getElementById('messages');
   if (!messages) return;
 
-  // Remove "No messages" placeholder
   const placeholder = messages.querySelector('div[style*="text-align:center"]');
   if (placeholder && placeholder.textContent.includes('No messages')) {
     placeholder.remove();
   }
 
-  const cls = msg.from === 'me' ? 'me' : 'other';
-  const html = `<div class="msg ${cls}">${linkifyAndEscape(msg.text)}<span class="msg-time">${formatTime(msg.ts)}</span></div>`;
-  messages.insertAdjacentHTML('beforeend', html);
+  messages.insertAdjacentHTML('beforeend', renderMessageHtml(msg));
+
+  // Wire up the newly added voice player (if any)
+  const newEl = messages.lastElementChild;
+  if (newEl && newEl.classList.contains('voice')) {
+    const btn = newEl.querySelector('.voice-play-btn');
+    if (btn) {
+      const id = btn.dataset.msgId;
+      btn.addEventListener('click', () => toggleVoicePlayback(id));
+    }
+  }
 
   requestAnimationFrame(() => {
     messages.scrollTop = messages.scrollHeight;
@@ -762,10 +951,317 @@ function startTimer() {
 
 
 // ============================================
+// VOICE PLAYBACK
+// ============================================
+async function toggleVoicePlayback(msgId) {
+  const history = activeChat ? chatHistory[activeChat.fingerprint] : null;
+  if (!history) return;
+
+  const msg = (history.messages || []).find(m => m.id === msgId);
+  if (!msg || msg.type !== 'voice' || !msg.audioB64 || !msg.mime) return;
+
+  const messagesEl = document.getElementById('messages');
+  const btn = messagesEl.querySelector(`.voice-play-btn[data-msg-id="${msgId}"]`);
+  const wave = messagesEl.querySelector(`.voice-wave[data-msg-id="${msgId}"]`);
+  const bar = messagesEl.querySelector(`.voice-progress-bar[data-msg-id="${msgId}"]`);
+  const durEl = messagesEl.querySelector(`.voice-duration[data-msg-id="${msgId}"]`);
+
+  // Toggle stop if already playing
+  const existing = audioCache.get(msgId);
+  if (existing) {
+    const audio = existing.audio;
+    audio.pause();
+    audio.currentTime = 0;
+    URL.revokeObjectURL(existing.url);
+    audioCache.delete(msgId);
+    if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    if (wave) wave.classList.remove('playing');
+    if (bar) bar.style.width = '0%';
+    if (durEl) durEl.textContent = formatDuration(msg.duration || 0);
+    return;
+  }
+
+  // Create new audio
+  try {
+    const bytes = base64ToBuf(msg.audioB64);
+    const blob = new Blob([bytes], { type: msg.mime });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration || !isFinite(audio.duration)) return;
+      const pct = (audio.currentTime / audio.duration) * 100;
+      if (bar) bar.style.width = pct + '%';
+      if (durEl) durEl.textContent = formatDuration(audio.currentTime * 1000);
+    });
+
+    audio.addEventListener('ended', () => {
+      URL.revokeObjectURL(url);
+      audioCache.delete(msgId);
+      if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+      if (wave) wave.classList.remove('playing');
+      if (bar) bar.style.width = '0%';
+      if (durEl) durEl.textContent = formatDuration(msg.duration || 0);
+    });
+
+    audio.addEventListener('error', () => {
+      console.error('[VOICE] audio error');
+      URL.revokeObjectURL(url);
+      audioCache.delete(msgId);
+    });
+
+    audioCache.set(msgId, { audio, url });
+    await audio.play();
+    if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 6h4v12H6zM14 6h4v12h-4z"/></svg>';
+    if (wave) wave.classList.add('playing');
+  } catch (e) {
+    console.error('[VOICE] play failed:', e);
+  }
+}
+
+
+// ============================================
+// VOICE RECORDING
+// ============================================
+function pickMimeType() {
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/ogg;codecs=opus',
+    'audio/webm',
+    'audio/mp4'
+  ];
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return '';
+}
+
+async function toggleRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    await stopRecordingAndSend();
+    return;
+  }
+  await startRecording();
+}
+
+async function startRecording() {
+  if (!activeChat) return;
+
+  const mime = pickMimeType();
+  if (!mime) {
+    await showAlert('Voice recording is not supported in this browser.', 'Error');
+    return;
+  }
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+  } catch (e) {
+    await showAlert('Microphone access denied: ' + e.message, 'Error');
+    return;
+  }
+
+  recordedChunks = [];
+  recordStartTs = Date.now();
+
+  try {
+    mediaRecorder = new MediaRecorder(mediaStream, {
+      mimeType: mime,
+      audioBitsPerSecond: 16000
+    });
+  } catch (e) {
+    console.error('[VOICE] MediaRecorder failed:', e);
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+    await showAlert('Failed to start recorder: ' + e.message, 'Error');
+    return;
+  }
+
+  mediaRecorder.addEventListener('dataavailable', (ev) => {
+    if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+  });
+
+  mediaRecorder.addEventListener('stop', async () => {
+    await finalizeRecordingAndSend(mime);
+  });
+
+  mediaRecorder.start(250);
+
+  // UI: switch to recording mode
+  const btnVoice = document.getElementById('btnVoice');
+  const recBar = document.getElementById('recordingBar');
+  const msgInput = document.getElementById('msgInput');
+  btnVoice.classList.add('recording');
+  recBar.classList.add('active');
+  msgInput.style.display = 'none';
+  document.getElementById('btnSend').style.display = 'none';
+  document.getElementById('recordingTime').textContent = '0:00';
+
+  recordTimerInterval = setInterval(() => {
+    const elapsed = Date.now() - recordStartTs;
+    document.getElementById('recordingTime').textContent = formatDuration(elapsed);
+    if (elapsed >= VOICE_MAX_DURATION_MS) {
+      stopRecordingAndSend();
+    }
+  }, 200);
+}
+
+async function stopRecordingAndSend() {
+  if (!mediaRecorder) return;
+  if (mediaRecorder.state === 'recording') {
+    mediaRecorder.stop(); // triggers 'stop' event → finalizeRecordingAndSend
+  }
+}
+
+async function finalizeRecordingAndSend(mime) {
+  if (recordTimerInterval) { clearInterval(recordTimerInterval); recordTimerInterval = null; }
+
+  // Restore UI
+  const btnVoice = document.getElementById('btnVoice');
+  const recBar = document.getElementById('recordingBar');
+  const msgInput = document.getElementById('msgInput');
+  const btnSend = document.getElementById('btnSend');
+  if (btnVoice) btnVoice.classList.remove('recording');
+  if (recBar) recBar.classList.remove('active');
+  if (msgInput) msgInput.style.display = '';
+  if (btnSend) btnSend.style.display = '';
+
+  // Stop tracks
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  const mr = mediaRecorder;
+  mediaRecorder = null;
+
+  const duration = Date.now() - recordStartTs;
+  recordStartTs = 0;
+
+  if (!recordedChunks.length) return;
+  if (duration < 500) {
+    recordedChunks = [];
+    await showAlert('Recording too short.', 'Notice');
+    return;
+  }
+
+  const blob = new Blob(recordedChunks, { type: mime.split(';')[0] || 'audio/webm' });
+  recordedChunks = [];
+
+  const arrayBuf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuf);
+
+  if (!activeChat) return;
+
+  const fp = activeChat.fingerprint;
+  const msgId = uuid();
+  const ts = Date.now();
+  const mimeClean = mime.split(';')[0] || 'audio/webm';
+  const b64 = bufToBase64(bytes);
+
+  // Ensure chat exists
+  if (!chatHistory[fp]) {
+    chatHistory[fp] = {
+      peerNickname: activeChat.peerCard.nickname,
+      messages: [],
+      lastActivity: ts,
+      expiresAt: ts + CHAT_TTL_MS
+    };
+  }
+
+  const msgRecord = {
+    id: msgId,
+    from: 'me',
+    type: 'voice',
+    audioB64: b64,
+    mime: mimeClean,
+    duration,
+    ts
+  };
+
+  chatHistory[fp].messages.push(msgRecord);
+  chatHistory[fp].lastActivity = ts;
+  chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
+
+  appendMessage(msgRecord);
+  startTimer();
+
+  // Background send
+  sendVoiceBackground({ fp, msgId, b64, mime: mimeClean, duration, ts })
+    .catch(e => console.error('[VOICE SEND]', e));
+}
+
+
+// ============================================
+// SEND VOICE (with chunking if too large)
+// ============================================
+async function sendVoiceBackground({ fp, msgId, b64, mime, duration, ts }) {
+  const peerCard = contacts[fp];
+  if (!peerCard) return;
+
+  const toHashHex = await hashPubkeyHex(peerCard.x25519);
+  const sharedKey = await deriveSharedKey(
+    myIdentity.x25519.private,
+    peerCard.x25519
+  );
+
+  const totalChunks = Math.max(1, Math.ceil(b64.length / VOICE_CHUNK_MAX_B64));
+
+  for (let i = 0; i < totalChunks; i++) {
+    const chunkData = b64.slice(i * VOICE_CHUNK_MAX_B64, (i + 1) * VOICE_CHUNK_MAX_B64);
+
+    const payloadObj = {
+      id: msgId,
+      text: '',
+      ts,
+      from: myHashHex,
+      to: toHashHex,
+      type: 'voice',
+      voice: {
+        chunk: i,
+        total: totalChunks,
+        mime,
+        duration,
+        data: chunkData
+      }
+    };
+
+    const payload = JSON.stringify(payloadObj);
+    const blob = await encryptMessage(payload, sharedKey);
+
+    const signedData = JSON.stringify({
+      ciphertext: blob.ciphertext,
+      from: myHashHex,
+      to: toHashHex
+    });
+    const signature = await signBlob(signedData, myIdentity.ed25519.private);
+    const pow = await computePow(blob.ciphertext);
+
+    const inboxRef = collection(db, 'users', toHashHex, 'inbox');
+    await addDoc(inboxRef, {
+      from: myHashHex,
+      to: toHashHex,
+      iv: blob.iv,
+      ciphertext: blob.ciphertext,
+      signature: signature,
+      senderEd25519: myIdentity.ed25519.public,
+      pow,
+      ttl: Date.now() + RELAY_TTL_MS
+    });
+  }
+
+  saveChats();
+}
+
+
+// ============================================
 // CHAT END SIGNAL
 // ============================================
-// Sends { end: true } signal for a specific fp.
-// Uses contacts[fp] directly — does not depend on activeChat.
 async function sendEndSignalForFp(fp) {
   const peerCard = contacts[fp];
   if (!peerCard) return;
@@ -793,7 +1289,6 @@ async function sendEndSignalForFp(fp) {
     to: toHashHex
   });
   const signature = await signBlob(signedData, myIdentity.ed25519.private);
-
   const pow = await computePow(blob.ciphertext);
 
   const inboxRef = collection(db, 'users', toHashHex, 'inbox');
@@ -802,9 +1297,9 @@ async function sendEndSignalForFp(fp) {
     to: toHashHex,
     iv: blob.iv,
     ciphertext: blob.ciphertext,
-    signature: signature,
+    signature,
     senderEd25519: myIdentity.ed25519.public,
-    pow: pow,
+    pow,
     ttl: Date.now() + RELAY_TTL_MS
   });
 
@@ -813,17 +1308,15 @@ async function sendEndSignalForFp(fp) {
 
 
 // ============================================
-// END CHAT (UI instantly, network in background)
+// END CHAT
 // ============================================
 function endChat() {
   if (!activeChat) return;
   const fp = activeChat.fingerprint;
   const peerNickname = activeChat.peerCard.nickname;
 
-  // 1. INSTANTLY delete local history
   delete chatHistory[fp];
 
-  // 2. INSTANTLY close chat in UI
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = null;
   activeChat = null;
@@ -831,7 +1324,6 @@ function endChat() {
   renderContacts();
   renderChat();
 
-  // 3. Background signal + cleanup + save
   endChatBackground(fp, peerNickname);
 
   console.log(`[END] Chat with "${peerNickname}" ended (UI)`);
@@ -839,23 +1331,9 @@ function endChat() {
 
 async function endChatBackground(fp, peerNickname) {
   try {
-    // Signal to peer
-    try {
-      await sendEndSignalForFp(fp);
-    } catch (e) {
-      console.warn('[END] signal failed:', e);
-    }
-
-    // Clean own inbox from peer's blobs
-    try {
-      await purgeRelayForContact(fp);
-    } catch (e) {
-      console.warn('[END] purge failed:', e);
-    }
-
-    // Save immediately — if the user closes the tab, chat is already deleted
+    try { await sendEndSignalForFp(fp); } catch (e) { console.warn('[END] signal failed:', e); }
+    try { await purgeRelayForContact(fp); } catch (e) { console.warn('[END] purge failed:', e); }
     await saveChatsNow();
-
     console.log(`[END] Background cleanup of "${peerNickname}" done`);
   } catch (e) {
     console.warn('[END] background failed:', e);
@@ -872,14 +1350,13 @@ function exitChat() {
 
 
 // ============================================
-// SEND MESSAGE (UI instantly, network in background)
+// SEND TEXT MESSAGE
 // ============================================
 function sendMessage() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text || !activeChat) return;
 
-  // 1. INSTANTLY clear the input
   input.value = '';
   input.style.height = 'auto';
 
@@ -887,7 +1364,6 @@ function sendMessage() {
   const msgId = uuid();
   const ts = Date.now();
 
-  // 2. INSTANTLY create history if it doesn't exist
   if (!chatHistory[fp]) {
     chatHistory[fp] = {
       peerNickname: activeChat.peerCard.nickname,
@@ -897,16 +1373,20 @@ function sendMessage() {
     };
   }
 
-  // 3. INSTANTLY add message to history
-  chatHistory[fp].messages.push({ id: msgId, from: 'me', text, ts });
+  const msgRecord = { id: msgId, from: 'me', type: 'text', text, ts };
+  chatHistory[fp].messages.push(msgRecord);
   chatHistory[fp].lastActivity = ts;
   chatHistory[fp].expiresAt = ts + CHAT_TTL_MS;
 
-  // 4. INSTANTLY render the message (append, no full re-render)
-  appendMessage({ from: 'me', text, ts });
+  appendMessage(msgRecord);
   startTimer();
 
-  // 5. Background send
+  // Clear typing signal immediately on send
+  const peer = contacts[fp];
+  if (peer) {
+    hashPubkeyHex(peer.x25519).then(h => clearTypingSignal(h)).catch(() => {});
+  }
+
   sendMessageBackground({ fp, msgId, text, ts });
 }
 
@@ -926,7 +1406,8 @@ async function sendMessageBackground({ fp, msgId, text, ts }) {
       text,
       ts,
       from: myHashHex,
-      to: toHashHex
+      to: toHashHex,
+      type: 'text'
     });
 
     const blob = await encryptMessage(payload, sharedKey);
@@ -937,7 +1418,6 @@ async function sendMessageBackground({ fp, msgId, text, ts }) {
       to: toHashHex
     });
     const signature = await signBlob(signedData, myIdentity.ed25519.private);
-
     const pow = await computePow(blob.ciphertext);
 
     const inboxRef = collection(db, 'users', toHashHex, 'inbox');
@@ -946,13 +1426,12 @@ async function sendMessageBackground({ fp, msgId, text, ts }) {
       to: toHashHex,
       iv: blob.iv,
       ciphertext: blob.ciphertext,
-      signature: signature,
+      signature,
       senderEd25519: myIdentity.ed25519.public,
-      pow: pow,
+      pow,
       ttl: Date.now() + RELAY_TTL_MS
     });
 
-    // Save to OPFS in background
     saveChats();
   } catch (e) {
     console.error('[SEND]', e);
@@ -974,7 +1453,7 @@ async function listenIncoming() {
       const docId = change.doc.id;
       const docRef = doc(db, 'users', myHashHex, 'inbox', docId);
 
-      // 1. Structural validation
+      // Structural validation
       if (
         typeof data.from !== 'string' ||
         typeof data.to !== 'string' ||
@@ -984,52 +1463,31 @@ async function listenIncoming() {
         typeof data.senderEd25519 !== 'string' ||
         typeof data.pow !== 'number' ||
         typeof data.ttl !== 'number'
-      ) {
-        await deleteDoc(docRef); continue;
-      }
+      ) { await deleteDoc(docRef); continue; }
 
-      // 2. "to" must be us
-      if (data.to !== myHashHex) {
-        await deleteDoc(docRef); continue;
-      }
+      if (data.to !== myHashHex) { await deleteDoc(docRef); continue; }
+      if (data.ttl < Date.now()) { await deleteDoc(docRef); continue; }
+      if (!await verifyPow(data.ciphertext, data.pow)) { await deleteDoc(docRef); continue; }
 
-      // 3. TTL
-      if (data.ttl < Date.now()) {
-        await deleteDoc(docRef); continue;
-      }
-
-      // 4. PoW
-      if (!await verifyPow(data.ciphertext, data.pow)) {
-        await deleteDoc(docRef); continue;
-      }
-
-      // 5. Find contact by "from"
+      // Find contact
       let peerFp = null;
       for (const fp in contacts) {
         const h = await hashPubkeyHex(contacts[fp].x25519);
         if (h === data.from) { peerFp = fp; break; }
       }
-      if (!peerFp) {
-        await deleteDoc(docRef); continue;
-      }
+      if (!peerFp) { await deleteDoc(docRef); continue; }
 
-      // 6. senderEd25519 must match the contact
-      if (data.senderEd25519 !== contacts[peerFp].ed25519) {
-        await deleteDoc(docRef); continue;
-      }
+      if (data.senderEd25519 !== contacts[peerFp].ed25519) { await deleteDoc(docRef); continue; }
 
-      // 7. Signature over {ciphertext, from, to}
       const signedData = JSON.stringify({
         ciphertext: data.ciphertext,
         from: data.from,
         to: data.to
       });
       const valid = await verifyBlob(signedData, data.signature, data.senderEd25519);
-      if (!valid) {
-        await deleteDoc(docRef); continue;
-      }
+      if (!valid) { await deleteDoc(docRef); continue; }
 
-      // 8. Decrypt
+      // Decrypt
       const sharedKey = await deriveSharedKey(
         myIdentity.x25519.private,
         contacts[peerFp].x25519
@@ -1037,31 +1495,25 @@ async function listenIncoming() {
 
       let payload;
       try {
-        const plain = await decryptMessage(
+        const bytes = await decryptMessage(
           { iv: data.iv, ciphertext: data.ciphertext },
           sharedKey
         );
-        payload = JSON.parse(plain);
-      } catch (e) {
-        await deleteDoc(docRef); continue;
-      }
+        payload = JSON.parse(utf8Decode(bytes));
+      } catch (e) { await deleteDoc(docRef); continue; }
 
-      // 9. payload.from / payload.to must match
       if (payload.from !== data.from || payload.to !== myHashHex) {
         await deleteDoc(docRef); continue;
       }
 
-      // 10. Chat end signal
+      // End signal
       if (payload.end === true) {
         await deleteDoc(docRef);
-
         const peerNickname = contacts[peerFp].nickname;
-
         if (chatHistory[peerFp]) {
           delete chatHistory[peerFp];
           saveChatsNow();
         }
-
         if (activeChat && activeChat.fingerprint === peerFp) {
           if (timerInterval) clearInterval(timerInterval);
           timerInterval = null;
@@ -1069,25 +1521,28 @@ async function listenIncoming() {
           renderChat();
         }
         renderContacts();
-
         purgeRelayForContact(peerFp).catch(e => console.warn('[END] purge:', e));
-
         console.log(`[END] Peer "${peerNickname}" ended the chat`);
         continue;
       }
 
-      // 11. Check for expired chat
+      // Expired chat check
       const existingChat = chatHistory[peerFp];
       const chatExpired = existingChat && existingChat.expiresAt && existingChat.expiresAt < Date.now();
       const isActiveWithPeer = activeChat && activeChat.fingerprint === peerFp;
-
       if (chatExpired && !isActiveWithPeer) {
         await deleteDoc(docRef); continue;
       }
 
       try { await deleteDoc(docRef); } catch (e) {}
 
-      // 12. Instant render of incoming
+      // ====== VOICE MESSAGE ======
+      if (payload.type === 'voice' && payload.voice) {
+        await handleIncomingVoice(payload, peerFp);
+        continue;
+      }
+
+      // ====== TEXT MESSAGE ======
       const isFirstMessage = !chatHistory[peerFp];
 
       if (!chatHistory[peerFp]) {
@@ -1098,12 +1553,15 @@ async function listenIncoming() {
           expiresAt: payload.ts + CHAT_TTL_MS
         };
       }
-      chatHistory[peerFp].messages.push({
+
+      const textMsg = {
         id: payload.id,
         from: 'peer',
-        text: payload.text,
+        type: 'text',
+        text: payload.text || '',
         ts: payload.ts
-      });
+      };
+      chatHistory[peerFp].messages.push(textMsg);
       chatHistory[peerFp].lastActivity = payload.ts;
       chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;
 
@@ -1113,7 +1571,7 @@ async function listenIncoming() {
         if (isFirstMessage) {
           renderChat();
         } else {
-          appendMessage({ from: 'peer', text: payload.text, ts: payload.ts });
+          appendMessage(textMsg);
         }
         startTimer();
       } else {
@@ -1123,6 +1581,82 @@ async function listenIncoming() {
   }, (error) => {
     console.error('[LISTEN]', error);
   });
+}
+
+
+// ============================================
+// INCOMING VOICE (chunk reassembly)
+// ============================================
+async function handleIncomingVoice(payload, peerFp) {
+  const v = payload.voice;
+  if (
+    typeof v.chunk !== 'number' ||
+    typeof v.total !== 'number' ||
+    typeof v.data !== 'string' ||
+    typeof v.mime !== 'string'
+  ) return;
+
+  const msgId = payload.id;
+  let entry = pendingVoice.get(msgId);
+  if (!entry) {
+    entry = { total: v.total, chunks: new Map(), meta: { ts: payload.ts, mime: v.mime, duration: v.duration } };
+    pendingVoice.set(msgId, entry);
+  }
+
+  entry.chunks.set(v.chunk, v.data);
+
+  if (entry.chunks.size < entry.total) {
+    // Wait for more chunks — nothing to render yet
+    return;
+  }
+
+  // All chunks received — assemble
+  const parts = [];
+  for (let i = 0; i < entry.total; i++) {
+    const c = entry.chunks.get(i);
+    if (!c) return;
+    parts.push(c);
+  }
+  const fullB64 = parts.join('');
+  pendingVoice.delete(msgId);
+
+  const isFirstMessage = !chatHistory[peerFp];
+
+  if (!chatHistory[peerFp]) {
+    chatHistory[peerFp] = {
+      peerNickname: contacts[peerFp].nickname,
+      messages: [],
+      lastActivity: payload.ts,
+      expiresAt: payload.ts + CHAT_TTL_MS
+    };
+  }
+
+  const voiceMsg = {
+    id: msgId,
+    from: 'peer',
+    type: 'voice',
+    audioB64: fullB64,
+    mime: entry.meta.mime,
+    duration: entry.meta.duration || 0,
+    ts: payload.ts
+  };
+
+  chatHistory[peerFp].messages.push(voiceMsg);
+  chatHistory[peerFp].lastActivity = payload.ts;
+  chatHistory[peerFp].expiresAt = payload.ts + CHAT_TTL_MS;
+
+  saveChats();
+
+  if (activeChat && activeChat.fingerprint === peerFp) {
+    if (isFirstMessage) {
+      renderChat();
+    } else {
+      appendMessage(voiceMsg);
+    }
+    startTimer();
+  } else {
+    renderContacts();
+  }
 }
 
 
@@ -1151,6 +1685,7 @@ function bindUI() {
   document.getElementById('btnCloseAddContact').addEventListener('click', closeAddContactModal);
 
   document.getElementById('btnSend').addEventListener('click', sendMessage);
+  document.getElementById('btnVoice').addEventListener('click', toggleRecording);
 
   const msgInput = document.getElementById('msgInput');
   msgInput.addEventListener('keydown', (e) => {
@@ -1162,6 +1697,7 @@ function bindUI() {
   msgInput.addEventListener('input', () => {
     msgInput.style.height = 'auto';
     msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+    onTypingInput();
   });
 
   document.getElementById('btnMobileBack').addEventListener('click', exitChat);
