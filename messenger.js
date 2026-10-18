@@ -37,7 +37,7 @@ if (typeof qrcode === 'function') {
 
 const RELAY_TTL_MS = 25 * 60 * 60 * 1000;
 const CHAT_TTL_MS = 24 * 60 * 60 * 1000;
-const POW_DIFFICULTY = 4;
+const POW_DIFFICULTY = 3;
 const TYPING_REFRESH_MS = 1000; // обновляем не чаще раза в секунду
 const TYPING_VISIBLE_MS = 4000; 
 const TYPING_STOP_DELAY = 3000; 
@@ -271,16 +271,17 @@ async function updateTypingIndicator(newest) {
 // ============================================
 async function computePow(ciphertextB64) {
   let nonce = 0;
+  const prefix = '0'.repeat(POW_DIFFICULTY);
   while (true) {
     const buf = new TextEncoder().encode(ciphertextB64 + ':' + nonce);
     const hash = await crypto.subtle.digest('SHA-256', buf);
     const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-    if (hex.startsWith('0'.repeat(POW_DIFFICULTY))) return nonce;
+    if (hex.startsWith(prefix)) return nonce;
     nonce++;
-    if (nonce % 1000 === 0) {
-      await new Promise(r => setTimeout(r, 0)); // Отдаем поток
+    if (nonce % 5000 === 0) {
+      await new Promise(r => setTimeout(r, 0));
     }
-    if (nonce > 10_000_000) throw new Error('PoW did not converge');
+    if (nonce > 5_000_000) throw new Error('PoW did not converge');
   }
 }
 
@@ -1532,12 +1533,11 @@ async function compressImage(file) {
       const img = await createImageBitmap(file);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
+
       let width = img.width;
       let height = img.height;
-      let quality = 0.8;
-      const MAX_DIMENSION = 1600; // Уменьшили с 1920 до 1600 для скорости
-      const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 МБ — максимум для фото
+      const MAX_DIMENSION = 1280; // 1280px достаточно для превью
+      const MAX_SIZE_BYTES = 1.5 * 1024 * 1024; // 1.5 МБ
 
       if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
         if (width > height) {
@@ -1549,32 +1549,28 @@ async function compressImage(file) {
         }
       }
 
-      const tryCompress = () => {
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
+      // Сразу рисуем и жмем в JPEG с качеством 0.8
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('Canvas failed')); return; }
         
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            reject(new Error('Canvas toBlob failed'));
-            return;
-          }
-          // Если фото больше 2 МБ — уменьшаем качество или разрешение
-          if (blob.size > MAX_SIZE_BYTES && quality > 0.3) {
-            quality -= 0.15;
-            tryCompress();
-          } else if (blob.size > MAX_SIZE_BYTES && width > 800) {
-            width = Math.floor(width * 0.8);
-            height = Math.floor(height * 0.8);
-            quality = 0.7;
-            tryCompress();
-          } else {
-            resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
-          }
-        }, 'image/jpeg', quality);
-      };
-      
-      tryCompress();
+        // Если получилось больше 1.5 МБ, жмем еще сильнее
+        if (blob.size > MAX_SIZE_BYTES) {
+          canvas.toBlob((blob2) => {
+            if (blob2) {
+              resolve(new File([blob2], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+            } else {
+              resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+            }
+          }, 'image/jpeg', 0.6);
+        } else {
+          resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+        }
+      }, 'image/jpeg', 0.8);
+
     } catch (err) {
       reject(err);
     }
@@ -1583,8 +1579,20 @@ async function compressImage(file) {
 
 async function handleFileSelect(e) {
   const file = e.target.files[0];
-  e.target.value = ''; 
+  e.target.value = '';
   if (!file || !activeChat) return;
+
+  // Если это изображение — сжимаем ВСЕГДА (чтобы не зависало и не тормозило)
+  if (file.type.startsWith('image/') || /\.(png|jpe?g|heic|heif|webp|gif|bmp)$/i.test(file.name)) {
+    try {
+      const compressed = await compressImage(file);
+      await sendFile(compressed);
+      return;
+    } catch (err) {
+      console.warn('Compression failed, sending original', err);
+      // Если сжатие упало — проверим размер и шлем как есть
+    }
+  }
 
   if (file.size > 40 * 1024 * 1024) {
     await showAlert('File is too large. Maximum size is 40 MB.', 'Error');
@@ -1658,7 +1666,7 @@ async function sendFileBackground({ fp, msgId, file, mime, name, isImage, ts }) 
   const toHashHex = await hashPubkeyHex(peerCard.x25519);
   const sharedKey = await deriveSharedKey(myIdentity.x25519.private, peerCard.x25519);
 
-  const CHUNK_SIZE = 400 * 1024; // 400 КБ бинарных данных (base64 будет ~533 КБ)
+  const CHUNK_SIZE = 800 * 1024;
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
   const reader = file.stream().getReader();
